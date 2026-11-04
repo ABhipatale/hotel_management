@@ -1,0 +1,48 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Company extends Model
+{
+    use SoftDeletes;
+
+    protected $guarded = ['id', 'uid', 'status'];
+    protected $casts = ['settings' => 'array'];
+    protected $appends = ['logo_url'];
+
+    public function getLogoUrlAttribute(): ?string
+    {
+        return $this->logo_path ? asset('storage/'.$this->logo_path) : null;
+    }
+
+    public function subscriptions()
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    public function currentSubscription()
+    {
+        return $this->hasOne(Subscription::class)->latestOfMany('ends_at');
+    }
+
+    public function users()
+    {
+        return $this->hasMany(User::class);
+    }
+
+    /** Public branding payload — safe to expose to unauthenticated QR menu visitors. */
+    public function branding(): array
+    {
+        return [
+            'name' => $this->name,
+            'slug' => $this->slug,
+            'logo_url' => $this->logo_url,
+            'brand_color' => $this->brand_color,
+            'phone' => $this->phone,
+            'address' => $this->address,
+        ];
+    }
+}
