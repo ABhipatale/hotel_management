@@ -118,19 +118,19 @@ export function Modal({ open, onClose, title, children, wide }) {
   }, [open, onClose])
   if (!open) return null
   return (
-    <div className="animate-fade fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={onClose}>
+    <div className="animate-fade fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-6" onMouseDown={onClose}>
       <div
         onMouseDown={(e) => e.stopPropagation()}
-        className={cx('animate-sheet safe-bottom max-h-[92vh] w-full overflow-y-auto rounded-t-[2rem] bg-white px-5 pb-6 pt-3 shadow-float sm:animate-pop sm:rounded-3xl sm:pt-5', wide ? 'sm:max-w-2xl' : 'sm:max-w-md')}
+        className={cx('animate-sheet mb-[max(env(safe-area-inset-bottom),0px)] max-h-[88vh] w-full overflow-y-auto rounded-[2rem] bg-white px-6 pb-7 pt-3 shadow-float sm:animate-pop sm:pt-6', wide ? 'sm:max-w-2xl' : 'sm:max-w-md')}
       >
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden" />
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h3 className="text-lg font-bold tracking-tight">{title}</h3>
+        <div className="mb-5 flex items-center justify-between gap-3 border-b border-line pb-4">
+          <h3 className="text-xl font-extrabold tracking-tight">{title}</h3>
           <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200" aria-label="Close">
             <X className="h-5 w-5" />
           </button>
         </div>
-        {children}
+        <div className="space-y-1 [&_form]:space-y-4">{children}</div>
       </div>
     </div>
   )

@@ -121,10 +121,15 @@ export default function Tables() {
 
       <Modal open={!!qr} onClose={() => setQr(null)} title={`QR · Table ${qr?.table.number}`}>
         {qr && (
-          <div className="space-y-3 text-center">
-            <div className="mx-auto w-64 rounded-3xl border border-line bg-white p-3 shadow-card" dangerouslySetInnerHTML={{ __html: qr.svg }} />
-            <p className="break-all text-xs text-muted">{qr.url}</p>
-            <div className="flex gap-2"><Button variant="secondary" className="flex-1" onClick={downloadQr}><Download className="h-4 w-4" /> Download</Button><Button variant="secondary" className="flex-1" onClick={() => regen(qr.table)}><RefreshCw className="h-4 w-4" /> Regenerate</Button></div>
+          <div className="space-y-5 text-center">
+            <div className="mx-auto w-full max-w-[16rem] rounded-3xl bg-gradient-to-br from-brand-soft to-white p-4 ring-1 ring-line">
+              <div className="rounded-2xl bg-white p-3 shadow-card [&>svg]:block [&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: qr.svg }} />
+            </div>
+            <div>
+              <div className="text-sm font-semibold">Scan to order</div>
+              <p className="mt-1 break-all rounded-xl bg-slate-50 px-3 py-2 text-[11px] text-muted">{qr.url}</p>
+            </div>
+            <div className="flex gap-3"><Button variant="secondary" className="flex-1" onClick={downloadQr}><Download className="h-4 w-4" /> Download</Button><Button variant="secondary" className="flex-1" onClick={() => regen(qr.table)}><RefreshCw className="h-4 w-4" /> Regenerate</Button></div>
           </div>
         )}
       </Modal>
