@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\PrinterSetting;
 use App\Models\SupportTicket;
+use App\Services\BrandingService;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -34,15 +35,20 @@ class SettingsController extends Controller
             'bill_header' => 'nullable|string|max:300',
             'bill_footer' => 'nullable|string|max:300',
             'logo' => 'nullable|image|max:2048',
+            'icon' => 'nullable|image|mimes:png,jpg,jpeg,webp|max:2048|dimensions:min_width=192,min_height=192',
+            'remove_icon' => 'sometimes|boolean',
         ]);
+        $branding = app(BrandingService::class);
         if ($r->hasFile('logo')) {
-            if ($c->logo_path) {
-                Storage::disk('public')->delete($c->logo_path);
-            }
-            $d['logo_path'] = $r->file('logo')->store('logos', 'public');
+            $branding->storeLogo($c, $r->file('logo'));
         }
-        unset($d['logo']);
-        $c->update($d);
+        if ($r->hasFile('icon')) {
+            $branding->storeIcon($c, $r->file('icon'));
+        } elseif ($r->boolean('remove_icon')) {
+            $branding->deleteIcon($c);
+        }
+        unset($d['logo'], $d['icon'], $d['remove_icon']);
+        $c->fill($d)->save();
         AuditLog::record('company.update', 'company', $c->id);
 
         return $c->refresh();

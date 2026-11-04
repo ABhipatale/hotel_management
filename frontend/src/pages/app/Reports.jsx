@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { useApi } from '../../lib/useApi'
 import { money, today } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
-import { Button, Card, Input, PageHeader, Select, Spinner, Table } from '../../components/ui'
+import { Button, Card, Chips, Input, PageHeader, Select, Spinner, Table } from '../../components/ui'
 
 const REPORTS = [
   ['sales', 'Sales'], ['tables', 'Table-wise'], ['waiters', 'Waiter-wise'], ['items', 'Item-wise'], ['payments', 'Payment-wise'],
@@ -29,15 +29,14 @@ function toCsv(rows, cols) {
 }
 
 export default function Reports() {
-  const { hasFeature, can } = useAuth()
+  const { hasFeature, can, branches, multiBranch } = useAuth()
   const [type, setType] = useState('sales')
   const [group, setGroup] = useState('day')
   const [branch, setBranch] = useState('all')
   const [range, setRange] = useState({ from: today().slice(0, 8) + '01', to: today() })
-  const { data: branches } = useApi('/branches')
   const { data, loading, error } = useApi(`/reports/${type}`, { params: { ...range, group, branch_id: branch } })
 
-  const available = REPORTS.filter(([, , f]) => !f || hasFeature(f))
+  const available = REPORTS.filter(([k, , f]) => (!f || hasFeature(f)) && (k !== 'branches' || multiBranch))
   const rows = type === 'sales' ? data?.rows : data
   const cols = COLS[type]
 
@@ -51,14 +50,12 @@ export default function Reports() {
   return (
     <>
       <PageHeader title="Reports" actions={cols && rows?.length ? <Button variant="secondary" onClick={csv}><Download className="h-4 w-4" /> CSV</Button> : null} />
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-        {available.map(([k, l]) => <button key={k} onClick={() => setType(k)} className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-medium ${type === k ? 'border-brand bg-brand text-white' : 'border-line bg-white text-muted'}`}>{l}</button>)}
-      </div>
+      <Chips items={available.map(([k, l]) => [k, l])} value={type} onChange={setType} />
       <div className="mb-4 grid grid-cols-2 gap-3 sm:flex">
         <Input type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
         <Input type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
         {type === 'sales' && <Select value={group} onChange={(e) => setGroup(e.target.value)}><option value="day">Daily</option><option value="month">Monthly</option><option value="year">Yearly</option></Select>}
-        {can('branches.manage') && branches?.length > 1 && type !== 'branches' && <Select value={branch} onChange={(e) => setBranch(e.target.value)}><option value="all">All branches</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select>}
+        {can('branches.manage') && multiBranch && type !== 'branches' && <Select value={branch} onChange={(e) => setBranch(e.target.value)}><option value="all">All branches</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select>}
       </div>
 
       {error ? <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{error}</p> : loading ? <Spinner /> : type === 'pnl' ? (

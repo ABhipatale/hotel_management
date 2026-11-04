@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
+import { ConfirmProvider } from './context/ConfirmContext'
 import Layout from './components/Layout'
 import { Spinner } from './components/ui'
 import Login from './pages/auth/Login'
@@ -53,6 +54,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ToastProvider>
+        <ConfirmProvider>
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -87,6 +89,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthProvider>
+        </ConfirmProvider>
       </ToastProvider>
     </BrowserRouter>
   )

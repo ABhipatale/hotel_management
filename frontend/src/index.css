@@ -46,3 +46,32 @@ body {
   #receipt { position: absolute; left: 0; top: 0; box-shadow: none !important; }
   @page { margin: 0; }
 }
+
+/* Mobile safety nets (iOS Safari + Android Chrome) */
+body { overflow-x: clip; }
+input[type="date"], input[type="time"], input[type="color"], select {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+}
+input[type="date"] { display: block; text-align: left; }
+input, select, textarea, button { font-family: inherit; }
+img { max-width: 100%; }
+
+/* iOS Safari zooms the page when focusing inputs below 16px — keep every field at 16px on phones. */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Custom dropdown arrow (native one is removed by appearance:none above) */
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  background-size: 1.1rem;
+  padding-right: 2.5rem !important;
+}

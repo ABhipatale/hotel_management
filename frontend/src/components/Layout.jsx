@@ -5,7 +5,7 @@ import {
   Settings, ShoppingBag, Store, Users, UtensilsCrossed, Wallet,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { api, branchStore } from '../lib/api'
+import { branchStore } from '../lib/api'
 import { Modal } from './ui'
 
 const ADMIN_NAV = [
@@ -40,20 +40,16 @@ function Logo({ company, isSuperAdmin, size = 'h-10 w-10' }) {
 }
 
 export default function Layout() {
-  const { user, company, can, isSuperAdmin, logout, subscription_expired, subscription } = useAuth()
+  const { user, company, can, isSuperAdmin, logout, subscription_expired, subscription, branches, multiBranch } = useAuth()
   const [more, setMore] = useState(false)
-  const [branches, setBranches] = useState([])
   const [branch, setBranch] = useState(branchStore.get() || '')
   const nav = useNavigate()
   const loc = useLocation()
 
   useEffect(() => { setMore(false) }, [loc.pathname])
-  useEffect(() => {
-    if (isSuperAdmin) return
-    api.get('/branches').then((r) => setBranches(r.data)).catch(() => {})
-  }, [isSuperAdmin])
 
-  const canSwitch = !isSuperAdmin && !user?.branch_id && branches.length > 1
+  // Branch switcher only for owners/unlocked staff of a company that really has several branches.
+  const canSwitch = !isSuperAdmin && !user?.branch_id && multiBranch
   const changeBranch = (v) => { setBranch(v); branchStore.set(v); window.location.reload() }
   const doLogout = async () => { await logout(); nav('/login') }
 
@@ -123,7 +119,7 @@ export default function Layout() {
           <div className="bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800">Free trial · {Math.max(daysLeft, 0)} day(s) left{can('subscription.manage') && <> · <NavLink to="/app/subscription" className="font-bold underline">Choose plan</NavLink></>}</div>
         )}
 
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 pb-32 lg:px-8 lg:pb-8"><Outlet /></main>
+        <main className="mx-auto w-full max-w-7xl min-w-0 flex-1 px-4 py-5 pb-32 lg:px-8 lg:pb-8"><Outlet /></main>
       </div>
 
       {/* Mobile bottom tab bar */}

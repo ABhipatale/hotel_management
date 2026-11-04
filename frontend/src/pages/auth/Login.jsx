@@ -29,7 +29,7 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-brand-gradient lg:flex-row">
+    <div className="flex min-h-dvh flex-col bg-brand-gradient lg:flex-row">
       {/* Hero */}
       <div className="safe-top relative flex flex-1 flex-col justify-end overflow-hidden px-6 pb-10 pt-14 text-white lg:justify-center lg:px-16">
         <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10" />
@@ -56,7 +56,7 @@ export default function Login() {
           <Input label="Email" type="email" autoComplete="username" inputMode="email" required placeholder="you@restaurant.com" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
           <Input label="Password" type="password" autoComplete="current-password" required placeholder="••••••••" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
           <Button type="submit" size="lg" loading={busy} className="w-full">Sign in <ArrowRight className="h-5 w-5" /></Button>
-          <p className="pt-1 text-center text-sm text-muted">New restaurant or hotel? <Link to="/register" className="font-bold text-brand">Start free trial</Link></p>
+          <p className="pt-1 text-center text-sm text-muted">New restaurant or hotel? <Link to="/register" className="inline-block px-1 py-2 font-bold text-brand">Start free trial</Link></p>
         </form>
       </div>
     </div>

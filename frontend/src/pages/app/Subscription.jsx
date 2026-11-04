@@ -4,6 +4,7 @@ import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import { useConfirm } from '../../context/ConfirmContext'
 import { dateOnly, money } from '../../lib/format'
 import { Badge, Button, Card, PageHeader, Spinner, statusTone, Table } from '../../components/ui'
 
@@ -12,6 +13,7 @@ const FEATURE_LABEL = { qr: 'QR ordering', thermal: 'Thermal printing', reports:
 export default function Subscription() {
   const { refresh } = useAuth()
   const toast = useToast()
+  const ask = useConfirm()
   const { data: cur, loading, reload } = useApi('/subscription')
   const { data: plans } = useApi('/subscription/plans')
   const { data: pays, reload: reloadPays } = useApi('/subscription/payments')
@@ -19,7 +21,7 @@ export default function Subscription() {
   const [busy, setBusy] = useState(null)
 
   const choose = async (p) => {
-    if (!confirm(`Switch to ${p.name} (${cycle})?`)) return
+    if (!(await ask({ title: `Switch to ${p.name}?`, message: `You will be billed ${cycle}. Your plan changes immediately.`, confirmText: 'Switch plan', tone: 'primary' }))) return
     setBusy(p.id)
     try { await api.post('/subscription', { plan_id: p.id, billing_cycle: cycle }); toast.success('Subscription updated'); await refresh(); reload(); reloadPays() } catch (e) { toast.error(e) } finally { setBusy(null) }
   }

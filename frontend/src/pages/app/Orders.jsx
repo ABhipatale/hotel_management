@@ -6,6 +6,7 @@ import { useApi } from '../../lib/useApi'
 import { ago, money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import { useConfirm } from '../../context/ConfirmContext'
 import { Badge, Button, Card, Chips, Empty, PageHeader, Spinner, statusTone } from '../../components/ui'
 
 const TABS = [['open', 'Open'], ['all', 'All today']]
@@ -13,6 +14,7 @@ const TABS = [['open', 'Open'], ['all', 'All today']]
 export default function Orders() {
   const { can } = useAuth()
   const toast = useToast()
+  const ask = useConfirm()
   const [tab, setTab] = useState('open')
   const { data, loading, reload } = useApi('/orders', { params: tab === 'open' ? { open: 1 } : { date: new Date().toISOString().slice(0, 10) }, poll: 8000 })
 
@@ -49,7 +51,7 @@ export default function Orders() {
                 {['accepted', 'preparing', 'ready'].includes(o.status) && <Button size="sm" variant="soft" onClick={() => setStatus(o, 'served')}>Mark served</Button>}
                 {['served', 'ready', 'preparing', 'accepted'].includes(o.status) && !o.bill && <Button size="sm" onClick={() => bill(o)}>Generate bill</Button>}
                 {o.bill && <Badge tone="blue">Bill {o.bill.bill_no} · {money(o.bill.grand_total)}</Badge>}
-                {['pending', 'accepted', 'preparing'].includes(o.status) && <Button size="sm" variant="ghost" onClick={() => confirm('Cancel this order?') && setStatus(o, 'cancelled')}>Cancel</Button>}
+                {['pending', 'accepted', 'preparing'].includes(o.status) && <Button size="sm" variant="ghost" onClick={async () => (await ask({ title: 'Cancel this order?', message: 'The order will be cancelled and removed from the open list.', confirmText: 'Cancel order', cancelText: 'Keep order' })) && setStatus(o, 'cancelled')}>Cancel</Button>}
               </div>
             </Card>
           ))}

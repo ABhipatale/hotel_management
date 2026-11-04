@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { Plus, Search } from 'lucide-react'
-import { api } from '../../lib/api'
+import { api, toFormData } from '../../lib/api'
+import ImagePicker from '../../components/ImagePicker'
 import { useApi } from '../../lib/useApi'
 import { dateOnly } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
+import { useConfirm } from '../../context/ConfirmContext'
 import { Badge, Button, Input, Modal, PageHeader, Select, Spinner, statusTone, Table } from '../../components/ui'
 
 export default function Companies() {
   const toast = useToast()
+  const ask = useConfirm()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const { data, loading, reload } = useApi('/admin/companies', { params: { search, status } })
@@ -37,7 +40,12 @@ export default function Companies() {
         <Table
           rows={data?.data}
           columns={[
-            { header: 'Company', render: (c) => <div><div className="font-medium">{c.name}</div><div className="text-xs text-muted">{c.uid} · {c.email}</div></div> },
+            { header: 'Company', render: (c) => (
+              <div className="flex items-center gap-3">
+                {c.icon_url || c.logo_url ? <img src={c.icon_url || c.logo_url} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover" /> : <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-soft font-bold text-brand">{c.name[0]}</div>}
+                <div><div className="font-medium">{c.name}</div><div className="text-xs text-muted">{c.uid} · {c.email}</div></div>
+              </div>
+            ) },
             { header: 'Plan', render: (c) => c.current_subscription?.plan?.name || '—' },
             { header: 'Status', render: (c) => <Badge tone={c.deleted_at ? 'red' : statusTone(c.status)}>{c.deleted_at ? 'deleted' : c.status}</Badge> },
             { header: 'Expires', render: (c) => dateOnly(c.current_subscription?.ends_at) },
@@ -56,13 +64,43 @@ export default function Companies() {
               {detail.status !== 'active' && <Button variant="soft" onClick={() => act(() => api.patch(`/admin/companies/${detail.id}/status`, { status: 'active' }), 'Activated')}>Activate</Button>}
               {detail.status !== 'inactive' && <Button variant="secondary" onClick={() => act(() => api.patch(`/admin/companies/${detail.id}/status`, { status: 'inactive' }), 'Deactivated')}>Deactivate</Button>}
               {detail.status !== 'suspended' && <Button variant="secondary" onClick={() => act(() => api.patch(`/admin/companies/${detail.id}/status`, { status: 'suspended' }), 'Suspended')}>Suspend</Button>}
-              <Button variant="danger" onClick={() => confirm(`Delete ${detail.name}? Data is retained per the retention policy.`) && act(() => api.delete(`/admin/companies/${detail.id}`), 'Deleted')}>Delete</Button>
+              <Button variant="danger" onClick={async () => (await ask({ title: 'Delete company?', message: `${detail.name} will be removed from the platform. Its data is kept according to the retention policy.`, confirmText: 'Delete company' })) && act(() => api.delete(`/admin/companies/${detail.id}`), 'Deleted')}>Delete</Button>
             </div>
+            <BrandingEditor company={detail} onDone={(c) => { setDetail(c); reload() }} />
             <AssignPlan company={detail} plans={plans} onDone={() => { toast.success('Subscription updated'); reload(); setDetail(null) }} />
           </div>
         )}
       </Modal>
     </>
+  )
+}
+
+/** Super admin: set a company's logo and app icon on its behalf. */
+function BrandingEditor({ company, onDone }) {
+  const toast = useToast()
+  const [logo, setLogo] = useState(null)
+  const [icon, setIcon] = useState(null)
+  const [removeIcon, setRemoveIcon] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const dirty = logo || icon || removeIcon
+
+  const save = async () => {
+    setBusy(true)
+    try {
+      const { data } = await api.post(`/admin/companies/${company.id}/branding`, toFormData({ logo, icon, remove_icon: removeIcon || undefined }))
+      toast.success('Branding updated')
+      setLogo(null); setIcon(null); setRemoveIcon(false)
+      onDone({ ...company, ...data })
+    } catch (e) { toast.error(e) } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="space-y-5 rounded-2xl bg-slate-50 p-4">
+      <div className="text-sm font-semibold">Logo &amp; app icon</div>
+      <ImagePicker label="Company logo" current={company.logo_url} file={logo} onChange={setLogo} rounded="rounded-2xl" fit="object-contain bg-white" />
+      <ImagePicker label="App icon (square, 512 x 512 recommended)" current={removeIcon ? null : company.icon_url} file={icon} onChange={(x) => { setIcon(x); setRemoveIcon(false) }} onRemove={company.icon_url ? () => setRemoveIcon(true) : undefined} />
+      <Button className="w-full" disabled={!dirty} loading={busy} onClick={save}>Save branding</Button>
+    </div>
   )
 }
 

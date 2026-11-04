@@ -93,7 +93,7 @@ export default function Register() {
           </section>
 
           <Button type="submit" size="lg" loading={busy} className="w-full">Create my workspace</Button>
-          <p className="text-center text-sm text-muted">Already registered? <Link to="/login" className="font-medium text-brand">Sign in</Link></p>
+          <p className="text-center text-sm text-muted">Already registered? <Link to="/login" className="inline-block px-1 py-2 font-bold text-brand">Sign in</Link></p>
         </form>
       </div>
     </div>

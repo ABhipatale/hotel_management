@@ -21,6 +21,10 @@ Route::get('plans', fn () => SubscriptionPlan::where('is_active', true)->orderBy
 Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 Route::post('auth/register', [AuthController::class, 'register'])->middleware('throttle:register');
 
+// Per-company PWA manifest: each company gets its own installable app name, colour and icon.
+Route::get('public/manifest/{slug}.webmanifest', [PublicMenuController::class, 'manifest'])
+    ->where('slug', '[a-z0-9-]+')->middleware('throttle:public-menu');
+
 Route::prefix('public/menu/{slug}/table/{token}')->group(function () {
     Route::get('/', [PublicMenuController::class, 'menu'])->middleware('throttle:public-menu');
     Route::get('orders', [PublicMenuController::class, 'active'])->middleware('throttle:public-menu');
@@ -41,6 +45,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('companies/{id}', [SuperAdminController::class, 'showCompany']);
         Route::put('companies/{id}', [SuperAdminController::class, 'updateCompany']);
         Route::patch('companies/{id}/status', [SuperAdminController::class, 'setStatus']);
+        Route::post('companies/{id}/branding', [SuperAdminController::class, 'branding']);
         Route::post('companies/{id}/subscription', [SuperAdminController::class, 'assignSubscription']);
         Route::delete('companies/{id}', [SuperAdminController::class, 'destroyCompany']);
         Route::get('plans', [SuperAdminController::class, 'plans']);

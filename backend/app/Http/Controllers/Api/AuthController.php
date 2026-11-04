@@ -92,7 +92,7 @@ class AuthController extends Controller
         if ($user->company_id) {
             $company = $user->company;
             $state = app(SubscriptionService::class)->state($company);
-            $out['company'] = $company->only('id', 'uid', 'name', 'slug', 'logo_url', 'brand_color', 'status', 'phone', 'address', 'gst_number');
+            $out['company'] = $company->only('id', 'uid', 'name', 'slug', 'logo_url', 'icon_url', 'brand_color', 'status', 'phone', 'address', 'gst_number');
             $out['plan'] = $state['plan'];
             $out['subscription'] = $state['subscription']?->only('status', 'billing_cycle', 'starts_at', 'ends_at');
             $out['subscription_expired'] = $state['expired'];

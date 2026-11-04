@@ -1,0 +1,36 @@
+# Dependencies & build output
+node_modules/
+vendor/
+dist/
+dist-ssr/
+
+# Environment files & secrets (keep only the example)
+.env
+.env.*
+!.env.example
+
+# Deployment packages: contain secrets (.env, admin hash, diagnostic key) and built artifacts. Never commit.
+Hostinger/
+*.zip
+
+# Local databases, uploads & logs
+*.sqlite
+*.sqlite3
+*.log
+backend/public/storage
+backend/storage/logs/*
+!backend/storage/logs/.gitignore
+backend/storage/framework/cache/data/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/bootstrap/cache/*.php
+.phpunit.result.cache
+.phpunit.cache/
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.swp

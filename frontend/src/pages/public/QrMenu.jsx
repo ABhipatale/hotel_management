@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { CheckCircle2, ChefHat, Clock, Minus, Plus, Search, ShoppingCart, UtensilsCrossed } from 'lucide-react'
 import { api, errMsg } from '../../lib/api'
+import { applyBrand } from '../../lib/branding'
 import { money } from '../../lib/format'
-import { Button, Input, Modal, Spinner } from '../../components/ui'
+import { Button, Chips, Input, Modal, Spinner } from '../../components/ui'
 
 const STEPS = [['pending', 'Received'], ['accepted', 'Accepted'], ['preparing', 'Cooking'], ['ready', 'Ready'], ['served', 'Served']]
 
@@ -26,8 +27,7 @@ export default function QrMenu() {
   useEffect(() => {
     api.get(base).then((r) => {
       setMenu(r.data)
-      document.documentElement.style.setProperty('--brand', r.data.company.brand_color || '#4f46e5')
-      document.title = `${r.data.company.name} · Menu`
+      applyBrand(r.data.company, ' · Menu')
     }).catch((e) => setError(e.response?.status === 404 ? 'This QR code is not valid or the restaurant is currently unavailable.' : errMsg(e)))
   }, [base])
 
@@ -79,9 +79,7 @@ export default function QrMenu() {
           {orders.length > 0 && <button onClick={() => setTrackOpen(true)} className="flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-medium text-brand"><Clock className="h-3.5 w-3.5" />My orders</button>}
         </div>
         <div className="relative mt-3"><Search className="absolute left-3 top-3 h-4 w-4 text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search dishes" className="w-full rounded-xl border border-line bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand" /></div>
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-          {[{ id: 'all', name: 'All' }, ...menu.categories].map((c) => <button key={c.id} onClick={() => setCat(String(c.id))} className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-medium ${cat === String(c.id) ? 'border-brand bg-brand text-white' : 'border-line bg-white text-muted'}`}>{c.name}</button>)}
-        </div>
+        <div className="-mb-3 mt-3"><Chips value={cat} onChange={setCat} items={[['all', 'All'], ...menu.categories.map((c) => [String(c.id), c.name])]} /></div>
       </header>
 
       <div className="space-y-3 p-4">

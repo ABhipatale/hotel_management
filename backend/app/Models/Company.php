@@ -11,7 +11,12 @@ class Company extends Model
 
     protected $guarded = ['id', 'uid', 'status'];
     protected $casts = ['settings' => 'array'];
-    protected $appends = ['logo_url'];
+    protected $appends = ['logo_url', 'icon_url'];
+
+    public function getIconUrlAttribute(): ?string
+    {
+        return $this->icon_path ? asset('storage/'.$this->icon_path.'-512.png') : null;
+    }
 
     public function getLogoUrlAttribute(): ?string
     {
@@ -40,6 +45,7 @@ class Company extends Model
             'name' => $this->name,
             'slug' => $this->slug,
             'logo_url' => $this->logo_url,
+            'icon_url' => $this->icon_url,
             'brand_color' => $this->brand_color,
             'phone' => $this->phone,
             'address' => $this->address,

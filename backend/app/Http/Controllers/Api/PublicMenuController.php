@@ -34,6 +34,36 @@ class PublicMenuController extends Controller
         ]);
     }
 
+    public function manifest(string $slug)
+    {
+        $c = Company::where('slug', $slug)->whereIn('status', ['trial', 'active'])->firstOrFail();
+        $icons = $c->icon_path
+            ? [
+                ['src' => asset('storage/'.$c->icon_path.'-192.png'), 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
+                ['src' => asset('storage/'.$c->icon_path.'-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
+                ['src' => asset('storage/'.$c->icon_path.'-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
+            ]
+            : [
+                ['src' => url('/icon-192.png'), 'sizes' => '192x192', 'type' => 'image/png'],
+                ['src' => url('/icon-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any maskable'],
+            ];
+
+        return response()->json([
+            // A distinct id + start_url per company lets one phone install several companies as separate apps.
+            'id' => '/?company='.$c->slug,
+            'name' => $c->name,
+            'short_name' => \Illuminate\Support\Str::limit($c->name, 12, ''),
+            'description' => $c->name.' - billing and orders',
+            'start_url' => '/?company='.$c->slug,
+            'scope' => '/',
+            'display' => 'standalone',
+            'orientation' => 'portrait',
+            'theme_color' => $c->brand_color ?: '#4f46e5',
+            'background_color' => '#f4f5fb',
+            'icons' => $icons,
+        ])->header('Content-Type', 'application/manifest+json')->header('Cache-Control', 'no-cache');
+    }
+
     public function order(Request $r, string $slug, string $token, OrderService $orders)
     {
         [$company, $table] = $this->resolve($slug, $token);

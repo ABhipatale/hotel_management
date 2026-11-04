@@ -5,6 +5,7 @@ import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import { useConfirm } from '../../context/ConfirmContext'
 import { Button, Chips, Empty, Input, Modal, PageHeader, Select, Spinner } from '../../components/ui'
 
 const STATUSES = ['available', 'occupied', 'reserved', 'preparing', 'ready', 'billing', 'paid']
@@ -35,6 +36,7 @@ export default function Tables() {
   const { can, hasFeature, company } = useAuth()
   const toast = useToast()
   const nav = useNavigate()
+  const ask = useConfirm()
   const { data, loading, reload } = useApi('/tables', { poll: 10000 })
   const [filter, setFilter] = useState('all')
   const [adding, setAdding] = useState(false)
@@ -51,7 +53,7 @@ export default function Tables() {
     try { await api.patch(`/tables/${t.id}/status`, { status }); toast.success(`Table ${t.number} → ${status}`); setSel(null); reload() } catch (e) { toast.error(e) }
   }
   const remove = async (t) => {
-    if (!confirm(`Delete table ${t.number}?`)) return
+    if (!(await ask({ title: `Delete table T${t.number}?`, message: 'The table and its QR code will be removed. Tables with open orders cannot be deleted.', confirmText: 'Delete table' }))) return
     try { await api.delete(`/tables/${t.id}`); setSel(null); reload() } catch (e) { toast.error(e) }
   }
   const showQr = async (t) => {
@@ -61,7 +63,7 @@ export default function Tables() {
     } catch (e) { toast.error(e) }
   }
   const regen = async (t) => {
-    if (!confirm('Regenerate QR? The old printed QR will stop working.')) return
+    if (!(await ask({ title: 'Regenerate QR code?', message: 'The old printed QR will stop working. Print the new one and place it on the table.', confirmText: 'Regenerate', tone: 'warning' }))) return
     try { await api.post(`/tables/${t.id}/qr/regenerate`); toast.success('New QR generated'); setQr(null); reload() } catch (e) { toast.error(e) }
   }
   const downloadQr = () => {

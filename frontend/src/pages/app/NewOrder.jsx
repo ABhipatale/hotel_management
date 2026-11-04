@@ -102,8 +102,8 @@ export default function NewOrder() {
   return (
     <>
       <PageHeader title="New order" />
-      <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
-        <div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0">
           <div className="relative mb-3"><Search className="absolute left-3.5 top-3.5 h-5 w-5 text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search dishes" className="min-h-12 w-full rounded-2xl border border-line bg-white py-3 pl-10 pr-3 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>
           <Chips value={cat} onChange={setCat} items={[['all', 'All'], ...(cats || []).map((c) => [String(c.id), c.name])]} />
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -127,7 +127,7 @@ export default function NewOrder() {
           <span className="flex items-center gap-2"><ShoppingCart className="h-5 w-5" />{count} item(s)</span><b>{money(total)}</b>
         </button>
       )}
-      <Modal open={cartOpen} onClose={() => setCartOpen(false)} title="Your order"><div className="h-[70vh]">{Cart}</div></Modal>
+      <Modal open={cartOpen} onClose={() => setCartOpen(false)} title="Your order"><div className="h-[70dvh]">{Cart}</div></Modal>
 
       <Modal open={!!pick} onClose={() => setPick(null)} title={pick?.name}>
         <div className="space-y-2">

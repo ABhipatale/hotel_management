@@ -24,7 +24,7 @@ export default function AdminDashboard() {
         <Stat label="MRR" value={money(d.mrr)} icon={TrendingUp} />
         <Stat label="Expiring in 7 days" value={num(d.expiring_soon)} icon={CalendarClock} tone="rose" />
         <Stat label="Total users" value={num(d.users_total)} icon={Users} tone="sky" />
-        <Stat label="Branches" value={num(d.branches_total)} icon={Store} />
+        {d.branches_total > d.companies_total && <Stat label="Branches" value={num(d.branches_total)} icon={Store} />}
         <Stat label="Orders (platform)" value={num(d.orders_total)} icon={ShoppingBag} tone="amber" />
       </div>
 

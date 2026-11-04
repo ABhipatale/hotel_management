@@ -4,12 +4,14 @@ import { api, toFormData } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { money } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
-import { Badge, Button, Card, Empty, Input, Modal, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
+import { useConfirm } from '../../context/ConfirmContext'
+import { Badge, Button, Card, Chips, Empty, Input, Modal, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
 
 const BLANK = { category_id: '', name: '', description: '', price: '', gst_percent: 5, discount_percent: 0, is_veg: true, is_available: true, stock: '', offer_text: '', variants: [] }
 
 export default function MenuManager() {
   const toast = useToast()
+  const ask = useConfirm()
   const { data: cats, reload: reloadCats } = useApi('/menu/categories')
   const { data: items, loading, reload } = useApi('/menu/items')
   const [cat, setCat] = useState('all')
@@ -34,7 +36,7 @@ export default function MenuManager() {
       toast.success('Saved'); setEdit(null); reload(); reloadCats()
     } catch (x) { toast.error(x) } finally { setBusy(false) }
   }
-  const del = async (i) => { if (confirm(`Delete ${i.name}?`)) { try { await api.delete(`/menu/items/${i.id}`); reload() } catch (e) { toast.error(e) } } }
+  const del = async (i) => { if (await ask({ title: `Delete ${i.name}?`, message: 'This dish will be removed from your menu and the QR menu.', confirmText: 'Delete dish' })) { try { await api.delete(`/menu/items/${i.id}`); reload() } catch (e) { toast.error(e) } } }
   const toggle = async (i) => { try { await api.post(`/menu/items/${i.id}`, toFormData({ is_available: !i.is_available })); reload() } catch (e) { toast.error(e) } }
   const addCat = async () => { try { await api.post('/menu/categories', { name: newCat }); setNewCat(''); reloadCats() } catch (e) { toast.error(e) } }
   const delCat = async (c) => { try { await api.delete(`/menu/categories/${c.id}`); reloadCats() } catch (e) { toast.error(e) } }
@@ -44,9 +46,7 @@ export default function MenuManager() {
   return (
     <>
       <PageHeader title="Menu" sub="Categories, dishes, variants and prices" actions={<><Button variant="secondary" onClick={() => setCatModal(true)}>Categories</Button><Button onClick={() => open()}><Plus className="h-4 w-4" /> Add dish</Button></>} />
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-        {[{ id: 'all', name: 'All' }, ...(cats || [])].map((c) => <button key={c.id} onClick={() => setCat(String(c.id))} className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-medium ${cat === String(c.id) ? 'border-brand bg-brand text-white' : 'border-line bg-white text-muted'}`}>{c.name}</button>)}
-      </div>
+      <Chips value={cat} onChange={setCat} items={[['all', 'All'], ...(cats || []).map((c) => [String(c.id), c.name])]} />
 
       {!rows.length ? <Empty title="No dishes yet" action={<Button onClick={() => open()}>Add your first dish</Button>} /> : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

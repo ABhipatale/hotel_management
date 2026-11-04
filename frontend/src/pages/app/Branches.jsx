@@ -4,11 +4,13 @@ import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import { useConfirm } from '../../context/ConfirmContext'
 import { Badge, Button, Card, Input, Modal, PageHeader, Select, Spinner } from '../../components/ui'
 
 export default function Branches() {
-  const { hasFeature } = useAuth()
+  const { hasFeature, reloadBranches } = useAuth()
   const toast = useToast()
+  const ask = useConfirm()
   const { data, loading, reload } = useApi('/branches')
   const { data: staff } = useApi('/staff')
   const [edit, setEdit] = useState(null)
@@ -16,9 +18,9 @@ export default function Branches() {
   const save = async (e) => {
     e.preventDefault()
     const body = { ...edit, manager_id: edit.manager_id || null }
-    try { edit.id ? await api.put(`/branches/${edit.id}`, body) : await api.post('/branches', body); toast.success('Saved'); setEdit(null); reload() } catch (x) { toast.error(x) }
+    try { edit.id ? await api.put(`/branches/${edit.id}`, body) : await api.post('/branches', body); toast.success('Saved'); setEdit(null); reload(); reloadBranches() } catch (x) { toast.error(x) }
   }
-  const remove = async (b) => { if (confirm(`Delete ${b.name}?`)) { try { await api.delete(`/branches/${b.id}`); reload() } catch (e) { toast.error(e) } } }
+  const remove = async (b) => { if (await ask({ title: `Delete ${b.name}?`, message: 'Branches that already have orders cannot be deleted — deactivate them instead.', confirmText: 'Delete branch' })) { try { await api.delete(`/branches/${b.id}`); reload(); reloadBranches() } catch (e) { toast.error(e) } } }
 
   if (loading) return <Spinner />
   return (

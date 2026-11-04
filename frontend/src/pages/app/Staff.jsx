@@ -4,6 +4,8 @@ import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { dt } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
+import { useConfirm } from '../../context/ConfirmContext'
+import { useAuth } from '../../context/AuthContext'
 import { Badge, Button, Input, Modal, PageHeader, Select, Spinner, Table } from '../../components/ui'
 
 const ROLES = ['waiter']
@@ -11,8 +13,9 @@ const BLANK = { name: '', email: '', phone: '', password: '', role: 'waiter', br
 
 export default function Staff() {
   const toast = useToast()
+  const ask = useConfirm()
   const { data, loading, reload } = useApi('/staff')
-  const { data: branches } = useApi('/branches')
+  const { branches, multiBranch } = useAuth()
   const [edit, setEdit] = useState(null)
   const [log, setLog] = useState(null)
 
@@ -26,7 +29,7 @@ export default function Staff() {
     } catch (x) { toast.error(x) }
   }
   const toggle = async (u) => { try { await api.put(`/staff/${u.id}`, { is_active: !u.is_active }); reload() } catch (e) { toast.error(e) } }
-  const remove = async (u) => { if (confirm(`Delete ${u.name}?`)) { try { await api.delete(`/staff/${u.id}`); reload() } catch (e) { toast.error(e) } } }
+  const remove = async (u) => { if (await ask({ title: `Delete ${u.name}?`, message: 'They will no longer be able to sign in.', confirmText: 'Delete staff' })) { try { await api.delete(`/staff/${u.id}`); reload() } catch (e) { toast.error(e) } } }
   const activity = async (u) => { try { setLog({ user: u, rows: (await api.get(`/staff/${u.id}/activity`)).data }) } catch (e) { toast.error(e) } }
   const s = (k) => (e) => setEdit({ ...edit, [k]: e.target.value })
 
@@ -37,7 +40,7 @@ export default function Staff() {
       <Table rows={data} columns={[
         { header: 'Name', render: (u) => <div><div className="font-medium">{u.name}</div><div className="text-xs text-muted">{u.email}</div></div> },
         { header: 'Role', render: (u) => <Badge tone={u.role === 'owner' ? 'violet' : 'blue'}>{u.role}</Badge> },
-        { header: 'Branch', render: (u) => branches?.find((b) => b.id === u.branch_id)?.name || 'All' },
+        ...(multiBranch ? [{ header: 'Branch', render: (u) => branches?.find((b) => b.id === u.branch_id)?.name || 'All' }] : []),
         { header: 'Last login', render: (u) => dt(u.last_login_at) },
         { header: 'Status', render: (u) => <Badge tone={u.is_active ? 'green' : 'slate'}>{u.is_active ? 'active' : 'disabled'}</Badge> },
         { header: '', className: 'text-right', render: (u) => u.role === 'owner' ? null : (
@@ -58,7 +61,7 @@ export default function Staff() {
             <Input label="Mobile" value={edit.phone || ''} onChange={s('phone')} />
             <Input label={edit.id ? 'New password (leave blank to keep)' : 'Password'} type="password" required={!edit.id} value={edit.password} onChange={s('password')} hint="Min 8 characters with letters and numbers" autoComplete="new-password" />
             <Select label="Role" value={edit.role} onChange={s('role')}>{ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</Select>
-            <Select label="Branch" value={edit.branch_id} onChange={s('branch_id')}><option value="">All branches</option>{branches?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select>
+            {multiBranch && <Select label="Branch" value={edit.branch_id} onChange={s('branch_id')}><option value="">All branches</option>{branches?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select>}
             <Button type="submit" className="w-full">Save</Button>
           </form>
         )}

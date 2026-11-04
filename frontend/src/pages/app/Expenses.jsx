@@ -4,12 +4,14 @@ import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { dateOnly, money, today } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
+import { useConfirm } from '../../context/ConfirmContext'
 import { Button, Input, Modal, PageHeader, Spinner, Table } from '../../components/ui'
 
 const CATS = ['Groceries', 'Salaries', 'Rent', 'Electricity', 'Gas', 'Maintenance', 'Marketing', 'Other']
 
 export default function Expenses() {
   const toast = useToast()
+  const ask = useConfirm()
   const [range, setRange] = useState({ from: today().slice(0, 8) + '01', to: today() })
   const { data, loading, reload, error } = useApi('/expenses', { params: range })
   const [edit, setEdit] = useState(null)
@@ -19,7 +21,7 @@ export default function Expenses() {
     e.preventDefault()
     try { await api.post('/expenses', edit); toast.success('Expense added'); setEdit(null); reload() } catch (x) { toast.error(x) }
   }
-  const del = async (x) => { if (confirm('Delete this expense?')) { try { await api.delete(`/expenses/${x.id}`); reload() } catch (e) { toast.error(e) } } }
+  const del = async (x) => { if (await ask({ title: 'Delete this expense?', message: 'It will be removed from your expense totals.', confirmText: 'Delete expense' })) { try { await api.delete(`/expenses/${x.id}`); reload() } catch (e) { toast.error(e) } } }
 
   return (
     <>
@@ -34,7 +36,7 @@ export default function Expenses() {
           { header: 'Category', key: 'category' },
           { header: 'Description', render: (x) => x.description || '—' },
           { header: 'Amount', render: (x) => <b>{money(x.amount)}</b> },
-          { header: '', className: 'text-right', render: (x) => <button onClick={() => del(x)}><Trash2 className="h-4 w-4 text-rose-600" /></button> },
+          { header: '', className: 'text-right', render: (x) => <button onClick={() => del(x)} aria-label="Delete expense" className="grid h-11 w-11 place-items-center rounded-xl bg-rose-50 active:bg-rose-100"><Trash2 className="h-5 w-5 text-rose-600" /></button> },
         ]} />
       )}
       <Modal open={!!edit} onClose={() => setEdit(null)} title="Add expense">

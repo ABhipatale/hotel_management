@@ -121,7 +121,7 @@ export function Modal({ open, onClose, title, children, wide }) {
     <div className="animate-fade fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-6" onMouseDown={onClose}>
       <div
         onMouseDown={(e) => e.stopPropagation()}
-        className={cx('animate-sheet mb-[max(env(safe-area-inset-bottom),0px)] max-h-[88vh] w-full overflow-y-auto rounded-[2rem] bg-white px-6 pb-7 pt-3 shadow-float sm:animate-pop sm:pt-6', wide ? 'sm:max-w-2xl' : 'sm:max-w-md')}
+        className={cx('animate-sheet mb-[max(env(safe-area-inset-bottom),0px)] max-h-[88dvh] w-full overflow-y-auto rounded-[2rem] bg-white px-6 pb-7 pt-3 shadow-float sm:animate-pop sm:pt-6', wide ? 'sm:max-w-2xl' : 'sm:max-w-md')}
       >
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden" />
         <div className="mb-5 flex items-center justify-between gap-3 border-b border-line pb-4">

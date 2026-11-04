@@ -112,6 +112,29 @@ class SuperAdminController extends Controller
         return $c;
     }
 
+    /** Super admin can set any company's logo and app icon. */
+    public function branding(Request $request, int $id, \App\Services\BrandingService $branding)
+    {
+        $c = Company::findOrFail($id);
+        $request->validate([
+            'logo' => 'nullable|image|max:2048',
+            'icon' => 'nullable|image|mimes:png,jpg,jpeg,webp|max:2048|dimensions:min_width=192,min_height=192',
+            'remove_icon' => 'sometimes|boolean',
+        ]);
+        if ($request->hasFile('logo')) {
+            $branding->storeLogo($c, $request->file('logo'));
+        }
+        if ($request->hasFile('icon')) {
+            $branding->storeIcon($c, $request->file('icon'));
+        } elseif ($request->boolean('remove_icon')) {
+            $branding->deleteIcon($c);
+        }
+        $c->save();
+        AuditLog::record('super.company.branding', 'company', $id);
+
+        return $c->refresh();
+    }
+
     public function setStatus(Request $request, int $id)
     {
         $data = $request->validate(['status' => 'required|in:active,inactive,suspended']);
