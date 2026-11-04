@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Bill;
-use App\Models\Branch;
 use App\Models\Expense;
 use App\Models\HotelTable;
 use App\Models\InventoryItem;
@@ -65,22 +64,14 @@ class ReportController extends Controller
                 ->select('category', DB::raw('SUM(amount) as total'), DB::raw('COUNT(*) as entries'))->groupBy('category')->orderByDesc('total')->get(),
             'inventory' => InventoryItem::when($branch, fn ($q) => $q->where('branch_id', $branch))->orderBy('name')->get()->map(fn ($i) => $i->toArray() + ['low_stock' => $i->quantity <= $i->min_quantity]),
             'pnl' => $this->pnl($branch, $from, $to),
-            'branches' => $this->branchComparison($from, $to),
             default => abort(404),
         };
     }
 
-    /** Owners/unlocked managers may pass branch_id=all for consolidated figures. */
+    /** Reports cover the whole company (branches are not exposed), so no branch filter is applied. */
     private function branchFilter(Request $r): ?int
     {
-        $u = $r->user();
-        $unlocked = ! $u->branch_id || $u->role === 'owner';
-        $req = $r->query('branch_id', $r->header('X-Branch-Id'));
-        if ($unlocked && ($req === 'all' || ($req === null && $u->role === 'owner'))) {
-            return null;
-        }
-
-        return $this->branch($r);
+        return null;
     }
 
     private function salesSeries(?int $branch, Carbon $from, Carbon $to, string $group): array
@@ -141,12 +132,5 @@ class ReportController extends Controller
         $exp = (float) Expense::whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])->when($branch, fn ($q) => $q->where('branch_id', $branch))->sum('amount');
 
         return ['sales' => $sales, 'tax_collected' => $tax, 'net_sales' => round($sales - $tax, 2), 'expenses' => $exp, 'profit' => round($sales - $tax - $exp, 2)];
-    }
-
-    private function branchComparison(Carbon $from, Carbon $to)
-    {
-        return Branch::all()->map(function ($b) use ($from, $to) {
-            return ['branch_id' => $b->id, 'branch' => $b->name] + $this->pnl($b->id, $from, $to);
-        });
     }
 }

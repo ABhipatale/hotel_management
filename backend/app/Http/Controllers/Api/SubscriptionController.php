@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\HotelTable;
-use App\Models\Branch;
 use App\Models\SubscriptionPayment;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
@@ -27,7 +26,6 @@ class SubscriptionController extends Controller
             'usage' => [
                 'staff' => User::inTenant(Tenant::id())->count(),
                 'tables' => HotelTable::count(),
-                'branches' => Branch::count(),
             ],
         ];
     }
@@ -62,9 +60,6 @@ class SubscriptionController extends Controller
         }
         if ($plan->max_tables !== null && HotelTable::count() > $plan->max_tables) {
             return response()->json(['message' => "You have more tables than the {$plan->name} plan allows ({$plan->max_tables})."], 422);
-        }
-        if (Branch::count() > $plan->max_branches) {
-            return response()->json(['message' => "You have more branches than the {$plan->name} plan allows ({$plan->max_branches})."], 422);
         }
 
         // Fail closed: self-service activation is only allowed with the simulated gateway outside

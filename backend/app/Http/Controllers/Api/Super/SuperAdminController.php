@@ -12,7 +12,6 @@ use App\Models\SubscriptionPayment;
 use App\Models\SubscriptionPlan;
 use App\Models\SupportTicket;
 use App\Models\User;
-use App\Models\Branch;
 use App\Services\CompanyProvisioner;
 use App\Services\SubscriptionService;
 use Illuminate\Http\Request;
@@ -37,7 +36,6 @@ class SuperAdminController extends Controller
             'mrr' => round($mrr, 2),
             'expiring_soon' => Subscription::whereIn('status', ['active', 'trial'])->whereBetween('ends_at', [now(), now()->addDays(7)])->count(),
             'users_total' => User::whereNotNull('company_id')->count(),
-            'branches_total' => Branch::count(),
             'orders_total' => Order::count(),
             'plan_breakdown' => Subscription::where('status', 'active')->where('ends_at', '>', now())
                 ->join('subscription_plans', 'subscription_plans.id', '=', 'subscriptions.plan_id')
@@ -69,7 +67,6 @@ class SuperAdminController extends Controller
             'stats' => [
                 'users' => User::where('company_id', $id)->count(),
                 'orders' => Order::where('company_id', $id)->count(),
-                'branches' => Branch::where('company_id', $id)->count(),
             ],
             'payments' => SubscriptionPayment::where('company_id', $id)->latest()->limit(20)->get(),
         ];
@@ -180,6 +177,8 @@ class SuperAdminController extends Controller
 
     public function savePlan(Request $request, ?int $id = null)
     {
+        // Drop feature flags that no longer exist (e.g. the removed multi_branch) instead of failing validation.
+        $request->merge(['features' => array_values(array_intersect((array) $request->input('features', []), config('hms.features')))]);
         $data = $request->validate([
             'name' => 'required|string|max:80',
             'slug' => 'required|alpha_dash|max:40|unique:subscription_plans,slug'.($id ? ",$id" : ''),
@@ -187,7 +186,7 @@ class SuperAdminController extends Controller
             'price_yearly' => 'required|numeric|min:0',
             'max_staff' => 'nullable|integer|min:1',
             'max_tables' => 'nullable|integer|min:1',
-            'max_branches' => 'required|integer|min:1',
+            'max_branches' => 'sometimes|integer|min:1',
             'features' => 'array',
             'features.*' => 'in:'.implode(',', config('hms.features')),
             'trial_days' => 'required|integer|min:0|max:90',

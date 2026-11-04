@@ -4,7 +4,6 @@ return [
     'permissions' => [
         'dashboard.view' => 'View dashboard',
         'users.manage' => 'Manage staff',
-        'branches.manage' => 'Manage branches',
         'tables.view' => 'View tables',
         'tables.manage' => 'Manage tables',
         'menu.view' => 'View menu',
@@ -29,7 +28,7 @@ return [
     'default_categories' => ['Starters', 'Main Course', 'Breads', 'Rice & Biryani', 'Beverages', 'Desserts'],
 
     // Features a plan can unlock. Core: tables, menu, orders, billing.
-    'features' => ['qr', 'thermal', 'reports', 'advanced_reports', 'inventory', 'expenses', 'pnl', 'multi_branch', 'advanced_permissions'],
+    'features' => ['qr', 'thermal', 'reports', 'advanced_reports', 'inventory', 'expenses', 'pnl', 'advanced_permissions'],
 
     // What happens after subscription expiry: read-only keeps data viewable; block denies all tenant access.
     'expiry_policy' => env('HMS_EXPIRY_POLICY', 'read_only'),

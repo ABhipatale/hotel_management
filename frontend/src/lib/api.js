@@ -1,26 +1,18 @@
 import axios from 'axios'
 
 const TOKEN_KEY = 'hms.token'
-const BRANCH_KEY = 'hms.branch'
 
 export const tokenStore = {
   get: () => localStorage.getItem(TOKEN_KEY),
   set: (t) => localStorage.setItem(TOKEN_KEY, t),
   clear: () => localStorage.removeItem(TOKEN_KEY),
 }
-export const branchStore = {
-  get: () => localStorage.getItem(BRANCH_KEY),
-  set: (id) => (id ? localStorage.setItem(BRANCH_KEY, id) : localStorage.removeItem(BRANCH_KEY)),
-}
 
 export const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api', headers: { Accept: 'application/json' } })
 
-// The branch header is only a *preference*: the server validates it against the user's tenant.
 api.interceptors.request.use((config) => {
   const t = tokenStore.get()
   if (t) config.headers.Authorization = `Bearer ${t}`
-  const b = branchStore.get()
-  if (b && !config.headers['X-Branch-Id']) config.headers['X-Branch-Id'] = b
   return config
 })
 

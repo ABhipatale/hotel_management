@@ -71,7 +71,6 @@ class TenantIsolationTest extends TestCase
         $res->assertJsonPath('user.role', 'owner')->assertJsonPath('company.status', 'trial')->assertJsonPath('subscription.status', 'trial');
         $h = ['Authorization' => 'Bearer '.$res->json('token')];
         $this->getJson('/api/menu/categories', $h)->assertOk()->assertJsonCount(count(config('hms.default_categories')));
-        $this->getJson('/api/branches', $h)->assertOk()->assertJsonCount(1);
         $this->getJson('/api/tables', $h)->assertOk()->assertJsonCount(0); // no leakage of other companies' tables
     }
 
@@ -119,14 +118,16 @@ class TenantIsolationTest extends TestCase
         $this->postJson('/api/orders', ['table_id' => $ownTable->id, 'items' => [['food_item_id' => $b['item']->id, 'quantity' => 1]]], $a)->assertStatus(422);
         // Order on B's table
         $this->postJson('/api/orders', ['table_id' => $b['table']->id, 'items' => [['food_item_id' => $ownItem->id, 'quantity' => 1]]], $a)->assertStatus(422);
-        // Staff into B's branch
+        // A branch id from another company is never honoured: it is not even an accepted input anymore
         $bBranch = Tenant::unscoped(fn () => \App\Models\Branch::where('company_id', $b['company']->id)->first());
-        $this->postJson('/api/staff', ['name' => 'X', 'email' => 'x@x.test', 'password' => 'Secret123', 'role' => 'waiter', 'branch_id' => $bBranch->id], $a)->assertStatus(422);
+        $staffId = $this->postJson('/api/staff', ['name' => 'X', 'email' => 'x@x.test', 'password' => 'Secret123', 'role' => 'waiter', 'branch_id' => $bBranch->id], $a)->assertCreated()->json('id');
+        $this->assertNull(Tenant::unscoped(fn () => \App\Models\User::find($staffId)->branch_id));
         // Item into B's category
         $bCat = Tenant::unscoped(fn () => \App\Models\FoodCategory::where('company_id', $b['company']->id)->first());
         $this->postJson('/api/menu/items', ['category_id' => $bCat->id, 'name' => 'Z', 'price' => 10], $a)->assertStatus(422);
-        // Branch header pointing at B's branch
-        $this->getJson('/api/tables', $a + ['X-Branch-Id' => (string) $bBranch->id])->assertStatus(422);
+        // A branch header pointing at B's branch is ignored: A still only sees its own tables
+        $tables = $this->getJson('/api/tables', $a + ['X-Branch-Id' => (string) $bBranch->id])->assertOk()->json();
+        $this->assertNotContains($b['table']->id, array_column($tables, 'id'));
     }
 
     public function test_company_id_in_request_body_is_ignored(): void
@@ -271,9 +272,9 @@ class TenantIsolationTest extends TestCase
         $f = $this->as('friends');
         $this->getJson('/api/expenses', $f)->assertOk();
         $this->getJson('/api/inventory', $f)->assertOk();
-        $this->postJson('/api/branches', ['name' => 'Pune Branch'], $f)->assertCreated();
-        $this->getJson('/api/branches', $f)->assertJsonCount(2);
-        $this->getJson('/api/branches', $this->as('atithi'))->assertJsonCount(1); // isolation holds
+        // Branch management was removed from the product
+        $this->getJson('/api/branches', $f)->assertNotFound();
+        $this->postJson('/api/branches', ['name' => 'Pune Branch'], $f)->assertStatus(404);
     }
 
     public function test_limits_are_enforced_for_a_restricted_plan(): void
@@ -325,5 +326,17 @@ class TenantIsolationTest extends TestCase
         $this->postJson("/api/tables/{$x['table']->id}/qr/regenerate", [], $a)->assertOk();
         $this->getJson("/api/public/menu/{$x['company']->slug}/table/$old")->assertNotFound();
         $this->getJson("/api/tables/{$x['table']->id}/qr", $a)->assertOk()->assertHeader('Content-Type', 'image/svg+xml');
+    }
+
+    public function test_super_admin_can_save_a_plan_that_still_carries_the_removed_multi_branch_flag(): void
+    {
+        $admin = $this->login('admin@hms.test', 'Admin@12345');
+        $plan = \App\Models\SubscriptionPlan::where('slug', 'premium')->first();
+        $res = $this->putJson("/api/admin/plans/{$plan->id}", [
+            'name' => 'Premium', 'slug' => 'premium', 'price_monthly' => 3499, 'price_yearly' => 34990,
+            'max_staff' => null, 'max_tables' => null, 'trial_days' => 14, 'is_active' => true,
+            'features' => ['qr', 'multi_branch', 'reports'], // legacy flag from older data
+        ], $admin)->assertOk();
+        $this->assertSame(['qr', 'reports'], $res->json('features'));
     }
 }

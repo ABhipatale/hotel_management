@@ -8,7 +8,7 @@ import { useConfirm } from '../../context/ConfirmContext'
 import { dateOnly, money } from '../../lib/format'
 import { Badge, Button, Card, PageHeader, Spinner, statusTone, Table } from '../../components/ui'
 
-const FEATURE_LABEL = { qr: 'QR ordering', thermal: 'Thermal printing', reports: 'Sales reports', advanced_reports: 'Advanced reports', inventory: 'Inventory', expenses: 'Expenses', pnl: 'Profit & Loss', multi_branch: 'Multi-branch', advanced_permissions: 'Advanced permissions' }
+const FEATURE_LABEL = { qr: 'QR ordering', thermal: 'Thermal printing', reports: 'Sales reports', advanced_reports: 'Advanced reports', inventory: 'Inventory', expenses: 'Expenses', pnl: 'Profit & Loss', advanced_permissions: 'Advanced permissions' }
 
 export default function Subscription() {
   const { refresh } = useAuth()
@@ -42,7 +42,6 @@ export default function Subscription() {
         <div className="flex gap-6 text-sm">
           <div><div className="text-xs text-muted">Staff</div><b>{lim(cur.plan?.max_staff, cur.usage.staff)}</b></div>
           <div><div className="text-xs text-muted">Tables</div><b>{lim(cur.plan?.max_tables, cur.usage.tables)}</b></div>
-          <div><div className="text-xs text-muted">Branches</div><b>{lim(cur.plan?.max_branches, cur.usage.branches)}</b></div>
         </div>
       </Card>
 
@@ -59,7 +58,6 @@ export default function Subscription() {
               <ul className="my-4 space-y-1.5 text-sm">
                 <li className="flex gap-2"><Check className="h-4 w-4 text-emerald-500" />{p.max_staff ?? 'Unlimited'} staff</li>
                 <li className="flex gap-2"><Check className="h-4 w-4 text-emerald-500" />{p.max_tables ?? 'Unlimited'} tables</li>
-                <li className="flex gap-2"><Check className="h-4 w-4 text-emerald-500" />{p.max_branches} branch(es)</li>
                 {(p.features || []).map((f) => <li key={f} className="flex gap-2"><Check className="h-4 w-4 text-emerald-500" />{FEATURE_LABEL[f] || f}</li>)}
               </ul>
               <Button className="w-full" variant={isCur ? 'secondary' : 'primary'} loading={busy === p.id} onClick={() => choose(p)}>{isCur ? 'Renew' : cur.plan && p.price_monthly < cur.plan.price_monthly ? 'Downgrade' : 'Choose plan'}</Button>

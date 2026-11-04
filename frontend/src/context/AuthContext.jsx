@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { api, branchStore, setUnauthorizedHandler, tokenStore } from '../lib/api'
+import { api, setUnauthorizedHandler, tokenStore } from '../lib/api'
 import { applyBrand } from '../lib/branding'
 
 const AuthCtx = createContext(null)
@@ -11,25 +11,13 @@ const applyBranding = (company) => applyBrand(company)
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(!!tokenStore.get())
-  const [branches, setBranches] = useState([])
 
   const clear = useCallback(() => {
     tokenStore.clear()
-    branchStore.set(null)
     setSession(null)
-    setBranches([])
     applyBranding(null)
   }, [])
 
-  // Branch-wise UI (switcher, branch filters, branch columns) only appears once a company has 2+ branches.
-  const reloadBranches = useCallback(
-    () => api.get('/branches').then((r) => setBranches(r.data)).catch(() => {}),
-    [],
-  )
-  const companyId = session?.company?.id
-  useEffect(() => {
-    if (companyId) reloadBranches()
-  }, [companyId, reloadBranches])
 
   const load = useCallback((data) => {
     setSession(data)
@@ -49,7 +37,6 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const { data } = await api.post('/auth/login', { email, password })
     tokenStore.set(data.token)
-    branchStore.set(null)
     load(data)
     return data
   }
@@ -78,9 +65,6 @@ export function AuthProvider({ children }) {
       ...session,
       loading,
       isSuperAdmin: session?.user?.role === 'super_admin',
-      branches,
-      multiBranch: branches.length > 1,
-      reloadBranches,
       can: (p) => perms.includes('*') || perms.includes(p),
       hasFeature: (f) => !!session?.plan?.features?.includes(f),
       login,
@@ -89,7 +73,7 @@ export function AuthProvider({ children }) {
       refresh,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, loading, refresh, branches, reloadBranches])
+  }, [session, loading, refresh])
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>
 }

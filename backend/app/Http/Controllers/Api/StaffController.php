@@ -18,7 +18,7 @@ class StaffController extends Controller
     public function index(Request $r)
     {
         return User::inTenant(Tenant::id())->with('roleModel:id,name')->orderBy('name')->get()
-            ->map(fn ($u) => $u->only('id', 'name', 'email', 'phone', 'role', 'branch_id', 'is_active', 'last_login_at'));
+            ->map(fn ($u) => $u->only('id', 'name', 'email', 'phone', 'role', 'is_active', 'last_login_at'));
     }
 
     public function store(Request $r)
@@ -34,7 +34,6 @@ class StaffController extends Controller
             'phone' => 'nullable|string|max:20',
             'password' => ['required', Password::min(8)->letters()->numbers()],
             'role' => ['required', Rule::in(self::ASSIGNABLE)],
-            'branch_id' => ['nullable', Tenant::exists('branches')],
         ]);
 
         $u = new User(['name' => $data['name'], 'email' => $data['email'], 'phone' => $data['phone'] ?? null, 'password' => $data['password']]);
@@ -42,11 +41,11 @@ class StaffController extends Controller
             'company_id' => Tenant::id(),
             'role' => $data['role'],
             'role_id' => Role::where('slug', $data['role'])->value('id'),
-            'branch_id' => $data['branch_id'] ?? null,
+            'branch_id' => null,
         ])->save();
         AuditLog::record('staff.create', 'user', $u->id, ['role' => $data['role']]);
 
-        return response()->json($u->only('id', 'name', 'email', 'role', 'branch_id', 'is_active'), 201);
+        return response()->json($u->only('id', 'name', 'email', 'role', 'is_active'), 201);
     }
 
     public function update(Request $r, int $id)
@@ -60,7 +59,6 @@ class StaffController extends Controller
             'phone' => 'nullable|string|max:20',
             'password' => ['nullable', Password::min(8)->letters()->numbers()],
             'role' => ['sometimes', Rule::in(self::ASSIGNABLE)],
-            'branch_id' => ['nullable', Tenant::exists('branches')],
             'is_active' => 'sometimes|boolean',
         ]);
         if (empty($data['password'])) {
@@ -77,7 +75,7 @@ class StaffController extends Controller
         }
         AuditLog::record('staff.update', 'user', $u->id);
 
-        return $u->only('id', 'name', 'email', 'role', 'branch_id', 'is_active');
+        return $u->only('id', 'name', 'email', 'role', 'is_active');
     }
 
     public function destroy(int $id)

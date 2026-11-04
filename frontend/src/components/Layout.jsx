@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Armchair, BarChart3, Building2, CreditCard, GitBranch, Grid2x2, Layers, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
+  Armchair, BarChart3, Building2, CreditCard, Grid2x2, Layers, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
   Settings, ShoppingBag, Store, Users, UtensilsCrossed, Wallet,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { branchStore } from '../lib/api'
 import { Modal } from './ui'
 
 const ADMIN_NAV = [
@@ -27,7 +26,6 @@ const TENANT_NAV = [
   { to: '/app/expenses', icon: Wallet, label: 'Expenses', perm: 'expenses.manage' },
   { to: '/app/reports', icon: BarChart3, label: 'Reports', perm: 'reports.view' },
   { to: '/app/staff', icon: Users, label: 'Staff', perm: 'users.manage' },
-  { to: '/app/branches', icon: GitBranch, label: 'Branches', perm: 'branches.manage' },
   { to: '/app/subscription', icon: CreditCard, label: 'Plan', perm: 'subscription.manage' },
   { to: '/app/settings', icon: Settings, label: 'Settings', perm: 'settings.manage' },
 ]
@@ -40,17 +38,13 @@ function Logo({ company, isSuperAdmin, size = 'h-10 w-10' }) {
 }
 
 export default function Layout() {
-  const { user, company, can, isSuperAdmin, logout, subscription_expired, subscription, branches, multiBranch } = useAuth()
+  const { user, company, can, isSuperAdmin, logout, subscription_expired, subscription } = useAuth()
   const [more, setMore] = useState(false)
-  const [branch, setBranch] = useState(branchStore.get() || '')
   const nav = useNavigate()
   const loc = useLocation()
 
   useEffect(() => { setMore(false) }, [loc.pathname])
 
-  // Branch switcher only for owners/unlocked staff of a company that really has several branches.
-  const canSwitch = !isSuperAdmin && !user?.branch_id && multiBranch
-  const changeBranch = (v) => { setBranch(v); branchStore.set(v); window.location.reload() }
   const doLogout = async () => { await logout(); nav('/login') }
 
   const items = isSuperAdmin ? ADMIN_NAV : TENANT_NAV.filter((n) => can(n.perm))
@@ -103,12 +97,6 @@ export default function Layout() {
               <div className="truncate text-xs text-white/75">Hi, {user?.name?.split(' ')[0]} · <span className="capitalize">{user?.role?.replace('_', ' ')}</span></div>
             </div>
             <div className="hidden flex-1 lg:block" />
-            {canSwitch && (
-              <select value={branch} onChange={(e) => changeBranch(e.target.value)} className="max-w-[9rem] rounded-xl border-0 bg-white/20 px-3 py-2 text-sm font-medium text-white backdrop-blur lg:max-w-none lg:border lg:border-line lg:bg-white lg:text-ink [&>option]:text-ink">
-                <option value="">Default branch</option>
-                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-            )}
           </div>
         </header>
 

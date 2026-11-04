@@ -77,20 +77,11 @@ class Tenant
     }
 
     /**
-     * Resolve the branch for this request. Branch-locked staff always use their own branch;
-     * owners may pick one via ?branch_id= / X-Branch-Id, validated against the tenant.
+     * Branches are not exposed in the product: every company has one default branch, which all
+     * orders, bills and tables are attached to. Resolved server-side from the tenant (scoped query).
      */
-    public static function branchId(User $user, ?int $requested = null): int
+    public static function branchId(User $user): int
     {
-        if ($user->branch_id && ! in_array($user->role, ['owner'], true)) {
-            return $user->branch_id;
-        }
-        if ($requested) {
-            $ok = Branch::whereKey($requested)->where('is_active', true)->exists(); // scoped to tenant
-            abort_unless($ok, 422, 'Invalid branch.');
-            return $requested;
-        }
-
         return $user->branch_id ?: (int) Branch::orderByDesc('is_default')->orderBy('id')->value('id');
     }
 

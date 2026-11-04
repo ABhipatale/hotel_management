@@ -18,7 +18,6 @@ import Orders from './pages/app/Orders'
 import Billing from './pages/app/Billing'
 import MenuManager from './pages/app/MenuManager'
 import Staff from './pages/app/Staff'
-import Branches from './pages/app/Branches'
 import Expenses from './pages/app/Expenses'
 import Inventory from './pages/app/Inventory'
 import Reports from './pages/app/Reports'
@@ -82,7 +81,6 @@ export default function App() {
               <Route path="expenses" element={<P perm="expenses.manage"><Expenses /></P>} />
               <Route path="reports" element={<P perm="reports.view"><Reports /></P>} />
               <Route path="staff" element={<P perm="users.manage"><Staff /></P>} />
-              <Route path="branches" element={<P perm="branches.manage"><Branches /></P>} />
               <Route path="subscription" element={<P perm="subscription.manage"><Subscription /></P>} />
               <Route path="settings" element={<P perm="settings.manage"><Settings /></P>} />
             </Route>

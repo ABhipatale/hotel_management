@@ -8,7 +8,7 @@ import ImagePicker from '../../components/ImagePicker'
 import { Button, Card, Input, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
 
 export default function Settings() {
-  const { refresh, hasFeature, multiBranch } = useAuth()
+  const { refresh, hasFeature } = useAuth()
   const toast = useToast()
   const { data: company, loading } = useApi('/company')
   const { data: printer } = useApi('/printer')
@@ -69,7 +69,7 @@ export default function Settings() {
 
         <div className="space-y-5">
           <Card>
-            <h3 className="mb-3 font-semibold">Thermal printer{multiBranch ? ' (this branch)' : ''}</h3>
+            <h3 className="mb-3 font-semibold">Thermal printer</h3>
             {!hasFeature('thermal') && <p className="mb-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">Direct thermal printing needs the Pro plan; browser print is always available.</p>}
             <form onSubmit={savePrinter} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">

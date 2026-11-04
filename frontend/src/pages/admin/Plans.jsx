@@ -6,8 +6,8 @@ import { money } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
 import { Badge, Button, Card, Input, Modal, PageHeader, Spinner } from '../../components/ui'
 
-const FEATURES = ['qr', 'thermal', 'reports', 'advanced_reports', 'inventory', 'expenses', 'pnl', 'multi_branch', 'advanced_permissions']
-const BLANK = { name: '', slug: '', price_monthly: 0, price_yearly: 0, max_staff: '', max_tables: '', max_branches: 1, trial_days: 14, features: [], is_active: true }
+const FEATURES = ['qr', 'thermal', 'reports', 'advanced_reports', 'inventory', 'expenses', 'pnl', 'advanced_permissions']
+const BLANK = { name: '', slug: '', price_monthly: 0, price_yearly: 0, max_staff: '', max_tables: '', trial_days: 14, features: [], is_active: true }
 
 export default function Plans() {
   const toast = useToast()
@@ -16,7 +16,7 @@ export default function Plans() {
 
   const save = async (e) => {
     e.preventDefault()
-    const body = { ...edit, max_staff: edit.max_staff || null, max_tables: edit.max_tables || null }
+    const body = { ...edit, max_staff: edit.max_staff || null, max_tables: edit.max_tables || null, features: edit.features.filter((f) => FEATURES.includes(f)) }
     try {
       edit.id ? await api.put(`/admin/plans/${edit.id}`, body) : await api.post('/admin/plans', body)
       toast.success('Plan saved'); setEdit(null); reload()
@@ -36,7 +36,7 @@ export default function Plans() {
             <div className="mt-1 text-2xl font-semibold">{money(p.price_monthly)}<span className="text-sm font-normal text-muted"> /month</span></div>
             <div className="text-xs text-muted">{money(p.price_yearly)} / year · {p.trial_days}-day trial</div>
             <ul className="my-4 flex-1 space-y-1 text-sm">
-              <li>{p.max_staff ?? 'Unlimited'} staff accounts</li><li>{p.max_branches} branch(es)</li>
+              <li>{p.max_staff ?? 'Unlimited'} staff accounts</li>
             </ul>
             <div className="mb-4 flex flex-wrap gap-1">{(p.features || []).map((f) => <Badge key={f} tone="violet">{f.replace('_', ' ')}</Badge>)}</div>
             <Button variant="secondary" onClick={() => setEdit({ ...p, max_staff: p.max_staff ?? '', max_tables: p.max_tables ?? '' })}>Edit</Button>
@@ -52,7 +52,6 @@ export default function Plans() {
             <Input label="Monthly price" type="number" min="0" required value={edit.price_monthly} onChange={s('price_monthly')} />
             <Input label="Yearly price" type="number" min="0" required value={edit.price_yearly} onChange={s('price_yearly')} />
             <Input label="Max staff" type="number" min="1" placeholder="Unlimited" value={edit.max_staff} onChange={s('max_staff')} />
-            <Input label="Max branches" type="number" min="1" required value={edit.max_branches} onChange={s('max_branches')} />
             <Input label="Trial days" type="number" min="0" required value={edit.trial_days} onChange={s('trial_days')} />
             <div className="sm:col-span-2">
               <div className="mb-1 text-xs font-medium text-muted">Features</div>

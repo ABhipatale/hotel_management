@@ -8,7 +8,7 @@ import { Button, Card, Chips, Input, PageHeader, Select, Spinner, Table } from '
 
 const REPORTS = [
   ['sales', 'Sales'], ['tables', 'Table-wise'], ['waiters', 'Waiter-wise'], ['items', 'Item-wise'], ['payments', 'Payment-wise'],
-  ['expenses', 'Expenses', 'expenses'], ['inventory', 'Inventory', 'inventory'], ['pnl', 'Profit & Loss', 'pnl'], ['branches', 'Branch comparison', 'multi_branch'],
+  ['expenses', 'Expenses', 'expenses'], ['inventory', 'Inventory', 'inventory'], ['pnl', 'Profit & Loss', 'pnl'],
 ]
 
 const COLS = {
@@ -18,7 +18,6 @@ const COLS = {
   payments: [['method', 'Method'], ['count', 'Payments'], ['total', 'Total', 'm']],
   expenses: [['category', 'Category'], ['entries', 'Entries'], ['total', 'Total', 'm']],
   inventory: [['name', 'Item'], ['quantity', 'Quantity'], ['unit', 'Unit'], ['min_quantity', 'Alert level']],
-  branches: [['branch', 'Branch'], ['sales', 'Sales', 'm'], ['expenses', 'Expenses', 'm'], ['profit', 'Profit', 'm']],
   sales: [['period', 'Period'], ['bills', 'Bills'], ['sales', 'Sales', 'm'], ['tax', 'GST', 'm'], ['discount', 'Discount', 'm']],
 }
 
@@ -29,14 +28,13 @@ function toCsv(rows, cols) {
 }
 
 export default function Reports() {
-  const { hasFeature, can, branches, multiBranch } = useAuth()
+  const { hasFeature } = useAuth()
   const [type, setType] = useState('sales')
   const [group, setGroup] = useState('day')
-  const [branch, setBranch] = useState('all')
   const [range, setRange] = useState({ from: today().slice(0, 8) + '01', to: today() })
-  const { data, loading, error } = useApi(`/reports/${type}`, { params: { ...range, group, branch_id: branch } })
+  const { data, loading, error } = useApi(`/reports/${type}`, { params: { ...range, group } })
 
-  const available = REPORTS.filter(([k, , f]) => (!f || hasFeature(f)) && (k !== 'branches' || multiBranch))
+  const available = REPORTS.filter(([, , f]) => !f || hasFeature(f))
   const rows = type === 'sales' ? data?.rows : data
   const cols = COLS[type]
 
@@ -55,7 +53,6 @@ export default function Reports() {
         <Input type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
         <Input type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
         {type === 'sales' && <Select value={group} onChange={(e) => setGroup(e.target.value)}><option value="day">Daily</option><option value="month">Monthly</option><option value="year">Yearly</option></Select>}
-        {can('branches.manage') && multiBranch && type !== 'branches' && <Select value={branch} onChange={(e) => setBranch(e.target.value)}><option value="all">All branches</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select>}
       </div>
 
       {error ? <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{error}</p> : loading ? <Spinner /> : type === 'pnl' ? (

@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BillingController;
-use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OperationsController;
 use App\Http\Controllers\Api\OrderController;
@@ -78,19 +77,13 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('permissions', [SettingsController::class, 'permissions']);
         Route::get('audit-logs', [SettingsController::class, 'auditLogs'])->middleware('perm:settings.manage');
 
-        // Staff & branches
+        // Staff
         Route::middleware('perm:users.manage')->group(function () {
             Route::get('staff', [StaffController::class, 'index']);
             Route::post('staff', [StaffController::class, 'store']);
             Route::put('staff/{id}', [StaffController::class, 'update']);
             Route::delete('staff/{id}', [StaffController::class, 'destroy']);
             Route::get('staff/{id}/activity', [StaffController::class, 'activity']);
-        });
-        Route::get('branches', [BranchController::class, 'index']);
-        Route::middleware('perm:branches.manage')->group(function () {
-            Route::post('branches', [BranchController::class, 'store'])->middleware('feature:multi_branch');
-            Route::put('branches/{id}', [BranchController::class, 'update']);
-            Route::delete('branches/{id}', [BranchController::class, 'destroy']);
         });
 
         // Tables
@@ -162,7 +155,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         // Reports (basic = 'reports', advanced types need the advanced plan)
         Route::middleware(['perm:reports.view', 'feature:reports'])->group(function () {
             Route::get('reports/{type}', [ReportController::class, 'report'])
-                ->where('type', 'sales|tables|waiters|items|payments|inventory|expenses|pnl|branches');
+                ->where('type', 'sales|tables|waiters|items|payments|inventory|expenses|pnl');
         });
     });
 });
