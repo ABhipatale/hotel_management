@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Armchair, BarChart3, Bell, Building2, CreditCard, Grid2x2, Layers, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
+  Armchair, BarChart3, Bell, Building2, CreditCard, Layers, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
   Settings, ShoppingBag, Store, Users, UtensilsCrossed, Wallet,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -59,11 +59,13 @@ export default function Layout() {
   const canNew = !isSuperAdmin && can('orders.create')
   const daysLeft = subscription ? Math.ceil((new Date(subscription.ends_at) - Date.now()) / 86400000) : null
 
-  // Mobile: up to 4 primary tabs (+ centre "new order" button) and everything else under "More".
+  // Mobile: up to 4 primary tabs around the centre "new order" button. Everything else lives in the
+  // account menu that opens from the avatar in the top-right corner.
   const primary = isSuperAdmin ? items.slice(0, 4) : items.filter((i) => ['/app', '/app/tables', '/app/orders', '/app/billing'].includes(i.to)).slice(0, 4)
   const rest = items.filter((i) => !primary.includes(i))
-  const left = primary.slice(0, 2)
-  const right = primary.slice(2)
+  const half = Math.floor(primary.length / 2)
+  const left = primary.slice(0, half)
+  const right = primary.slice(half)
 
   const tab = (i) => (
     <NavLink key={i.to} to={i.to} end={i.end} className="group relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-bold">
@@ -147,19 +149,16 @@ export default function Layout() {
       {/* Bottom navigation (phones & small tablets): white bar, teal active icon, coral indicator + FAB */}
       <nav aria-label="Primary" className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] lg:hidden">
         <div className="pointer-events-auto mx-auto flex max-w-md items-end rounded-[1.25rem] bg-white px-2 shadow-float ring-1 ring-line">
-          {left.map(tab)}
+          {/* Two equal-width groups keep the New Order button exactly centred, whatever the tab count */}
+          <div className="flex min-w-0 flex-1">{left.map(tab)}</div>
           {canNew && (
-            <div className="flex flex-1 justify-center">
+            <div className="flex w-20 shrink-0 justify-center">
               <button onClick={() => nav('/app/order/new')} aria-label="New order" className="-mt-7 grid h-16 w-16 place-items-center rounded-full bg-accent text-white shadow-[0_12px_24px_-8px_rgb(255_104_69/.8)] ring-[5px] ring-white transition active:scale-90">
                 <Plus className="h-8 w-8" strokeWidth={2.6} />
               </button>
             </div>
           )}
-          {right.map(tab)}
-          <button onClick={() => setMore(true)} className="group flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-bold text-slate-400">
-            <Grid2x2 className="h-[22px] w-[22px] transition group-active:scale-90" />
-            More
-          </button>
+          <div className="flex min-w-0 flex-1">{right.map(tab)}</div>
         </div>
       </nav>
 
