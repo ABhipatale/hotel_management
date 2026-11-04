@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Armchair, BarChart3, Building2, CreditCard, Grid2x2, Layers, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
+  Armchair, BarChart3, Bell, Building2, CreditCard, Grid2x2, Layers, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
   Settings, ShoppingBag, Store, Users, UtensilsCrossed, Wallet,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { Modal } from './ui'
+import { useApi } from '../lib/useApi'
+import { Avatar, Modal } from './ui'
 
 const ADMIN_NAV = [
   { to: '/admin', icon: LayoutDashboard, label: 'Overview', end: true },
@@ -30,11 +31,13 @@ const TENANT_NAV = [
   { to: '/app/settings', icon: Settings, label: 'Settings', perm: 'settings.manage' },
 ]
 
-function Logo({ company, isSuperAdmin, size = 'h-10 w-10' }) {
-  if (isSuperAdmin) return <div className={`grid ${size} shrink-0 place-items-center rounded-2xl bg-brand-gradient text-white shadow-md`}><Store className="h-5 w-5" /></div>
+/** Tenant logo (or initial) on a light tile so any logo reads clearly on the teal header / sidebar. */
+function Logo({ company, isSuperAdmin, size = 'h-11 w-11' }) {
+  const tile = `${size} shrink-0 rounded-2xl`
+  if (isSuperAdmin) return <div className={`grid ${tile} place-items-center bg-ivory text-brand`}><Store className="h-5 w-5" strokeWidth={2.3} /></div>
   return company?.logo_url
-    ? <img src={company.logo_url} alt="" className={`${size} shrink-0 rounded-2xl object-cover shadow-sm`} />
-    : <div className={`grid ${size} shrink-0 place-items-center rounded-2xl bg-brand-gradient text-lg font-extrabold text-white shadow-md`}>{company?.name?.[0]}</div>
+    ? <img src={company.logo_url} alt="" className={`${tile} bg-white object-contain p-1`} />
+    : <div className={`grid ${tile} place-items-center bg-ivory text-lg font-extrabold text-brand`}>{company?.name?.[0]}</div>
 }
 
 export default function Layout() {
@@ -45,6 +48,11 @@ export default function Layout() {
 
   useEffect(() => { setMore(false) }, [loc.pathname])
 
+  // Notification bell: orders waiting to be accepted (e.g. QR orders from customers). Light 30s poll.
+  const showBell = !isSuperAdmin && can('orders.view')
+  const { data: pending } = useApi('/orders', { params: { status: 'pending' }, poll: 30000, skip: !showBell })
+  const pendingCount = pending?.length || 0
+
   const doLogout = async () => { await logout(); nav('/login') }
 
   const items = isSuperAdmin ? ADMIN_NAV : TENANT_NAV.filter((n) => can(n.perm))
@@ -54,76 +62,102 @@ export default function Layout() {
   // Mobile: up to 4 primary tabs (+ centre "new order" button) and everything else under "More".
   const primary = isSuperAdmin ? items.slice(0, 4) : items.filter((i) => ['/app', '/app/tables', '/app/orders', '/app/billing'].includes(i.to)).slice(0, 4)
   const rest = items.filter((i) => !primary.includes(i))
-  const left = canNew ? primary.slice(0, 2) : primary.slice(0, 2)
+  const left = primary.slice(0, 2)
   const right = primary.slice(2)
 
   const tab = (i) => (
-    <NavLink key={i.to} to={i.to} end={i.end} className={({ isActive }) => `relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold transition ${isActive ? 'text-brand' : 'text-slate-400'}`}>
+    <NavLink key={i.to} to={i.to} end={i.end} className="group relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-bold">
       {({ isActive }) => (
         <>
-          <span className={`grid h-8 w-12 place-items-center rounded-full transition ${isActive ? 'bg-brand-soft' : ''}`}><i.icon className="h-[22px] w-[22px]" strokeWidth={isActive ? 2.4 : 2} /></span>
-          {i.label}
+          {/* Coral active indicator */}
+          <span className={`absolute left-1/2 top-0 h-[3px] -translate-x-1/2 rounded-full bg-accent transition-all duration-300 ${isActive ? 'w-7 opacity-100' : 'w-0 opacity-0'}`} />
+          <i.icon className={`h-[22px] w-[22px] transition group-active:scale-90 ${isActive ? 'text-brand' : 'text-slate-400'}`} strokeWidth={isActive ? 2.5 : 2} />
+          <span className={isActive ? 'text-brand' : 'text-slate-400'}>{i.label}</span>
         </>
       )}
     </NavLink>
   )
 
+  const BellBtn = (
+    <button onClick={() => nav('/app/orders')} aria-label={`Notifications${pendingCount ? `, ${pendingCount} new order${pendingCount > 1 ? 's' : ''}` : ''}`} className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 text-white ring-1 ring-white/20 transition active:scale-90 lg:bg-ivory lg:text-brand lg:ring-0">
+      <Bell className="h-5 w-5" />
+      {pendingCount > 0 && (
+        <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-[10px] font-extrabold text-white ring-2 ring-brand lg:ring-white">
+          <span className="animate-ping-soft absolute inset-0 rounded-full bg-accent/60" />
+          <span className="relative">{pendingCount > 9 ? '9+' : pendingCount}</span>
+        </span>
+      )}
+    </button>
+  )
+
   return (
     <div className="flex min-h-full">
-      {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-line bg-white p-4 lg:flex">
-        <div className="flex items-center gap-3"><Logo company={company} isSuperAdmin={isSuperAdmin} /><div className="min-w-0 leading-tight"><div className="truncate font-bold">{isSuperAdmin ? 'Hotel SaaS' : company?.name}</div><div className="text-xs text-muted">{isSuperAdmin ? 'Platform admin' : company?.uid}</div></div></div>
-        <nav className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto">
+      {/* Desktop sidebar — Deep Teal */}
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-brand p-4 text-white lg:flex">
+        <div className="flex items-center gap-3 rounded-2xl bg-white/10 p-3 ring-1 ring-white/10">
+          <Logo company={company} isSuperAdmin={isSuperAdmin} />
+          <div className="min-w-0 leading-tight"><div className="truncate font-extrabold">{isSuperAdmin ? 'Hotel SaaS' : company?.name}</div><div className="text-xs text-white/60">{isSuperAdmin ? 'Platform admin' : company?.uid}</div></div>
+        </div>
+        <nav className="mt-5 flex flex-1 flex-col gap-1 overflow-y-auto">
           {items.map(({ to, icon: Icon, label, end }) => (
-            <NavLink key={to} to={to} end={end} className={({ isActive }) => `flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold transition ${isActive ? 'bg-brand-gradient text-white shadow-md shadow-brand/25' : 'text-slate-600 hover:bg-slate-100'}`}>
-              <Icon className="h-[18px] w-[18px]" /> {label}
+            <NavLink key={to} to={to} end={end} className={({ isActive }) => `relative flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-bold transition ${isActive ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
+              {({ isActive }) => (
+                <>
+                  {isActive && <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-accent" />}
+                  <Icon className="h-[18px] w-[18px]" /> {label}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
-        <div className="mt-4 flex items-center gap-3 border-t border-line pt-4">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft font-bold text-brand">{user?.name?.[0]}</div>
-          <div className="min-w-0 flex-1 leading-tight"><div className="truncate text-sm font-semibold">{user?.name}</div><div className="text-xs capitalize text-muted">{user?.role?.replace('_', ' ')}</div></div>
-          <button onClick={doLogout} className="rounded-xl p-2 text-muted hover:bg-slate-100" aria-label="Log out"><LogOut className="h-4 w-4" /></button>
+        <div className="mt-4 flex items-center gap-3 border-t border-white/15 pt-4">
+          <Avatar name={user?.name} className="!bg-ivory !text-brand !ring-0" />
+          <div className="min-w-0 flex-1 leading-tight"><div className="truncate text-sm font-bold">{user?.name}</div><div className="text-xs capitalize text-white/60">{user?.role?.replace('_', ' ')}</div></div>
+          <button onClick={doLogout} className="grid h-10 w-10 place-items-center rounded-xl text-white/70 transition hover:bg-white/10 hover:text-white" aria-label="Log out"><LogOut className="h-[18px] w-[18px]" /></button>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile app bar */}
-        <header className="safe-top sticky top-0 z-30 bg-brand-gradient text-white lg:bg-white lg:bg-none lg:text-ink lg:shadow-none lg:ring-1 lg:ring-line">
+        {/* App bar: Deep Teal on phones, clean white on desktop */}
+        <header className="safe-top sticky top-0 z-30 bg-brand text-white lg:bg-white! lg:text-ink! lg:ring-1 lg:ring-line">
           <div className="flex items-center gap-3 px-4 py-3 lg:px-8">
-            <div className="lg:hidden"><Logo company={company} isSuperAdmin={isSuperAdmin} size="h-10 w-10" /></div>
+            <div className="lg:hidden"><Logo company={company} isSuperAdmin={isSuperAdmin} /></div>
             <div className="min-w-0 flex-1 leading-tight lg:hidden">
-              <div className="truncate text-base font-extrabold">{isSuperAdmin ? 'Hotel SaaS' : company?.name}</div>
-              <div className="truncate text-xs text-white/75">Hi, {user?.name?.split(' ')[0]} · <span className="capitalize">{user?.role?.replace('_', ' ')}</span></div>
+              <div className="truncate text-[17px] font-extrabold tracking-tight">{isSuperAdmin ? 'Hotel SaaS' : company?.name}</div>
+              <div className="truncate text-xs font-medium text-white/70">Hi, {user?.name?.split(' ')[0]} · <span className="capitalize">{user?.role?.replace('_', ' ')}</span></div>
             </div>
             <div className="hidden flex-1 lg:block" />
+            {showBell && BellBtn}
+            <button onClick={() => setMore(true)} aria-label="Account menu" className="lg:hidden"><Avatar name={user?.name} className="!bg-ivory !text-brand !ring-0" /></button>
           </div>
         </header>
 
         {!isSuperAdmin && subscription_expired && (
-          <div className="bg-rose-600 px-4 py-2 text-center text-sm text-white">Subscription expired — read-only. <NavLink to="/app/subscription" className="font-bold underline">Renew</NavLink></div>
+          <div className="bg-rose-600 px-4 py-2.5 text-center text-sm font-medium text-white">Subscription expired — read-only. <NavLink to="/app/subscription" className="font-extrabold underline">Renew</NavLink></div>
         )}
         {!isSuperAdmin && !subscription_expired && subscription?.status === 'trial' && daysLeft !== null && (
-          <div className="bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800">Free trial · {Math.max(daysLeft, 0)} day(s) left{can('subscription.manage') && <> · <NavLink to="/app/subscription" className="font-bold underline">Choose plan</NavLink></>}</div>
+          <div className="bg-accent-soft px-4 py-2 text-center text-xs font-semibold text-amber-800">Free trial · {Math.max(daysLeft, 0)} day(s) left{can('subscription.manage') && <> · <NavLink to="/app/subscription" className="font-extrabold underline">Choose plan</NavLink></>}</div>
         )}
 
-        <main className="mx-auto w-full max-w-7xl min-w-0 flex-1 px-4 py-5 pb-32 lg:px-8 lg:pb-8"><Outlet /></main>
+        <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 py-5 pb-36 sm:px-6 lg:px-8 lg:pb-8">
+          <div key={loc.pathname} className="animate-page"><Outlet /></div>
+        </main>
       </div>
 
-      {/* Mobile bottom tab bar */}
-      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 backdrop-blur lg:hidden">
-        <div className="mx-auto flex max-w-lg items-end px-2">
+      {/* Bottom navigation (phones & small tablets): white bar, teal active icon, coral indicator + FAB */}
+      <nav aria-label="Primary" className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] lg:hidden">
+        <div className="pointer-events-auto mx-auto flex max-w-md items-end rounded-[1.25rem] bg-white px-2 shadow-float ring-1 ring-line">
           {left.map(tab)}
           {canNew && (
             <div className="flex flex-1 justify-center">
-              <button onClick={() => nav('/app/order/new')} aria-label="New order" className="-mt-6 grid h-16 w-16 place-items-center rounded-full bg-brand-gradient text-white shadow-float ring-4 ring-white transition active:scale-95">
+              <button onClick={() => nav('/app/order/new')} aria-label="New order" className="-mt-7 grid h-16 w-16 place-items-center rounded-full bg-accent text-white shadow-[0_12px_24px_-8px_rgb(255_104_69/.8)] ring-[5px] ring-white transition active:scale-90">
                 <Plus className="h-8 w-8" strokeWidth={2.6} />
               </button>
             </div>
           )}
           {right.map(tab)}
-          <button onClick={() => setMore(true)} className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold text-slate-400">
-            <span className="grid h-8 w-12 place-items-center rounded-full"><Grid2x2 className="h-[22px] w-[22px]" /></span>
+          <button onClick={() => setMore(true)} className="group flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-bold text-slate-400">
+            <Grid2x2 className="h-[22px] w-[22px] transition group-active:scale-90" />
             More
           </button>
         </div>
@@ -132,15 +166,15 @@ export default function Layout() {
       <Modal open={more} onClose={() => setMore(false)} title="Menu">
         <div className="grid grid-cols-3 gap-3">
           {rest.map(({ to, icon: Icon, label }) => (
-            <NavLink key={to} to={to} className="flex flex-col items-center gap-2 rounded-2xl bg-slate-50 px-2 py-4 text-center text-xs font-semibold text-slate-700 active:bg-brand-soft">
-              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-brand shadow-sm"><Icon className="h-5 w-5" /></span>{label}
+            <NavLink key={to} to={to} className="flex min-h-[6.5rem] flex-col items-center justify-center gap-2.5 rounded-[1.25rem] bg-canvas px-2 py-4 text-center text-xs font-bold text-slate-700 ring-1 ring-line transition active:scale-95">
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-brand shadow-card"><Icon className="h-5 w-5" strokeWidth={2.2} /></span>{label}
             </NavLink>
           ))}
         </div>
-        <div className="mt-5 flex items-center gap-3 rounded-2xl bg-slate-50 p-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand-soft font-bold text-brand">{user?.name?.[0]}</div>
-          <div className="min-w-0 flex-1 leading-tight"><div className="truncate font-semibold">{user?.name}</div><div className="truncate text-xs text-muted">{user?.email}</div></div>
-          <button onClick={doLogout} className="flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-rose-600 shadow-sm"><LogOut className="h-4 w-4" /> Log out</button>
+        <div className="mt-5 flex items-center gap-3 rounded-[1.25rem] bg-canvas p-3.5 ring-1 ring-line">
+          <Avatar name={user?.name} size="lg" className="!bg-brand !ring-0" />
+          <div className="min-w-0 flex-1 leading-tight"><div className="truncate font-bold">{user?.name}</div><div className="truncate text-xs text-muted">{user?.email}</div></div>
+          <button onClick={doLogout} className="flex min-h-11 items-center gap-1.5 rounded-2xl bg-white px-3.5 text-sm font-bold text-rose-600 shadow-card transition active:scale-95"><LogOut className="h-4 w-4" /> Log out</button>
         </div>
       </Modal>
     </div>

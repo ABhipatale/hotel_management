@@ -39,7 +39,7 @@ export default function Receipt({ data, phone }) {
 
   return (
     <div>
-      <div id="receipt" className="mx-auto bg-white p-3 font-mono text-[12px] leading-snug text-black shadow-sm ring-1 ring-line" style={{ width }}>
+      <div id="receipt" className="mx-auto bg-white p-3 font-mono text-[12px] leading-snug text-black shadow-sm ring-1 ring-line" style={{ width, maxWidth: '100%' }}>
         <div className="text-center">
           {printer?.show_logo !== false && company.logo_url && <img src={company.logo_url} alt="" className="mx-auto mb-1 h-12 object-contain grayscale" />}
           <div className="text-sm font-bold">{company.name}</div>
@@ -49,8 +49,8 @@ export default function Receipt({ data, phone }) {
           {company.gst_number && <div>GSTIN: {company.gst_number}</div>}
         </div>
         <hr className="my-1.5 border-dashed border-black" />
-        <div className="flex justify-between"><span>Bill: {bill.bill_no}</span><span>{new Date(bill.created_at).toLocaleDateString('en-IN')}</span></div>
-        <div className="flex justify-between"><span>Order: {order_no}</span>{table && <span>Table {table}</span>}</div>
+        <div className="flex flex-wrap justify-between gap-x-2"><span className="break-all">Bill: {bill.bill_no}</span><span>{new Date(bill.created_at).toLocaleDateString('en-IN')}</span></div>
+        <div className="flex flex-wrap justify-between gap-x-2"><span className="break-all">Order: {order_no}</span>{table && <span>Table {table}</span>}</div>
         {waiter && <div>Waiter: {waiter}</div>}
         <hr className="my-1.5 border-dashed border-black" />
         {bill.items.map((i) => (
@@ -66,10 +66,12 @@ export default function Receipt({ data, phone }) {
         <div className="text-center">{company.bill_footer || 'Thank you! Visit again.'}</div>
       </div>
 
-      <div className="mt-4 flex gap-2">
-        <Button className="flex-1" onClick={print}><Printer className="h-4 w-4" /> Print{canEscpos ? ` (${conn})` : ''}</Button>
-        <Button variant="secondary" className="flex-1" onClick={whatsapp}><MessageCircle className="h-4 w-4" /> WhatsApp</Button>
+      {/* Buttons wrap onto two rows on very narrow phones instead of overflowing the sheet */}
+      <div className="mt-5 flex flex-wrap gap-2.5">
+        <Button className="min-w-[8.5rem] flex-1" onClick={print}><Printer className="h-4 w-4" /> Print</Button>
+        <Button variant="secondary" className="min-w-[8.5rem] flex-1" onClick={whatsapp}><MessageCircle className="h-4 w-4" /> WhatsApp</Button>
       </div>
+      {canEscpos && <p className="mt-2 text-center text-xs text-muted">Prints to your {conn === 'usb' ? 'USB' : 'Bluetooth'} thermal printer</p>}
       {conn === 'network' && <p className="mt-2 text-center text-xs text-muted">Network printers use the browser print dialog from this device.</p>}
     </div>
   )

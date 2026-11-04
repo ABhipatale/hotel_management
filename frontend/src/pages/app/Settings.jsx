@@ -26,7 +26,7 @@ export default function Settings() {
 
   const saveCompany = async (e) => {
     e.preventDefault()
-    const { logo_url, logo_path, icon_url, icon_path, id, uid, slug, status, created_at, updated_at, deleted_at, settings, business_name, ...rest } = f
+    const { logo_url, logo_path, icon_url, icon_path, brand_color, id, uid, slug, status, created_at, updated_at, deleted_at, settings, business_name, ...rest } = f
     try {
       const { data } = await api.post('/company', toFormData({ ...rest, logo, icon, remove_icon: removeIcon || undefined }))
       setF(data); setLogo(null); setIcon(null); setRemoveIcon(false)
@@ -59,7 +59,6 @@ export default function Settings() {
             <div className="space-y-5 rounded-2xl bg-slate-50 p-4">
               <ImagePicker label="Company logo" hint="Shown in the app header, on bills and on your QR menu. Any shape; PNG with transparent background looks best." current={f.logo_url} file={logo} onChange={setLogo} rounded="rounded-2xl" fit="object-contain bg-white" />
               <ImagePicker label="App icon" hint="The icon on the phone home screen when installed. Square PNG, at least 512 x 512 px (min 192)." current={removeIcon ? null : f.icon_url} file={icon} onChange={(x) => { setIcon(x); setRemoveIcon(false) }} onRemove={f.icon_url ? () => setRemoveIcon(true) : undefined} />
-              <Input label="Brand colour" type="color" className="h-12 w-24 p-1" value={f.brand_color || '#4f46e5'} onChange={s('brand_color')} />
             </div>
             <Textarea label="Bill header" value={f.bill_header || ''} onChange={s('bill_header')} />
             <Textarea label="Bill footer" value={f.bill_footer || ''} onChange={s('bill_footer')} />

@@ -46,7 +46,7 @@ export default function Subscription() {
       </Card>
 
       <div className="mb-4 inline-flex rounded-full border border-line bg-white p-1">
-        {['monthly', 'yearly'].map((c) => <button key={c} onClick={() => setCycle(c)} className={`rounded-full px-4 py-1.5 text-sm capitalize ${cycle === c ? 'bg-brand text-white' : 'text-muted'}`}>{c}</button>)}
+        {['monthly', 'yearly'].map((c) => <button key={c} onClick={() => setCycle(c)} className={`min-h-11 rounded-full px-6 text-sm font-bold capitalize transition ${cycle === c ? 'bg-brand text-white' : 'text-muted'}`}>{c}</button>)}
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         {plans?.map((p) => {

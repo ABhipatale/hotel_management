@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, QrCode } from 'lucide-react'
+import { Plus, QrCode, StickyNote } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { ago, money } from '../../lib/format'
@@ -28,7 +28,7 @@ export default function Orders() {
   if (loading) return <Spinner />
   return (
     <>
-      <PageHeader title="Orders" actions={can('orders.create') && <Link to="/app/order/new"><Button size="sm"><Plus className="h-4 w-4" /> New order</Button></Link>} />
+      <PageHeader title="Orders" actions={can('orders.create') && <Link to="/app/order/new"><Button variant="accent" size="sm"><Plus className="h-4 w-4" /> New order</Button></Link>} />
       <Chips items={TABS} value={tab} onChange={setTab} />
 
       {!data?.length ? <Empty title="No orders" hint="New orders from waiters and customer QR scans appear here." /> : (
@@ -43,9 +43,9 @@ export default function Orders() {
                 <Badge tone={statusTone(o.status)}>{o.status}</Badge>
               </div>
               <ul className="my-3 flex-1 space-y-1 text-sm">
-                {o.items.filter((i) => i.status !== 'cancelled').map((i) => <li key={i.id} className="flex justify-between"><span>{i.quantity}× {i.name}{i.variant ? ` (${i.variant})` : ''}</span><Badge tone={statusTone(i.status)}>{i.status}</Badge></li>)}
+                {o.items.filter((i) => i.status !== 'cancelled').map((i) => <li key={i.id} className="flex justify-between"><span>{i.quantity}× {i.name}{i.variant ? ` (${i.variant})` : ''}</span><b className="tabular text-slate-700">{money(i.price * i.quantity)}</b></li>)}
               </ul>
-              {o.notes && <p className="mb-2 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-800">📝 {o.notes}</p>}
+              {o.notes && <p className="mb-2 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800"><StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0" />{o.notes}</p>}
               <div className="flex flex-wrap gap-2">
                 {o.status === 'pending' && can('orders.create') && <Button size="sm" variant="soft" onClick={() => setStatus(o, 'accepted')}>Accept</Button>}
                 {['accepted', 'preparing', 'ready'].includes(o.status) && <Button size="sm" variant="soft" onClick={() => setStatus(o, 'served')}>Mark served</Button>}

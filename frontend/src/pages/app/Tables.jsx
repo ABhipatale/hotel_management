@@ -12,13 +12,14 @@ const STATUSES = ['available', 'occupied', 'reserved', 'preparing', 'ready', 'bi
 
 // Pastel card per status (inspired by modern POS floor plans).
 const LOOK = {
-  available: { card: 'bg-emerald-50 border-emerald-200', pill: 'bg-emerald-500 text-white', text: 'text-emerald-900', dot: 'bg-emerald-500' },
-  occupied: { card: 'bg-rose-50 border-rose-200', pill: 'bg-rose-500 text-white', text: 'text-rose-900', dot: 'bg-rose-500' },
-  reserved: { card: 'bg-violet-100 border-violet-300', pill: 'bg-violet-600 text-white', text: 'text-violet-900', dot: 'bg-violet-500' },
-  preparing: { card: 'bg-amber-50 border-amber-300', pill: 'bg-amber-500 text-white', text: 'text-amber-900', dot: 'bg-amber-500' },
-  ready: { card: 'bg-teal-50 border-teal-200', pill: 'bg-teal-500 text-white', text: 'text-teal-900', dot: 'bg-teal-500' },
-  billing: { card: 'bg-orange-50 border-orange-300', pill: 'bg-orange-500 text-white', text: 'text-orange-900', dot: 'bg-orange-500' },
-  paid: { card: 'bg-slate-50 border-slate-200', pill: 'bg-slate-500 text-white', text: 'text-slate-700', dot: 'bg-slate-400' },
+  // Only theme colours + neutrals: teal = free / ready, coral = busy / billing, stone = idle states
+  available: { card: 'bg-emerald-50 border-emerald-200', pill: 'bg-emerald-600 text-white', text: 'text-emerald-900', dot: 'bg-emerald-600' },
+  occupied: { card: 'bg-amber-50 border-amber-200', pill: 'bg-amber-500 text-white', text: 'text-amber-900', dot: 'bg-amber-500' },
+  reserved: { card: 'bg-slate-100 border-slate-300', pill: 'bg-slate-600 text-white', text: 'text-slate-800', dot: 'bg-slate-500' },
+  preparing: { card: 'bg-sky-50 border-sky-200', pill: 'bg-sky-600 text-white', text: 'text-sky-900', dot: 'bg-sky-600' },
+  ready: { card: 'bg-emerald-600 border-emerald-700', pill: 'bg-white text-emerald-700', text: 'text-white', dot: 'bg-emerald-600' },
+  billing: { card: 'bg-orange-100 border-orange-300', pill: 'bg-orange-600 text-white', text: 'text-orange-900', dot: 'bg-orange-600' },
+  paid: { card: 'bg-white border-slate-200', pill: 'bg-slate-500 text-white', text: 'text-slate-700', dot: 'bg-slate-400' },
 }
 
 function useTick(ms = 30000) {
@@ -29,7 +30,7 @@ function useTick(ms = 30000) {
 const elapsed = (since) => {
   if (!since) return null
   const m = Math.max(0, Math.floor((Date.now() - new Date(since.replace(' ', 'T') + (since.includes('Z') || since.includes('+') ? '' : 'Z')).getTime()) / 60000))
-  return `${Math.floor(m / 60)}h ${m % 60}m`
+  return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`
 }
 
 export default function Tables() {
@@ -85,15 +86,15 @@ export default function Tables() {
           {rows.map((t, i) => {
             const l = LOOK[t.status]
             return (
-              <button key={t.id} onClick={() => setSel(t)} style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }} className={`animate-pop relative overflow-hidden rounded-3xl border-2 p-3.5 text-left shadow-sm transition active:scale-[.96] ${l.card} ${l.text}`}>
-                <div className="flex items-center justify-between text-[11px] font-semibold opacity-70">
+              <button key={t.id} onClick={() => setSel(t)} style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }} className={`animate-pop relative overflow-hidden rounded-[1.25rem] border-2 p-3.5 text-left shadow-sm transition active:scale-[.96] ${l.card} ${l.text}`}>
+                <div className="flex min-h-6 items-center justify-between text-[11px] font-semibold opacity-70">
                   <span className="flex items-center gap-1"><Users className="h-3 w-3" />{t.capacity} seater</span>
                   {t.open_orders > 0 && <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px]">{t.open_orders} order{t.open_orders > 1 ? 's' : ''}</span>}
                 </div>
                 <div className="my-3 text-4xl font-extrabold tracking-tight">T{t.number}</div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ${l.pill}`}>{t.status === 'available' ? 'Free' : t.status}</span>
-                  {t.open_since && <span className="flex items-center gap-1 rounded-full bg-white/80 px-2 py-1 text-[11px] font-semibold"><Clock className="h-3 w-3" />{elapsed(t.open_since)}</span>}
+                  {t.open_since && <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-white/80 px-2 py-1 text-[11px] font-semibold"><Clock className="h-3 w-3" />{elapsed(t.open_since)}</span>}
                 </div>
               </button>
             )
@@ -105,7 +106,7 @@ export default function Tables() {
         {sel && (
           <div className="space-y-5">
             <div className="flex items-center gap-2 text-sm text-muted"><span className={`h-2.5 w-2.5 rounded-full ${LOOK[sel.status].dot}`} /><span className="capitalize">{sel.status}</span> · {sel.capacity} seats</div>
-            {can('orders.create') && <Button className="w-full" size="lg" onClick={() => nav(`/app/order/new?table=${sel.id}`)}>{sel.open_orders ? 'Add items to order' : 'Take order'}</Button>}
+            {can('orders.create') && <Button variant="accent" className="w-full" size="lg" onClick={() => nav(`/app/order/new?table=${sel.id}`)}>{sel.open_orders ? 'Add items to order' : 'Take order'}</Button>}
             {sel.open_orders > 0 && <Button className="w-full" variant="secondary" onClick={() => nav('/app/orders')}>View open orders</Button>}
             <div>
               <div className="mb-2 text-xs font-semibold text-slate-600">Change status</div>
@@ -124,7 +125,7 @@ export default function Tables() {
       <Modal open={!!qr} onClose={() => setQr(null)} title={`QR · Table ${qr?.table.number}`}>
         {qr && (
           <div className="space-y-5 text-center">
-            <div className="mx-auto w-full max-w-[16rem] rounded-3xl bg-gradient-to-br from-brand-soft to-white p-4 ring-1 ring-line">
+            <div className="mx-auto w-full max-w-[16rem] rounded-[1.25rem] bg-brand-soft p-4 ring-1 ring-line">
               <div className="rounded-2xl bg-white p-3 shadow-card [&>svg]:block [&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: qr.svg }} />
             </div>
             <div>

@@ -1,15 +1,26 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { Check, Store } from 'lucide-react'
+import { ArrowLeft, Building2, Check, FileText, Lock, Mail, MapPin, Phone, Sparkles, Store, User } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { api, errMsg, toFormData } from '../../lib/api'
 import { money } from '../../lib/format'
+import ImagePicker from '../../components/ImagePicker'
 import { Button, ErrorNote, Input } from '../../components/ui'
 
 const EMPTY = {
   company_name: '', business_name: '', owner_name: '', phone: '', email: '', password: '', password_confirmation: '',
   address: '', city: '', state: '', pin_code: '', gst_number: '', plan_id: '',
 }
+
+const Step = ({ n, title, sub, children }) => (
+  <section className="rounded-[1.25rem] border border-line/70 bg-white p-5 shadow-card sm:p-6">
+    <div className="mb-5 flex items-center gap-3">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand text-sm font-extrabold text-white">{n}</span>
+      <div><h2 className="text-base font-extrabold leading-tight">{title}</h2><p className="text-xs text-muted">{sub}</p></div>
+    </div>
+    <div className="grid gap-4 sm:grid-cols-2">{children}</div>
+  </section>
+)
 
 export default function Register() {
   const a = useAuth()
@@ -52,50 +63,61 @@ export default function Register() {
   const I = (k, label, extra = {}) => <Input label={label} value={f[k]} onChange={set(k)} error={errs[k]} {...extra} />
 
   return (
-    <div className="min-h-full bg-gradient-to-br from-indigo-50 via-white to-violet-50 p-4 py-8">
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-brand text-white shadow-lg"><Store className="h-7 w-7" /></div>
-          <h1 className="text-2xl font-semibold">Register your business</h1>
-          <p className="text-sm text-muted">Set up your own hotel / restaurant workspace — free trial included</p>
+    <div className="min-h-dvh bg-canvas">
+      {/* Hero header */}
+      <div className="safe-top relative overflow-hidden bg-brand-gradient px-5 pb-16 pt-6 text-white">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10" />
+        <div className="relative mx-auto max-w-3xl">
+          <Link to="/login" className="mb-5 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white/15 px-4 text-sm font-bold ring-1 ring-white/20 backdrop-blur"><ArrowLeft className="h-4 w-4" /> Sign in</Link>
+          <div className="flex items-center gap-4">
+            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/20 ring-1 ring-white/30"><Store className="h-7 w-7" /></div>
+            <div><h1 className="text-[26px] font-extrabold leading-tight tracking-tight sm:text-3xl">Create your workspace</h1><p className="text-sm text-white/80">Set up your restaurant in minutes</p></div>
+          </div>
         </div>
+      </div>
 
-        <form onSubmit={submit} className="space-y-6 rounded-2xl border border-line bg-white p-5 shadow-sm sm:p-7">
-          <ErrorNote>{err}</ErrorNote>
+      <form onSubmit={submit} className="animate-page relative z-10 mx-auto -mt-10 max-w-3xl space-y-4 px-4 pb-12">
+        <ErrorNote>{err}</ErrorNote>
 
-          {plans[0] && (
-            <section className="rounded-2xl border border-brand bg-brand-soft p-4">
-              <div className="flex items-center justify-between"><span className="font-semibold">{plans[0].name} plan</span><Check className="h-4 w-4 text-brand" /></div>
-              <div className="mt-1 text-lg font-semibold">{money(plans[0].price_monthly)}<span className="text-xs font-normal text-muted">/mo</span></div>
-              <div className="mt-1 text-xs text-muted">{plans[0].trial_days}-day free trial · Unlimited staff &amp; tables · all features included</div>
-            </section>
-          )}
+        {plans[0] && (
+          <section className="relative overflow-hidden rounded-[1.25rem] border border-brand/30 bg-brand-soft p-5 shadow-card">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-extrabold text-brand"><Sparkles className="h-4 w-4" /> {plans[0].name} plan</div>
+                <div className="tabular mt-1 text-2xl font-extrabold">{money(plans[0].price_monthly)}<span className="text-sm font-semibold text-muted"> /month</span></div>
+              </div>
+              <span className="rounded-full bg-brand px-3 py-1.5 text-xs font-extrabold text-white">{plans[0].trial_days}-day free trial</span>
+            </div>
+            <ul className="mt-3 grid gap-1.5 text-sm font-medium text-slate-700 sm:grid-cols-2">
+              {['Unlimited staff & tables', 'QR menu ordering', 'Thermal bill printing', 'Reports & inventory'].map((t) => <li key={t} className="flex items-center gap-2"><Check className="h-4 w-4 text-emerald-500" strokeWidth={3} />{t}</li>)}
+            </ul>
+          </section>
+        )}
 
-          <section className="grid gap-4 sm:grid-cols-2">
-            <h2 className="text-sm font-semibold sm:col-span-2">Business details</h2>
-            {I('company_name', 'Company name', { required: true })}
-            {I('business_name', 'Hotel / restaurant name')}
-            {I('phone', 'Business mobile number', { required: true, inputMode: 'tel' })}
-            {I('gst_number', 'GST number (optional)')}
-            <div className="sm:col-span-2">{I('address', 'Address', { required: true })}</div>
+        <Step n="1" title="Business details" sub="Shown on your bills and QR menu">
+          {I('company_name', 'Company name', { required: true, icon: Building2, placeholder: 'e.g. Hotel Atithi' })}
+          {I('business_name', 'Hotel / restaurant name', { icon: Store })}
+          {I('phone', 'Business mobile', { required: true, inputMode: 'tel', icon: Phone, placeholder: '10-digit number' })}
+          {I('gst_number', 'GST number (optional)', { icon: FileText })}
+          <div className="sm:col-span-2">{I('address', 'Address', { required: true, icon: MapPin })}</div>
+          <div className="grid grid-cols-2 gap-3 sm:col-span-2 sm:grid-cols-3 sm:gap-4">
             {I('city', 'City', { required: true })}
             {I('state', 'State', { required: true })}
-            {I('pin_code', 'PIN code', { required: true, inputMode: 'numeric' })}
-            <Input label="Company logo" type="file" accept="image/*" onChange={(e) => setLogo(e.target.files[0])} error={errs.logo} />
-          </section>
+            <div className="col-span-2 sm:col-span-1">{I('pin_code', 'PIN code', { required: true, inputMode: 'numeric' })}</div>
+          </div>
+          <div className="sm:col-span-2"><ImagePicker label="Company logo (optional)" hint="You can change this any time in Settings." file={logo} onChange={setLogo} rounded="rounded-2xl" fit="object-contain bg-white" /></div>
+        </Step>
 
-          <section className="grid gap-4 sm:grid-cols-2">
-            <h2 className="text-sm font-semibold sm:col-span-2">Owner account</h2>
-            {I('owner_name', 'Owner full name', { required: true })}
-            {I('email', 'Email address', { type: 'email', required: true, autoComplete: 'username' })}
-            {I('password', 'Password', { type: 'password', required: true, autoComplete: 'new-password', hint: 'Min 8 characters, with letters and numbers' })}
-            {I('password_confirmation', 'Confirm password', { type: 'password', required: true, autoComplete: 'new-password' })}
-          </section>
+        <Step n="2" title="Owner account" sub="You'll use this to sign in">
+          {I('owner_name', 'Your full name', { required: true, icon: User })}
+          {I('email', 'Email address', { type: 'email', required: true, autoComplete: 'username', icon: Mail, inputMode: 'email' })}
+          {I('password', 'Password', { type: 'password', required: true, autoComplete: 'new-password', icon: Lock, hint: 'At least 8 characters, with letters and numbers' })}
+          {I('password_confirmation', 'Confirm password', { type: 'password', required: true, autoComplete: 'new-password', icon: Lock })}
+        </Step>
 
-          <Button type="submit" size="lg" loading={busy} className="w-full">Create my workspace</Button>
-          <p className="text-center text-sm text-muted">Already registered? <Link to="/login" className="inline-block px-1 py-2 font-bold text-brand">Sign in</Link></p>
-        </form>
-      </div>
+        <Button type="submit" size="lg" loading={busy} className="w-full">Create my workspace</Button>
+        <p className="text-center text-sm text-muted">Already registered? <Link to="/login" className="inline-flex min-h-11 items-center px-1 font-extrabold text-brand">Sign in</Link></p>
+      </form>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Minus, Plus, Search, ShoppingCart, Trash2 } from 'lucide-react'
+import { Minus, Plus, Search, ShoppingCart, Trash2, UtensilsCrossed } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { money } from '../../lib/format'
@@ -94,7 +94,7 @@ export default function NewOrder() {
       <div className="mt-3 space-y-3 border-t border-line pt-3">
         <Input placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
         <div className="flex justify-between text-sm"><span className="text-muted">Estimated total (incl. GST)</span><b className="text-lg">{money(total)}</b></div>
-        <Button size="lg" className="w-full" disabled={!lines.length} loading={busy} onClick={submit}>Place order</Button>
+        <Button variant="accent" size="lg" className="w-full" disabled={!lines.length} loading={busy} onClick={submit}>Place order</Button>
       </div>
     </div>
   )
@@ -108,8 +108,8 @@ export default function NewOrder() {
           <Chips value={cat} onChange={setCat} items={[['all', 'All'], ...(cats || []).map((c) => [String(c.id), c.name])]} />
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
             {list.map((i) => (
-              <button key={i.id} onClick={() => tapItem(i)} className="overflow-hidden rounded-3xl border border-line/70 bg-white text-left shadow-card transition active:scale-[.96]">
-                {i.image_url ? <img src={i.image_url} alt="" className="h-28 w-full object-cover" /> : <div className="grid h-28 place-items-center bg-brand-soft text-4xl">🍽️</div>}
+              <button key={i.id} onClick={() => tapItem(i)} className="overflow-hidden rounded-[1.25rem] border border-line/70 bg-white text-left shadow-card transition active:scale-[.96]">
+                {i.image_url ? <img src={i.image_url} alt="" className="h-28 w-full object-cover" /> : <div className="grid h-28 place-items-center bg-brand-soft"><UtensilsCrossed className="h-10 w-10 text-brand/40" strokeWidth={1.6} /></div>}
                 <div className="p-3">
                   <div className="flex items-center gap-1.5"><i className={`h-2.5 w-2.5 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} /><span className="truncate text-sm font-medium">{i.name}</span></div>
                   <div className="mt-1 text-sm font-semibold text-brand">{money(i.price)}{i.variants?.length ? <span className="ml-1 text-[11px] font-normal text-muted">+ variants</span> : null}</div>
@@ -123,7 +123,7 @@ export default function NewOrder() {
       </div>
 
       {count > 0 && (
-        <button onClick={() => setCartOpen(true)} className="animate-pop fixed inset-x-4 bottom-24 z-30 flex items-center justify-between rounded-3xl bg-brand-gradient px-5 py-4 text-white shadow-float lg:hidden">
+        <button onClick={() => setCartOpen(true)} className="animate-pop fixed inset-x-4 bottom-[7.25rem] z-30 flex items-center justify-between rounded-[1.25rem] bg-accent px-5 py-4 text-white shadow-float lg:hidden">
           <span className="flex items-center gap-2"><ShoppingCart className="h-5 w-5" />{count} item(s)</span><b>{money(total)}</b>
         </button>
       )}

@@ -14,8 +14,8 @@ export default defineConfig({
         name: 'Hotel SaaS',
         short_name: 'HotelSaaS',
         description: 'Multi-company hotel & restaurant management',
-        theme_color: '#4f46e5',
-        background_color: '#f8fafc',
+        theme_color: '#17645F',
+        background_color: '#F3EEE8',
         display: 'standalone',
         start_url: '/',
         icons: [

@@ -45,7 +45,7 @@ export default function Staff() {
             <Button size="sm" variant="ghost" onClick={() => activity(u)}>Activity</Button>
             <Button size="sm" variant="secondary" onClick={() => setEdit({ ...u, password: '' })}>Edit</Button>
             <Button size="sm" variant="ghost" onClick={() => toggle(u)}>{u.is_active ? 'Disable' : 'Enable'}</Button>
-            <Button size="sm" variant="ghost" onClick={() => remove(u)}>Delete</Button>
+            <Button size="sm" variant="ghost" className="!text-rose-600 hover:!bg-rose-50" onClick={() => remove(u)}>Delete</Button>
           </div>
         ) },
       ]} />

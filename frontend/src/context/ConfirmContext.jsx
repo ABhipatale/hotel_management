@@ -53,7 +53,7 @@ export function ConfirmProvider({ children }) {
       {children}
       {state && (
         <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" className="animate-fade fixed inset-0 z-[70] flex items-end justify-center bg-slate-900/55 p-3 backdrop-blur-sm sm:items-center sm:p-6" onMouseDown={() => close(false)}>
-          <div onMouseDown={(e) => e.stopPropagation()} className="animate-sheet sm:animate-pop mb-[max(env(safe-area-inset-bottom),0px)] w-full max-w-sm rounded-[2rem] bg-white px-6 pb-6 pt-7 text-center shadow-float">
+          <div onMouseDown={(e) => e.stopPropagation()} className="animate-sheet sm:animate-pop mb-[max(env(safe-area-inset-bottom),0px)] w-full max-w-sm rounded-[1.25rem] bg-white px-6 pb-6 pt-7 text-center shadow-float">
             <div className={`mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full ${t.ring}`}>
               <t.icon className="h-8 w-8" />
             </div>

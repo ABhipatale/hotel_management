@@ -5,7 +5,7 @@ import { useApi } from '../../lib/useApi'
 import { dateOnly, money, today } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
-import { Button, Input, Modal, PageHeader, Spinner, Table } from '../../components/ui'
+import { Button, Input, Modal, PageHeader, ListSkeleton, Table } from '../../components/ui'
 
 const CATS = ['Groceries', 'Salaries', 'Rent', 'Electricity', 'Gas', 'Maintenance', 'Marketing', 'Other']
 
@@ -30,7 +30,7 @@ export default function Expenses() {
         <Input type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
         <Input type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
       </div>
-      {error ? <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{error}</p> : loading ? <Spinner /> : (
+      {error ? <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{error}</p> : loading ? <ListSkeleton /> : (
         <Table rows={data} columns={[
           { header: 'Date', render: (x) => dateOnly(x.expense_date) },
           { header: 'Category', key: 'category' },
@@ -42,7 +42,7 @@ export default function Expenses() {
       <Modal open={!!edit} onClose={() => setEdit(null)} title="Add expense">
         {edit && (
           <form onSubmit={save} className="space-y-3">
-            <label className="block"><span className="mb-1 block text-xs font-medium text-muted">Category</span><input list="cats" required className="w-full rounded-xl border border-line px-3 py-2.5 text-sm" value={edit.category} onChange={(e) => setEdit({ ...edit, category: e.target.value })} /><datalist id="cats">{CATS.map((c) => <option key={c} value={c} />)}</datalist></label>
+            <label className="block"><span className="mb-1 block text-xs font-medium text-muted">Category</span><input list="cats" required className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm w-full" value={edit.category} onChange={(e) => setEdit({ ...edit, category: e.target.value })} /><datalist id="cats">{CATS.map((c) => <option key={c} value={c} />)}</datalist></label>
             <Input label="Amount (₹)" type="number" min="0.01" step="0.01" required value={edit.amount} onChange={(e) => setEdit({ ...edit, amount: e.target.value })} />
             <Input label="Date" type="date" required value={edit.expense_date} onChange={(e) => setEdit({ ...edit, expense_date: e.target.value })} />
             <Input label="Description" value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} />

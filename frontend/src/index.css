@@ -1,45 +1,147 @@
 @import "tailwindcss";
 
-/* Design tokens. --brand is overridden at runtime with each company's brand colour. */
-@theme {
-  --color-brand: var(--brand, #4f46e5);
-  --color-brand-dark: color-mix(in srgb, var(--brand, #4f46e5) 78%, #1e1b4b);
-  --color-brand-soft: color-mix(in srgb, var(--brand, #4f46e5) 10%, white);
-  --color-ink: #0f172a;
-  --color-muted: #64748b;
-  --color-line: #e8ebf2;
-  --color-surface: #ffffff;
-  --color-canvas: #f4f5fb;
-  --radius-card: 1.25rem;
-  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px -4px rgb(15 23 42 / 0.08);
-  --shadow-float: 0 10px 30px -8px rgb(15 23 42 / 0.25);
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+/* ═════════════════════════════════════════════════════════════════════
+   THEME — three colours only
+     Warm Ivory  #F3EEE8  → backgrounds & soft surfaces
+     Deep Teal   #17645F  → navigation, headers, primary actions, key cards
+     Coral       #FF6845  → New Order FAB, key CTAs, notifications, highlights
+   White cards + warm dark neutrals are supporting neutrals, not theme colours.
+   The default Tailwind palettes the app already uses (emerald / amber / sky / violet / slate…)
+   are remapped below onto these three, so every screen stays on-palette.
+   ═════════════════════════════════════════════════════════════════════ */
+:root {
+  --ivory: #F3EEE8;
+  --teal: #17645F;
+  --coral: #FF6845;
+  --brand: #17645F; /* legacy alias used by charts */
 }
 
+@theme {
+  /* Semantic tokens */
+  --color-ivory: #F3EEE8;
+  --color-brand: #17645F;
+  --color-brand-dark: #0F4A46;
+  --color-brand-light: #4B9992;
+  --color-brand-soft: #E7F0EE;
+  --color-brand-ring: rgb(23 100 95 / 0.22);
+  --color-accent: #FF6845;
+  --color-accent-dark: #E9502D;
+  --color-accent-soft: #FFEDE8;
+  --color-ink: #1D1A17;
+  --color-muted: #6F675D;
+  --color-line: #E4DCD0;
+  --color-surface: #FFFFFF;
+  --color-canvas: #F3EEE8;
+  --radius-card: 1.25rem;
+  --shadow-card: 0 1px 2px rgb(29 26 23 / 0.04), 0 6px 18px -8px rgb(29 26 23 / 0.10);
+  --shadow-lift: 0 2px 4px rgb(29 26 23 / 0.05), 0 14px 32px -14px rgb(29 26 23 / 0.20);
+  --shadow-float: 0 10px 30px -10px rgb(29 26 23 / 0.35);
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Teal scale (500/600 = brand) — replaces emerald, indigo, teal */
+  --color-emerald-50: #EEF6F5;  --color-emerald-100: #D6E9E7; --color-emerald-200: #AFD3CF; --color-emerald-300: #82B8B2;
+  --color-emerald-400: #4B9992; --color-emerald-500: #2A7C76; --color-emerald-600: #17645F; --color-emerald-700: #12504C;
+  --color-emerald-800: #0F3F3C; --color-emerald-900: #0B2E2C; --color-emerald-950: #072120;
+  --color-teal-50: #EEF6F5;  --color-teal-100: #D6E9E7; --color-teal-200: #AFD3CF; --color-teal-300: #82B8B2;
+  --color-teal-400: #4B9992; --color-teal-500: #2A7C76; --color-teal-600: #17645F; --color-teal-700: #12504C;
+  --color-teal-800: #0F3F3C; --color-teal-900: #0B2E2C; --color-teal-950: #072120;
+  --color-indigo-50: #EEF6F5; --color-indigo-100: #D6E9E7; --color-indigo-200: #AFD3CF; --color-indigo-300: #82B8B2;
+  --color-indigo-400: #4B9992; --color-indigo-500: #2A7C76; --color-indigo-600: #17645F; --color-indigo-700: #12504C;
+  --color-indigo-800: #0F3F3C; --color-indigo-900: #0B2E2C;
+
+  /* Coral scale (500 = accent) — replaces amber, orange, yellow */
+  --color-amber-50: #FFF3EF;  --color-amber-100: #FFE3DB; --color-amber-200: #FFC6B8; --color-amber-300: #FFA48E;
+  --color-amber-400: #FF8565; --color-amber-500: #FF6845; --color-amber-600: #F04D28; --color-amber-700: #C23A1C;
+  --color-amber-800: #9A3019; --color-amber-900: #7F2B18;
+  --color-orange-50: #FFF3EF;  --color-orange-100: #FFE3DB; --color-orange-200: #FFC6B8; --color-orange-300: #FFA48E;
+  --color-orange-400: #FF8565; --color-orange-500: #FF6845; --color-orange-600: #F04D28; --color-orange-700: #C23A1C;
+  --color-orange-800: #9A3019; --color-orange-900: #7F2B18;
+
+  /* Deep brick red — errors & destructive actions only (replaces rose / red) */
+  --color-rose-50: #FDF1EE; --color-rose-100: #FADFD8; --color-rose-200: #F4BFB2; --color-rose-300: #EA9684;
+  --color-rose-400: #DC6C57; --color-rose-500: #CC4C36; --color-rose-600: #B53A26; --color-rose-700: #932E1E;
+  --color-rose-800: #782A1D; --color-rose-900: #62271C;
+  --color-red-50: #FDF1EE; --color-red-100: #FADFD8; --color-red-200: #F4BFB2; --color-red-300: #EA9684;
+  --color-red-400: #DC6C57; --color-red-500: #CC4C36; --color-red-600: #B53A26; --color-red-700: #932E1E;
+
+  /* Muted teal-grey — replaces sky / blue (info states) */
+  --color-sky-50: #F1F6F6;  --color-sky-100: #DDE9E9; --color-sky-200: #BED3D3; --color-sky-300: #98B8B8;
+  --color-sky-400: #6E9C9C; --color-sky-500: #4F8584; --color-sky-600: #3C6F6E; --color-sky-700: #305A59;
+  --color-sky-800: #264747; --color-sky-900: #1D3636;
+
+  /* Warm neutrals — replaces slate, violet (100 = the ivory itself) */
+  --color-slate-50: #FAF8F5;  --color-slate-100: #F3EEE8; --color-slate-200: #E7DFD4; --color-slate-300: #D3C9BB;
+  --color-slate-400: #A39A8D; --color-slate-500: #7C7468; --color-slate-600: #5E574E; --color-slate-700: #463F38;
+  --color-slate-800: #2E2925; --color-slate-900: #1D1A17; --color-slate-950: #12100E;
+  --color-violet-50: #F6F2EC; --color-violet-100: #EDE6DC; --color-violet-200: #DCD2C4; --color-violet-300: #C4B8A7;
+  --color-violet-400: #A39A8D; --color-violet-500: #7C7468; --color-violet-600: #5E574E; --color-violet-700: #463F38;
+  --color-violet-800: #2E2925; --color-violet-900: #1D1A17;
+}
+
+html { scroll-behavior: smooth; }
 html, body, #root { min-height: 100%; }
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
+  letter-spacing: -0.005em;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   overscroll-behavior-y: none;
 }
+::selection { background: var(--color-brand-ring); }
+:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
 
-.bg-brand-gradient { background: linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-dark) 100%); }
+/* Brand surfaces: a calm, near-flat teal (no rainbow gradients) */
+@utility bg-brand-gradient {
+  background-image: linear-gradient(160deg, #1B6E68 0%, #17645F 55%, #12504C 100%);
+}
+@utility glass {
+  background-color: rgb(255 255 255 / 0.94);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+  backdrop-filter: saturate(160%) blur(14px);
+}
 .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
 .safe-top { padding-top: env(safe-area-inset-top); }
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+.tabular { font-variant-numeric: tabular-nums; }
 
+/* ───────────────────────── Motion ───────────────────────── */
 @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
-.animate-sheet { animation: sheet-up .28s cubic-bezier(.2,.8,.2,1); }
+@keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+@keyframes check-draw { to { stroke-dashoffset: 0; } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-14px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes ping-soft { 0% { transform: scale(1); opacity: .7; } 80%, 100% { transform: scale(2.2); opacity: 0; } }
+.animate-sheet { animation: sheet-up .32s cubic-bezier(.22,.9,.24,1); }
 .animate-fade { animation: fade-in .2s ease-out; }
-.animate-pop { animation: pop .25s ease-out both; }
+.animate-pop { animation: pop .3s cubic-bezier(.22,.9,.24,1) backwards; }
+/* 'backwards' (not 'both'): once finished the element returns to normal, so it never becomes a containing
+   block / stacking context that would trap position:fixed dialogs inside the page */
+.animate-page { animation: page-in .28s cubic-bezier(.22,.9,.24,1) backwards; }
+.animate-toast { animation: toast-in .28s cubic-bezier(.22,.9,.24,1) both; }
+.animate-ping-soft { animation: ping-soft 1.8s cubic-bezier(0,0,.2,1) infinite; }
 
-/* Thermal receipt printing: only the receipt is printed, sized to paper width. */
+.skeleton { position: relative; overflow: hidden; background: #E9E2D8; }
+.skeleton::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / .6), transparent);
+  animation: shimmer 1.4s infinite;
+}
+.check-path { stroke-dasharray: 26; stroke-dashoffset: 26; animation: check-draw .4s .15s ease-out forwards; }
+
+/* Respect users who ask for less motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  .skeleton::after { display: none; }
+}
+
+/* ───────────────────────── Print (thermal receipts) ───────────────────────── */
 @media print {
   body * { visibility: hidden; }
   #receipt, #receipt * { visibility: visible; }
@@ -47,7 +149,7 @@ body {
   @page { margin: 0; }
 }
 
-/* Mobile safety nets (iOS Safari + Android Chrome) */
+/* ───────────────────────── Mobile safety nets (iOS Safari + Android Chrome) ───────────────────────── */
 body { overflow-x: clip; }
 input[type="date"], input[type="time"], input[type="color"], select {
   -webkit-appearance: none;
@@ -69,7 +171,7 @@ img { max-width: 100%; }
 
 /* Custom dropdown arrow (native one is removed by appearance:none above) */
 select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%237C7468' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.9rem center;
   background-size: 1.1rem;

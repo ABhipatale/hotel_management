@@ -4,7 +4,7 @@ import { useApi } from '../../lib/useApi'
 import { dt, money, today } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
 import Receipt from '../../components/Receipt'
-import { Badge, Button, Chips, Input, Modal, PageHeader, Spinner, statusTone, Table } from '../../components/ui'
+import { Badge, Button, Chips, Input, Modal, PageHeader, ListSkeleton, statusTone, Table } from '../../components/ui'
 
 export default function Billing() {
   const toast = useToast()
@@ -21,7 +21,7 @@ export default function Billing() {
     <>
       <PageHeader title="Billing" sub="Collect payments and print bills" />
       <Chips items={[['unpaid', 'Unpaid'], ['paid', 'Paid today'], ['all', 'All']]} value={status || 'all'} onChange={(k) => setStatus(k === 'all' ? '' : k)} />
-      {loading ? <Spinner /> : (
+      {loading ? <ListSkeleton /> : (
         <Table
           empty="No bills here"
           rows={data}
@@ -34,7 +34,7 @@ export default function Billing() {
             { header: '', className: 'text-right', render: (b) => (
               <div className="flex justify-end gap-2">
                 <Button size="sm" variant="secondary" onClick={() => open(b)}>Receipt</Button>
-                {b.status === 'unpaid' && <Button size="sm" onClick={() => setPaying(b)}>Collect</Button>}
+                {b.status === 'unpaid' && <Button variant="accent" size="sm" onClick={() => setPaying(b)}>Collect</Button>}
               </div>
             ) },
           ]}
@@ -76,7 +76,7 @@ function PayModal({ bill, onClose, onPaid }) {
             {change > 0 && <div className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Return change: <b>{money(change)}</b></div>}
           </>
         ) : <Input label="Reference / transaction ID (optional)" value={ref} onChange={(e) => setRef(e.target.value)} />}
-        <Button className="w-full" size="lg" loading={busy} onClick={pay}>Confirm payment</Button>
+        <Button variant="accent" className="w-full" size="lg" loading={busy} onClick={pay}>Confirm payment</Button>
       </div>
     </Modal>
   )

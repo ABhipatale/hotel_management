@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react'
 import { api, toFormData } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { money } from '../../lib/format'
@@ -52,7 +52,7 @@ export default function MenuManager() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((i) => (
             <Card key={i.id} className={`flex gap-3 ${i.is_available ? '' : 'opacity-60'}`}>
-              {i.image_url ? <img src={i.image_url} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover" /> : <div className="grid h-20 w-20 shrink-0 place-items-center rounded-xl bg-brand-soft text-2xl">🍽️</div>}
+              {i.image_url ? <img src={i.image_url} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover" /> : <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-brand-soft"><UtensilsCrossed className="h-7 w-7 text-brand/40" strokeWidth={1.6} /></div>}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5"><i className={`h-2.5 w-2.5 shrink-0 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} /><span className="truncate font-medium">{i.name}</span></div>
                 <div className="text-xs text-muted">{i.category?.name} · GST {i.gst_percent}%</div>
@@ -88,8 +88,8 @@ export default function MenuManager() {
               <div className="mb-1 flex items-center justify-between text-xs font-medium text-muted"><span>Variants (e.g. Half / Full)</span><button type="button" className="text-brand" onClick={() => setEdit({ ...edit, variants: [...edit.variants, { name: '', price: '' }] })}>+ Add</button></div>
               {edit.variants.map((v, i) => (
                 <div key={i} className="mb-2 flex gap-2">
-                  <input className="flex-1 rounded-xl border border-line px-3 py-2 text-sm" placeholder="Name" required value={v.name} onChange={(e) => setEdit({ ...edit, variants: edit.variants.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} />
-                  <input className="w-28 rounded-xl border border-line px-3 py-2 text-sm" placeholder="Price" type="number" required value={v.price} onChange={(e) => setEdit({ ...edit, variants: edit.variants.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)) })} />
+                  <input className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm flex-1" placeholder="Name" required value={v.name} onChange={(e) => setEdit({ ...edit, variants: edit.variants.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} />
+                  <input className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm w-28" placeholder="Price" type="number" required value={v.price} onChange={(e) => setEdit({ ...edit, variants: edit.variants.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)) })} />
                   <button type="button" onClick={() => setEdit({ ...edit, variants: edit.variants.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4 text-rose-600" /></button>
                 </div>
               ))}
@@ -102,7 +102,7 @@ export default function MenuManager() {
       <Modal open={catModal} onClose={() => setCatModal(false)} title="Categories">
         <div className="space-y-2">
           {cats?.map((c) => <div key={c.id} className="flex items-center justify-between rounded-xl border border-line px-3 py-2 text-sm"><span>{c.name} <span className="text-muted">({c.items_count})</span></span><button onClick={() => delCat(c)}><Trash2 className="h-4 w-4 text-rose-600" /></button></div>)}
-          <div className="flex gap-2 pt-2"><input className="flex-1 rounded-xl border border-line px-3 py-2 text-sm" placeholder="New category" value={newCat} onChange={(e) => setNewCat(e.target.value)} /><Button onClick={addCat} disabled={!newCat}>Add</Button></div>
+          <div className="flex gap-2 pt-2"><input className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm flex-1" placeholder="New category" value={newCat} onChange={(e) => setNewCat(e.target.value)} /><Button onClick={addCat} disabled={!newCat}>Add</Button></div>
         </div>
       </Modal>
     </>

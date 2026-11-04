@@ -6,7 +6,7 @@ import { useApi } from '../../lib/useApi'
 import { dateOnly } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
-import { Badge, Button, Input, Modal, PageHeader, Select, Spinner, statusTone, Table } from '../../components/ui'
+import { Badge, Button, Input, Modal, PageHeader, Select, ListSkeleton, statusTone, Table } from '../../components/ui'
 
 export default function Companies() {
   const toast = useToast()
@@ -27,16 +27,16 @@ export default function Companies() {
       <PageHeader title="Companies" sub="Every tenant on the platform" actions={<Button onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> New company</Button>} />
       <div className="mb-4 flex flex-wrap gap-3">
         <div className="relative min-w-[200px] flex-1">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, company ID" className="w-full rounded-xl border border-line bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand" />
+          <Search className="absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, company ID" className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm w-full pl-11" />
         </div>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-xl border border-line bg-white px-3 text-sm">
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm">
           <option value="">All statuses</option>
           {['trial', 'active', 'inactive', 'suspended'].map((s) => <option key={s}>{s}</option>)}
         </select>
       </div>
 
-      {loading ? <Spinner /> : (
+      {loading ? <ListSkeleton /> : (
         <Table
           rows={data?.data}
           columns={[

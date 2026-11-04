@@ -1,7 +1,10 @@
-// Applies a company's identity to the browser: tab title, theme colour, favicon, home-screen icon and
-// its own PWA manifest (so each company installs as a separate app with its own name and icon).
+// Applies a company's identity to the browser: tab title, favicon, home-screen icon and its own PWA
+// manifest (so each company installs as a separate app with its own name and icon).
+// Colours are NOT tenant-specific: the whole product uses one global theme (Ivory / Teal / Coral),
+// tenants only customise their name and logo/icon.
 const API = import.meta.env.VITE_API_URL || '/api'
-const DEFAULT = { color: '#4f46e5', manifest: '/manifest.webmanifest', favicon: '/favicon.svg', apple: '/icon-192.png', title: 'Hotel SaaS' }
+export const THEME_COLOR = '#17645F'
+const DEFAULT = { manifest: '/manifest.webmanifest', favicon: '/favicon.svg', apple: '/icon-192.png', title: 'Hotel SaaS' }
 
 function link(rel, href, type) {
   let el = document.querySelector(`link[rel="${rel}"]`)
@@ -16,9 +19,7 @@ function link(rel, href, type) {
 }
 
 export function applyBrand(company, suffix = '') {
-  const color = company?.brand_color || DEFAULT.color
-  document.documentElement.style.setProperty('--brand', color)
-  document.querySelector('meta[name=theme-color]')?.setAttribute('content', color)
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', THEME_COLOR)
   document.title = company?.name ? `${company.name}${suffix}` : DEFAULT.title
 
   if (company?.slug) {
