@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Armchair, BarChart3, Bell, Building2, Clock, CreditCard, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
+  Armchair, BarChart3, Bell, Building2, Clock, CreditCard, Download, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
   Settings, ShoppingBag, Store, Tag, Users, UtensilsCrossed, Wallet,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useConfirm } from '../context/ConfirmContext'
+import { useToast } from '../context/ToastContext'
+import { usePwaInstall } from '../lib/pwa'
 import { useApi } from '../lib/useApi'
 import { Avatar, Modal } from './ui'
 
@@ -54,6 +57,24 @@ export default function Layout() {
   const pendingCount = pending?.length || 0
 
   const doLogout = async () => { await logout(); nav('/login') }
+
+  // Install as an app (PWA): native prompt where the browser supports it, short instructions elsewhere (iPhone Safari…)
+  const pwa = usePwaInstall()
+  const ask = useConfirm()
+  const toast = useToast()
+  const doInstall = async () => {
+    const r = await pwa.install()
+    if (r === 'accepted') toast.success('Installing… find the app on your home screen')
+    if (r !== 'manual') return
+    await ask({
+      title: 'Install this app',
+      message: pwa.ios
+        ? 'In Safari tap the Share button, then “Add to Home Screen”.'
+        : 'Open your browser menu (⋮) and choose “Install app” or “Add to Home screen”.',
+      confirmText: 'Got it',
+      tone: 'primary',
+    })
+  }
 
   // Subscription warning: shown from 3 days before the end date until it expires
   const msLeft = subscription?.ends_at ? new Date(subscription.ends_at) - Date.now() : Infinity
@@ -122,6 +143,11 @@ export default function Layout() {
           <div className="min-w-0 flex-1 leading-tight"><div className="truncate text-sm font-bold">{user?.name}</div><div className="text-xs capitalize text-white/60">{user?.role?.replace('_', ' ')}</div></div>
           <button onClick={doLogout} className="grid h-10 w-10 place-items-center rounded-xl text-white/70 transition hover:bg-white/10 hover:text-white" aria-label="Log out"><LogOut className="h-[18px] w-[18px]" /></button>
         </div>
+        {!pwa.installed && (
+          <button onClick={doInstall} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-white/15 px-3 text-sm font-bold text-white transition hover:bg-white/25">
+            <Download className="h-[18px] w-[18px]" /> Install app
+          </button>
+        )}
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -185,6 +211,11 @@ export default function Layout() {
           <div className="min-w-0 flex-1 leading-tight"><div className="truncate font-bold">{user?.name}</div><div className="truncate text-xs text-muted">{user?.email}</div></div>
           <button onClick={doLogout} className="flex min-h-11 items-center gap-1.5 rounded-2xl bg-white px-3.5 text-sm font-bold text-rose-600 shadow-card transition active:scale-95"><LogOut className="h-4 w-4" /> Log out</button>
         </div>
+        {!pwa.installed && (
+          <button onClick={doInstall} className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-brand px-4 text-sm font-extrabold text-white shadow-card transition active:scale-[0.98]">
+            <Download className="h-5 w-5" strokeWidth={2.4} /> Install app
+          </button>
+        )}
       </Modal>
     </div>
   )
