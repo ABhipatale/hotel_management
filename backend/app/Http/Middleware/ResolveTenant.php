@@ -36,6 +36,13 @@ class ResolveTenant
         $request->attributes->set('subscription', $state['subscription']);
         $request->attributes->set('subscription_expired', $state['expired']);
 
+        $request->attributes->set('subscription_pending', $state['pending']);
+
+        // Purchase-on-first-login companies: nothing works until the owner buys a plan
+        if ($state['pending'] && ! $request->is('api/subscription*', 'api/auth/*', 'api/support*')) {
+            return response()->json(['message' => 'Please choose a plan to start using the app.', 'code' => 'subscription_required'], 402);
+        }
+
         if ($state['expired']) {
             $policy = config('hms.expiry_policy');
             $isRead = $request->isMethodSafe();

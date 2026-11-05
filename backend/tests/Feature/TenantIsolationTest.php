@@ -326,7 +326,8 @@ class TenantIsolationTest extends TestCase
         $this->postJson('/api/menu/categories', ['name' => 'Nope'], $a)->assertStatus(402)->assertJsonPath('code', 'subscription_expired');
         $this->getJson('/api/subscription', $a)->assertOk();                          // renewal path stays open
 
-        $this->postJson('/api/subscription', ['billing_cycle' => 'monthly'], $a)->assertCreated();
+        $o = $this->postJson('/api/subscription/checkout', ['billing_cycle' => 'monthly'], $a)->assertOk()->json('order_id');
+        $this->postJson('/api/subscription/confirm', ['order_id' => $o], $a)->assertCreated();
         $this->postJson('/api/menu/categories', ['name' => 'Back'], $a)->assertCreated();
     }
 
@@ -364,9 +365,10 @@ class TenantIsolationTest extends TestCase
 
         // Owners see the new prices and renew either way
         $this->getJson('/api/subscription/pricing', $owner)->assertOk()->assertJsonPath('price_monthly', 999)->assertJsonPath('price_yearly', 9990);
-        $this->postJson('/api/subscription', ['billing_cycle' => 'yearly'], $owner)->assertCreated()->assertJsonPath('billing_cycle', 'yearly');
+        $o = $this->postJson('/api/subscription/checkout', ['billing_cycle' => 'yearly'], $owner)->assertOk()->assertJsonPath('amount', 9990)->json('order_id');
+        $this->postJson('/api/subscription/confirm', ['order_id' => $o], $owner)->assertCreated()->assertJsonPath('billing_cycle', 'yearly');
         $this->assertEquals(9990, \App\Models\SubscriptionPayment::latest('id')->value('amount'));
-        $this->postJson('/api/subscription', ['billing_cycle' => 'weekly'], $owner)->assertStatus(422);
+        $this->postJson('/api/subscription/checkout', ['billing_cycle' => 'weekly'], $owner)->assertStatus(422);
 
         // Renewing extends from the current end date instead of wasting the remaining time
         $sub = $this->getJson('/api/subscription', $owner)->assertOk();

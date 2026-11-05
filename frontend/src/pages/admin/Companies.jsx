@@ -45,7 +45,7 @@ export default function Companies() {
                 <div><div className="font-medium">{c.name}</div><div className="text-xs text-muted">{c.uid} · {c.email}</div></div>
               </div>
             ) },
-            { header: 'Subscription', render: (c) => (c.current_subscription ? <span className="capitalize">{c.current_subscription.billing_cycle}</span> : '—') },
+            { header: 'Subscription', render: (c) => (c.current_subscription ? <span className="capitalize">{c.current_subscription.billing_cycle}</span> : <Badge tone="amber">Awaiting purchase</Badge>) },
             { header: 'Status', render: (c) => <Badge tone={c.deleted_at ? 'red' : statusTone(c.status)}>{c.deleted_at ? 'deleted' : c.status}</Badge> },
             { header: 'Expires', render: (c) => dateOnly(c.current_subscription?.ends_at) },
             { header: '', className: 'text-right', render: (c) => <Button size="sm" variant="secondary" onClick={() => setDetail(c)}>Manage</Button> },
@@ -164,7 +164,7 @@ function RenewSubscription({ company, onDone }) {
 
 function AddCompany({ open, onClose, onDone }) {
   const toast = useToast()
-  const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', gst_enabled: true, gst_number: '', billing_cycle: 'monthly' })
+  const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', gst_enabled: true, gst_number: '', billing_cycle: '' })
   const [busy, setBusy] = useState(false)
   const submit = async (e) => {
     e.preventDefault(); setBusy(true)
@@ -181,8 +181,12 @@ function AddCompany({ open, onClose, onDone }) {
         <Input label="Initial password" type="password" required value={f.password} onChange={s('password')} hint="Min 8 chars, letters + numbers" />
         <Input label="City" value={f.city} onChange={s('city')} />
         <GstFields enabled={f.gst_enabled} number={f.gst_number} onEnabled={(v) => setF({ ...f, gst_enabled: v })} onNumber={(v) => setF({ ...f, gst_number: v })} />
-        <Select label="Subscription period" value={f.billing_cycle} onChange={s('billing_cycle')}><option value="monthly">1 month</option><option value="yearly">1 year</option></Select>
-        <p className="text-xs text-muted">The company is active immediately for the chosen period. Renew it later from Manage.</p>
+        <Select label="Subscription" value={f.billing_cycle} onChange={s('billing_cycle')}>
+          <option value="">Customer purchases the plan on first login</option>
+          <option value="monthly">I grant 1 month now</option>
+          <option value="yearly">I grant 1 year now</option>
+        </Select>
+        <p className="text-xs text-muted">{f.billing_cycle ? 'The company is active immediately for the chosen period. Renew it later from Manage.' : 'The owner’s first screen after signing in is the plan page (monthly or yearly). The app opens after they pay.'}</p>
         <Button type="submit" loading={busy} className="w-full">Create</Button>
       </form>
     </Modal>

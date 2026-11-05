@@ -22,6 +22,7 @@ import Inventory from './pages/app/Inventory'
 import Reports from './pages/app/Reports'
 import Settings from './pages/app/Settings'
 import Subscription from './pages/app/Subscription'
+import Onboarding from './pages/app/Onboarding'
 
 function homeFor(a) {
   if (a.isSuperAdmin) return '/admin'
@@ -36,6 +37,8 @@ function Guard({ children, superAdmin, perm }) {
   if (!a.user) return <Navigate to="/login" replace />
   if (superAdmin && !a.isSuperAdmin) return <Navigate to={homeFor(a)} replace />
   if (!superAdmin && a.isSuperAdmin) return <Navigate to="/admin" replace />
+  // Bought-it-yourself companies see only the plan screen until they have paid
+  if (!superAdmin && a.subscription_pending) return <Onboarding />
   if (perm && !a.can(perm)) return <Navigate to={homeFor(a)} replace />
   return children
 }

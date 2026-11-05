@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Armchair, BarChart3, Bell, Building2, CreditCard, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
+  Armchair, BarChart3, Bell, Building2, Clock, CreditCard, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
   Settings, ShoppingBag, Store, Tag, Users, UtensilsCrossed, Wallet,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -54,6 +54,12 @@ export default function Layout() {
   const pendingCount = pending?.length || 0
 
   const doLogout = async () => { await logout(); nav('/login') }
+
+  // Subscription warning: shown from 3 days before the end date until it expires
+  const msLeft = subscription?.ends_at ? new Date(subscription.ends_at) - Date.now() : Infinity
+  const daysLeft = Math.ceil(msLeft / 86400000)
+  const expiresSoon = msLeft > 0 && daysLeft <= 3
+  const endsText = daysLeft <= 1 ? (new Date(subscription?.ends_at).toDateString() === new Date().toDateString() ? 'ends today' : 'ends tomorrow') : `ends in ${daysLeft} days`
 
   const items = isSuperAdmin ? ADMIN_NAV : TENANT_NAV.filter((n) => can(n.perm))
   const canNew = !isSuperAdmin && can('orders.create')
@@ -134,7 +140,15 @@ export default function Layout() {
         </header>
 
         {!isSuperAdmin && subscription_expired && (
-          <div className="bg-rose-600 px-4 py-2.5 text-center text-sm font-medium text-white">Subscription expired — read-only. <NavLink to="/app/subscription" className="font-extrabold underline">Renew</NavLink></div>
+          <div className="bg-rose-600 px-4 py-2.5 text-center text-sm font-medium text-white">Subscription expired — read-only. {can('subscription.manage') ? <NavLink to="/app/subscription" className="font-extrabold underline">Renew</NavLink> : <span className="font-bold">Please ask the owner to renew.</span>}</div>
+        )}
+        {/* Heads-up banner during the last 3 days before the subscription ends */}
+        {!isSuperAdmin && !subscription_expired && expiresSoon && (
+          <div role="status" className="flex items-center justify-center gap-2 bg-accent px-4 py-2 text-center text-[13px] font-bold text-white">
+            <Clock className="h-4 w-4 shrink-0" />
+            <span>Your subscription {endsText}.</span>
+            {can('subscription.manage') ? <NavLink to="/app/subscription" className="shrink-0 rounded-full bg-white/20 px-3 py-1 text-xs font-extrabold underline-offset-2 hover:underline">Renew now</NavLink> : <span className="font-medium opacity-90">Ask the owner to renew.</span>}
+          </div>
         )}
 
         <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 py-5 pb-36 sm:px-6 lg:px-8 lg:pb-8">

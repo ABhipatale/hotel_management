@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OperationsController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PaymentWebhookController;
 use App\Http\Controllers\Api\PublicMenuController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SettingsController;
@@ -16,6 +17,9 @@ use Illuminate\Support\Facades\Route;
 
 // ---------- Public ----------
 Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:auth');
+
+// Razorpay server-to-server notification (signature verified inside the controller)
+Route::post('webhooks/razorpay', [PaymentWebhookController::class, 'razorpay'])->middleware('throttle:60,1');
 
 // Per-company PWA manifest: each company gets its own installable app name, colour and icon.
 Route::get('public/manifest/{slug}.webmanifest', [PublicMenuController::class, 'manifest'])
@@ -61,7 +65,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('subscription', [SubscriptionController::class, 'current']);
         Route::get('subscription/pricing', [SubscriptionController::class, 'pricing']);
         Route::get('subscription/payments', [SubscriptionController::class, 'payments'])->middleware('perm:subscription.manage');
-        Route::post('subscription', [SubscriptionController::class, 'subscribe'])->middleware('perm:subscription.manage');
+        Route::post('subscription/checkout', [SubscriptionController::class, 'checkout'])->middleware('perm:subscription.manage');
+        Route::post('subscription/confirm', [SubscriptionController::class, 'confirm'])->middleware('perm:subscription.manage');
         Route::get('support', [SettingsController::class, 'tickets']);
         Route::post('support', [SettingsController::class, 'createTicket']);
 

@@ -69,6 +69,7 @@ class AuthController extends Controller
             $out['plan'] = $state['plan'];
             $out['subscription'] = $state['subscription']?->only('status', 'billing_cycle', 'starts_at', 'ends_at');
             $out['subscription_expired'] = $state['expired'];
+            $out['subscription_pending'] = $state['pending'];
         }
 
         return $out;

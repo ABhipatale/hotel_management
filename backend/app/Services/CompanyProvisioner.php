@@ -21,8 +21,9 @@ class CompanyProvisioner
     }
 
     /** Creates tenant + owner + defaults atomically. Returns [company, owner]. */
-    public function provision(array $data, ?string $logoPath, SubscriptionPlan $plan, string $cycle = 'monthly'): array
+    public function provision(array $data, ?string $logoPath, SubscriptionPlan $plan, ?string $cycle = 'monthly'): array
     {
+        // $cycle === null -> the customer buys the plan themselves on first login (no subscription yet)
         return DB::transaction(function () use ($data, $logoPath, $plan, $cycle) {
             $company = (new Company())->forceFill([
                 'uid' => 'CMP-'.strtoupper(Str::random(8)),
@@ -70,7 +71,9 @@ class CompanyProvisioner
                 return $owner;
             });
 
-            $this->subs->grant($company, $plan, $cycle);
+            if ($cycle) {
+                $this->subs->grant($company, $plan, $cycle);
+            }
 
             return [$company->refresh(), $owner];
         });

@@ -84,10 +84,10 @@ class SuperAdminController extends Controller
             'pin_code' => 'nullable|string|max:10',
             'gst_number' => 'nullable|string|max:20',
             'gst_enabled' => 'sometimes|boolean',
-            'billing_cycle' => 'required|in:monthly,yearly',
+            'billing_cycle' => 'nullable|in:monthly,yearly', // empty = customer purchases the plan on first login
         ]);
         $plan = SubscriptionPlan::current();
-        [$company] = $provisioner->provision($data, null, $plan, $data['billing_cycle']);
+        [$company] = $provisioner->provision($data, null, $plan, $data['billing_cycle'] ?? null);
         AuditLog::record('super.company.create', 'company', $company->id);
 
         return response()->json($company, 201);
