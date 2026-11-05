@@ -48,6 +48,9 @@ class SettingsController extends Controller
             $branding->deleteIcon($c);
         }
         unset($d['logo'], $d['icon'], $d['remove_icon']);
+        if (! $c->gst_enabled) {
+            unset($d['gst_number']); // GST fields are locked by the platform admin
+        }
         $c->fill($d)->save();
         AuditLog::record('company.update', 'company', $c->id);
 

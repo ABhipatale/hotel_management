@@ -59,7 +59,7 @@ export function AdminTickets() {
 
 const SETTING_KEYS = [
   ['support_email', 'Support email'], ['support_phone', 'Support phone'], ['payment_gateway', 'Payment gateway (e.g. razorpay)'],
-  ['gateway_key_id', 'Gateway key ID'], ['trial_policy', 'Trial policy note'], ['expiry_policy_note', 'Expiry policy note'],
+  ['gateway_key_id', 'Gateway key ID'], ['expiry_policy_note', 'Expiry policy note'],
 ]
 
 export function AdminSettings() {

@@ -44,7 +44,7 @@ export function Field({ label, hint, error, children }) {
 
 // 16px on mobile prevents iOS zoom-on-focus.
 const inputBase =
-  'min-h-12 w-full rounded-2xl border bg-white px-4 py-3 text-[16px] text-ink outline-none transition placeholder:text-slate-400 focus:ring-4 sm:min-h-11 sm:text-sm'
+  'min-h-12 w-full rounded-2xl border bg-white px-4 py-3 text-[16px] text-ink outline-none transition placeholder:text-slate-400 focus:ring-4 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:min-h-11 sm:text-sm'
 const inputState = (error) => (error ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-100' : 'border-line hover:border-slate-300 focus:border-brand focus:ring-brand/10')
 
 /** Text input. `icon` adds a leading icon; password inputs get a show/hide toggle automatically. */
@@ -63,6 +63,23 @@ export const Input = ({ label, hint, error, className, icon: Icon, type, ...p })
         )}
       </span>
     </Field>
+  )
+}
+
+/** Accessible on/off switch with a 44px touch target. */
+export function Switch({ checked, onChange, label, hint, disabled }) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-white px-4 py-2.5">
+      <div className="min-w-0">
+        <div className="text-sm font-bold">{label}</div>
+        {hint && <div className="mt-0.5 text-xs leading-snug text-muted">{hint}</div>}
+      </div>
+      <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)} className="flex h-11 w-16 shrink-0 items-center justify-center disabled:opacity-50">
+        <span className={cx('relative h-8 w-14 rounded-full transition-colors duration-200', checked ? 'bg-brand' : 'bg-slate-300')}>
+          <span className={cx('absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all duration-200', checked ? 'left-7' : 'left-1')} />
+        </span>
+      </button>
+    </div>
   )
 }
 

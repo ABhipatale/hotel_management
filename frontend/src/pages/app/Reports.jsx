@@ -28,7 +28,8 @@ function toCsv(rows, cols) {
 }
 
 export default function Reports() {
-  const { hasFeature } = useAuth()
+  const { hasFeature, company } = useAuth()
+  const gstOn = company?.gst_enabled !== false
   const [type, setType] = useState('sales')
   const [group, setGroup] = useState('day')
   const [range, setRange] = useState({ from: today().slice(0, 8) + '01', to: today() })
@@ -36,7 +37,7 @@ export default function Reports() {
 
   const available = REPORTS.filter(([, , f]) => !f || hasFeature(f))
   const rows = type === 'sales' ? data?.rows : data
-  const cols = COLS[type]
+  const cols = COLS[type]?.filter((c) => gstOn || c[0] !== 'tax')
 
   const csv = () => {
     const a = document.createElement('a')
@@ -57,7 +58,7 @@ export default function Reports() {
 
       {error ? <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{error}</p> : loading ? <ListSkeleton /> : type === 'pnl' ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {[['Gross sales', data.sales], ['GST collected', data.tax_collected], ['Net sales', data.net_sales], ['Expenses', data.expenses], ['Profit', data.profit]].map(([l, v]) => (
+          {[['Gross sales', data.sales], ...(gstOn ? [['GST collected', data.tax_collected], ['Net sales', data.net_sales]] : []), ['Expenses', data.expenses], ['Profit', data.profit]].map(([l, v]) => (
             <Card key={l}><div className="text-xs text-muted">{l}</div><div className={`text-xl font-semibold ${l === 'Profit' && v < 0 ? 'text-rose-600' : ''}`}>{money(v)}</div></Card>
           ))}
         </div>

@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\User;
+use App\Support\Tenant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -86,7 +87,7 @@ class OrderService
                 'variant' => $variantName,
                 'quantity' => $qty,
                 'price' => $price,
-                'gst_percent' => $food->gst_percent,
+                'gst_percent' => Tenant::company()?->gst_enabled === false ? 0 : $food->gst_percent,
                 'discount_percent' => $food->discount_percent,
             ]);
 
@@ -106,11 +107,13 @@ class OrderService
             abort_if($items->isEmpty(), 422, 'Order has no billable items.');
 
             $subtotal = $discount = $tax = 0.0;
+            $gstOn = Tenant::company()?->gst_enabled !== false;
             $rows = [];
             foreach ($items as $i) {
                 $gross = round($i->price * $i->quantity, 2);
                 $disc = round($gross * $i->discount_percent / 100, 2);
-                $t = round(($gross - $disc) * $i->gst_percent / 100, 2);
+                // GST switched off => no tax, even for items added while it was still on
+                $t = $gstOn ? round(($gross - $disc) * $i->gst_percent / 100, 2) : 0.0;
                 $subtotal += $gross;
                 $discount += $disc;
                 $tax += $t;
@@ -160,6 +163,9 @@ class OrderService
             }
             if (round($total, 2) < round($bill->grand_total, 2)) {
                 throw ValidationException::withMessages(['payments' => 'Payment is less than the bill total.']);
+            }
+            if (round($total, 2) > round($bill->grand_total, 2)) {
+                throw ValidationException::withMessages(['payments' => 'Payment is more than the bill total.']);
             }
 
             $bill->update(['status' => 'paid']);

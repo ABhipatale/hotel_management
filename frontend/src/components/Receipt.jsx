@@ -11,6 +11,7 @@ export default function Receipt({ data, phone }) {
   const toast = useToast()
   const { hasFeature } = useAuth()
   const { bill, company, printer, table, order_no, waiter } = data
+  const gstOn = company.gst_enabled !== false
   const width = printer?.paper_width === '58mm' ? '58mm' : '80mm'
   const conn = printer?.connection || 'browser'
   const canEscpos = hasFeature('thermal') && printer?.use_escpos && (conn === 'usb' || conn === 'bluetooth')
@@ -46,7 +47,7 @@ export default function Receipt({ data, phone }) {
           {company.bill_header && <div>{company.bill_header}</div>}
           {company.address && <div>{company.address}</div>}
           {company.phone && <div>Ph: {company.phone}</div>}
-          {company.gst_number && <div>GSTIN: {company.gst_number}</div>}
+          {gstOn && company.gst_number && <div>GSTIN: {company.gst_number}</div>}
         </div>
         <hr className="my-1.5 border-dashed border-black" />
         <div className="flex flex-wrap justify-between gap-x-2"><span className="break-all">Bill: {bill.bill_no}</span><span>{new Date(bill.created_at).toLocaleDateString('en-IN')}</span></div>
@@ -54,12 +55,12 @@ export default function Receipt({ data, phone }) {
         {waiter && <div>Waiter: {waiter}</div>}
         <hr className="my-1.5 border-dashed border-black" />
         {bill.items.map((i) => (
-          <div key={i.id} className="mb-0.5"><div>{i.quantity} x {i.name}</div><div className="flex justify-between"><span className="pl-3">@{m(i.price)}{Number(i.discount) ? ` (-${m(i.discount)})` : ''}{Number(i.tax) ? ` +tax ${m(i.tax)}` : ''}</span><span>{m(i.total)}</span></div></div>
+          <div key={i.id} className="mb-0.5"><div>{i.quantity} x {i.name}</div><div className="flex justify-between"><span className="pl-3">@{m(i.price)}{Number(i.discount) ? ` (-${m(i.discount)})` : ''}{gstOn && Number(i.tax) ? ` +tax ${m(i.tax)}` : ''}</span><span>{m(i.total)}</span></div></div>
         ))}
         <hr className="my-1.5 border-dashed border-black" />
         <div className="flex justify-between"><span>Subtotal</span><span>{m(bill.subtotal)}</span></div>
         {Number(bill.discount) > 0 && <div className="flex justify-between"><span>Discount</span><span>-{m(bill.discount)}</span></div>}
-        <div className="flex justify-between"><span>GST</span><span>{m(bill.tax)}</span></div>
+        {gstOn && <div className="flex justify-between"><span>GST</span><span>{m(bill.tax)}</span></div>}
         <div className="mt-1 flex justify-between text-sm font-bold"><span>TOTAL</span><span>₹{m(bill.grand_total)}</span></div>
         {bill.payments?.map((p) => <div key={p.id} className="flex justify-between"><span>Paid ({p.method})</span><span>{m(p.amount)}</span></div>)}
         <hr className="my-1.5 border-dashed border-black" />

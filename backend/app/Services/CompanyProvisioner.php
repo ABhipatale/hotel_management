@@ -21,14 +21,12 @@ class CompanyProvisioner
     }
 
     /** Creates tenant + owner + defaults atomically. Returns [company, owner]. */
-    public function provision(array $data, ?string $logoPath = null, ?SubscriptionPlan $plan = null): array
+    public function provision(array $data, ?string $logoPath, SubscriptionPlan $plan, string $cycle = 'monthly'): array
     {
-        return DB::transaction(function () use ($data, $logoPath, $plan) {
-            $plan ??= SubscriptionPlan::where('is_active', true)->orderBy('price_monthly')->firstOrFail();
-
+        return DB::transaction(function () use ($data, $logoPath, $plan, $cycle) {
             $company = (new Company())->forceFill([
                 'uid' => 'CMP-'.strtoupper(Str::random(8)),
-                'status' => 'trial',
+                'status' => 'active',
                 'name' => $data['company_name'],
                 'business_name' => $data['business_name'] ?? $data['company_name'],
                 'slug' => $this->uniqueSlug($data['company_name']),
@@ -39,7 +37,8 @@ class CompanyProvisioner
                 'pin_code' => $data['pin_code'] ?? null,
                 'phone' => $data['phone'] ?? null,
                 'email' => $data['email'],
-                'gst_number' => $data['gst_number'] ?? null,
+                'gst_enabled' => (bool) ($data['gst_enabled'] ?? true),
+                'gst_number' => ($data['gst_enabled'] ?? true) ? ($data['gst_number'] ?? null) : null,
                 'bill_footer' => 'Thank you! Visit again.',
                 'settings' => ['currency' => 'INR', 'expiry_grace_days' => 0],
             ]);
@@ -71,7 +70,7 @@ class CompanyProvisioner
                 return $owner;
             });
 
-            $this->subs->startTrial($company, $plan);
+            $this->subs->grant($company, $plan, $cycle);
 
             return [$company->refresh(), $owner];
         });

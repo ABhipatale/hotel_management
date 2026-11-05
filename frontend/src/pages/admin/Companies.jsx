@@ -6,7 +6,7 @@ import { useApi } from '../../lib/useApi'
 import { dateOnly } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
-import { Badge, Button, Input, Modal, PageHeader, Select, ListSkeleton, statusTone, Table } from '../../components/ui'
+import { Badge, Button, Input, Modal, PageHeader, Select, ListSkeleton, statusTone, Switch, Table } from '../../components/ui'
 
 export default function Companies() {
   const toast = useToast()
@@ -14,7 +14,6 @@ export default function Companies() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const { data, loading, reload } = useApi('/admin/companies', { params: { search, status } })
-  const { data: plans } = useApi('/admin/plans')
   const [adding, setAdding] = useState(false)
   const [detail, setDetail] = useState(null)
 
@@ -32,7 +31,7 @@ export default function Companies() {
         </div>
         <select value={status} onChange={(e) => setStatus(e.target.value)} className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm">
           <option value="">All statuses</option>
-          {['trial', 'active', 'inactive', 'suspended'].map((s) => <option key={s}>{s}</option>)}
+          {['active', 'inactive', 'suspended'].map((s) => <option key={s}>{s}</option>)}
         </select>
       </div>
 
@@ -46,7 +45,7 @@ export default function Companies() {
                 <div><div className="font-medium">{c.name}</div><div className="text-xs text-muted">{c.uid} · {c.email}</div></div>
               </div>
             ) },
-            { header: 'Plan', render: (c) => c.current_subscription?.plan?.name || '—' },
+            { header: 'Subscription', render: (c) => (c.current_subscription ? <span className="capitalize">{c.current_subscription.billing_cycle}</span> : '—') },
             { header: 'Status', render: (c) => <Badge tone={c.deleted_at ? 'red' : statusTone(c.status)}>{c.deleted_at ? 'deleted' : c.status}</Badge> },
             { header: 'Expires', render: (c) => dateOnly(c.current_subscription?.ends_at) },
             { header: '', className: 'text-right', render: (c) => <Button size="sm" variant="secondary" onClick={() => setDetail(c)}>Manage</Button> },
@@ -54,7 +53,7 @@ export default function Companies() {
         />
       )}
 
-      <AddCompany open={adding} onClose={() => setAdding(false)} plans={plans} onDone={() => { setAdding(false); reload() }} />
+      <AddCompany open={adding} onClose={() => setAdding(false)} onDone={() => { setAdding(false); reload() }} />
 
       <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.name}>
         {detail && (
@@ -66,12 +65,53 @@ export default function Companies() {
               {detail.status !== 'suspended' && <Button variant="secondary" onClick={() => act(() => api.patch(`/admin/companies/${detail.id}/status`, { status: 'suspended' }), 'Suspended')}>Suspend</Button>}
               <Button variant="danger" onClick={async () => (await ask({ title: 'Delete company?', message: `${detail.name} will be removed from the platform. Its data is kept according to the retention policy.`, confirmText: 'Delete company' })) && act(() => api.delete(`/admin/companies/${detail.id}`), 'Deleted')}>Delete</Button>
             </div>
+            <CompanyDetailsEditor key={detail.id} company={detail} onDone={(c) => { setDetail(c); reload() }} />
             <BrandingEditor company={detail} onDone={(c) => { setDetail(c); reload() }} />
-            <AssignPlan company={detail} plans={plans} onDone={() => { toast.success('Subscription updated'); reload(); setDetail(null) }} />
+            <RenewSubscription company={detail} onDone={() => { toast.success('Subscription updated'); reload(); setDetail(null) }} />
           </div>
         )}
       </Modal>
     </>
+  )
+}
+
+/** GST on/off + number. When off, every GST field/calculation is disabled for that company. */
+function GstFields({ enabled, number, onEnabled, onNumber }) {
+  return (
+    <div className="space-y-3">
+      <Switch label="Charge GST" checked={enabled} onChange={onEnabled} hint={enabled ? 'GST is added to bills and shown on receipts.' : 'No GST anywhere: GST number, dish GST % and bill tax are all switched off.'} />
+      <Input label="GST number" value={enabled ? number : ''} onChange={(e) => onNumber(e.target.value)} disabled={!enabled} placeholder={enabled ? 'e.g. 27ABCDE1234F1Z5' : 'GST is off'} />
+    </div>
+  )
+}
+
+/** Super admin: edit company details, including the GST switch. */
+function CompanyDetailsEditor({ company, onDone }) {
+  const toast = useToast()
+  const [f, setF] = useState({
+    name: company.name || '', phone: company.phone || '', email: company.email || '', address: company.address || '', city: company.city || '',
+    gst_enabled: company.gst_enabled !== false, gst_number: company.gst_number || '',
+  })
+  const [busy, setBusy] = useState(false)
+  const s = (k) => (e) => setF({ ...f, [k]: e.target.value })
+  const save = async () => {
+    setBusy(true)
+    try {
+      const { data } = await api.put(`/admin/companies/${company.id}`, { ...f, gst_number: f.gst_enabled ? f.gst_number || null : undefined })
+      toast.success('Company updated')
+      onDone({ ...company, ...data })
+    } catch (e) { toast.error(e) } finally { setBusy(false) }
+  }
+  return (
+    <div className="space-y-4 rounded-2xl bg-canvas p-4 ring-1 ring-line">
+      <div className="text-sm font-semibold">Company details</div>
+      <Input label="Company name" value={f.name} onChange={s('name')} />
+      <div className="grid grid-cols-2 gap-3"><Input label="Phone" value={f.phone} onChange={s('phone')} /><Input label="City" value={f.city} onChange={s('city')} /></div>
+      <Input label="Email" type="email" value={f.email} onChange={s('email')} />
+      <Input label="Address" value={f.address} onChange={s('address')} />
+      <GstFields enabled={f.gst_enabled} number={f.gst_number} onEnabled={(v) => setF({ ...f, gst_enabled: v })} onNumber={(v) => setF({ ...f, gst_number: v })} />
+      <Button className="w-full" loading={busy} onClick={save}>Save details</Button>
+    </div>
   )
 }
 
@@ -104,36 +144,35 @@ function BrandingEditor({ company, onDone }) {
   )
 }
 
-function AssignPlan({ company, plans, onDone }) {
+function RenewSubscription({ company, onDone }) {
   const toast = useToast()
-  const [f, setF] = useState({ plan_id: plans?.[0]?.id || '', billing_cycle: 'monthly', trial: '0' })
+  const [cycle, setCycle] = useState('monthly')
+  const [busy, setBusy] = useState(false)
   const go = async () => {
-    try { await api.post(`/admin/companies/${company.id}/subscription`, { ...f, trial: f.trial === '1' }); onDone() } catch (e) { toast.error(e) }
+    setBusy(true)
+    try { await api.post(`/admin/companies/${company.id}/subscription`, { billing_cycle: cycle }); onDone() } catch (e) { toast.error(e) } finally { setBusy(false) }
   }
   return (
-    <div className="space-y-3 rounded-xl bg-slate-50 p-3">
-      <div className="text-sm font-medium">Assign subscription</div>
-      <Select value={f.plan_id} onChange={(e) => setF({ ...f, plan_id: e.target.value })}>{plans?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select>
-      <div className="grid grid-cols-2 gap-2">
-        <Select value={f.billing_cycle} onChange={(e) => setF({ ...f, billing_cycle: e.target.value })}><option value="monthly">Monthly</option><option value="yearly">Yearly</option></Select>
-        <Select value={f.trial} onChange={(e) => setF({ ...f, trial: e.target.value })}><option value="0">Paid / active</option><option value="1">Free trial</option></Select>
-      </div>
-      <Button className="w-full" onClick={go}>Apply</Button>
+    <div className="space-y-3 rounded-2xl bg-canvas p-4 ring-1 ring-line">
+      <div className="text-sm font-semibold">Renew subscription</div>
+      <Select aria-label="Billing period" value={cycle} onChange={(e) => setCycle(e.target.value)}><option value="monthly">Monthly</option><option value="yearly">Yearly</option></Select>
+      <p className="text-xs text-muted">Extends from the current end date and records the payment at today's price.</p>
+      <Button className="w-full" loading={busy} onClick={go}>Renew</Button>
     </div>
   )
 }
 
-function AddCompany({ open, onClose, plans, onDone }) {
+function AddCompany({ open, onClose, onDone }) {
   const toast = useToast()
-  const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', plan_id: '' })
+  const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', gst_enabled: true, gst_number: '', billing_cycle: 'monthly' })
   const [busy, setBusy] = useState(false)
   const submit = async (e) => {
     e.preventDefault(); setBusy(true)
-    try { await api.post('/admin/companies', { ...f, plan_id: f.plan_id || undefined }); toast.success('Company created'); onDone() } catch (x) { toast.error(x) } finally { setBusy(false) }
+    try { await api.post('/admin/companies', f); toast.success('Company created'); onDone() } catch (x) { toast.error(x) } finally { setBusy(false) }
   }
   const s = (k) => (e) => setF({ ...f, [k]: e.target.value })
   return (
-    <Modal open={open} onClose={onClose} title="Register company">
+    <Modal open={open} onClose={onClose} title="Add company">
       <form onSubmit={submit} className="space-y-3">
         <Input label="Company name" required value={f.company_name} onChange={s('company_name')} />
         <Input label="Owner name" required value={f.owner_name} onChange={s('owner_name')} />
@@ -141,7 +180,9 @@ function AddCompany({ open, onClose, plans, onDone }) {
         <Input label="Owner email" type="email" required value={f.email} onChange={s('email')} />
         <Input label="Initial password" type="password" required value={f.password} onChange={s('password')} hint="Min 8 chars, letters + numbers" />
         <Input label="City" value={f.city} onChange={s('city')} />
-        <Select label="Plan (trial)" value={f.plan_id} onChange={s('plan_id')}><option value="">Lowest plan</option>{plans?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select>
+        <GstFields enabled={f.gst_enabled} number={f.gst_number} onEnabled={(v) => setF({ ...f, gst_enabled: v })} onNumber={(v) => setF({ ...f, gst_number: v })} />
+        <Select label="Subscription period" value={f.billing_cycle} onChange={s('billing_cycle')}><option value="monthly">1 month</option><option value="yearly">1 year</option></Select>
+        <p className="text-xs text-muted">The company is active immediately for the chosen period. Renew it later from Manage.</p>
         <Button type="submit" loading={busy} className="w-full">Create</Button>
       </form>
     </Modal>

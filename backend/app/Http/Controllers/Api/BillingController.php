@@ -19,7 +19,7 @@ class BillingController extends Controller
 
     public function index(Request $r)
     {
-        $q = Bill::with('order:id,order_no,table_id', 'order.table:id,number', 'payments:id,bill_id,method,amount')
+        $q = Bill::with('order:id,order_no,table_id,type', 'order.table:id,number', 'payments:id,bill_id,method,amount')
             ->where('branch_id', $this->branch($r));
         if ($r->user()->role === 'waiter') {
             $q->whereHas('order', fn ($o) => $o->where('waiter_id', $r->user()->id));
@@ -85,7 +85,8 @@ class BillingController extends Controller
 
         return [
             'bill' => $bill,
-            'company' => $c->only('name', 'logo_url', 'address', 'phone', 'gst_number', 'bill_header', 'bill_footer', 'brand_color'),
+            // No GSTIN on the bill when GST is switched off for this company
+            'company' => array_merge($c->only('name', 'logo_url', 'address', 'phone', 'gst_number', 'gst_enabled', 'bill_header', 'bill_footer', 'brand_color'), $c->gst_enabled ? [] : ['gst_number' => null]),
             'printer' => $printer,
             'table' => $bill->order?->table?->number,
             'order_no' => $bill->order?->order_no,

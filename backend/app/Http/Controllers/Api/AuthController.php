@@ -36,33 +36,6 @@ class AuthController extends Controller
         return $this->session($user);
     }
 
-    public function register(Request $request, CompanyProvisioner $provisioner)
-    {
-        $data = $request->validate([
-            'company_name' => 'required|string|max:120',
-            'business_name' => 'nullable|string|max:120',
-            'owner_name' => 'required|string|max:120',
-            'phone' => 'required|string|max:20',
-            'email' => 'required|email|max:190|unique:users,email',
-            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
-            'address' => 'required|string|max:255',
-            'city' => 'required|string|max:80',
-            'state' => 'required|string|max:80',
-            'pin_code' => 'required|string|max:10',
-            'gst_number' => 'nullable|string|max:20',
-            'logo' => 'nullable|image|max:2048',
-            'plan_id' => 'nullable|integer|exists:subscription_plans,id',
-        ]);
-
-        $logo = $request->file('logo')?->store('logos', 'public');
-        $plan = ! empty($data['plan_id']) ? SubscriptionPlan::where('is_active', true)->find($data['plan_id']) : null;
-
-        [, $owner] = $provisioner->provision($data, $logo, $plan);
-        AuditLog::record('company.registered', 'company', $owner->company_id, [], $owner);
-
-        return response()->json($this->sessionPayload($owner, true), 201);
-    }
-
     public function me(Request $request)
     {
         return $this->sessionPayload($request->user());
@@ -92,7 +65,7 @@ class AuthController extends Controller
         if ($user->company_id) {
             $company = $user->company;
             $state = app(SubscriptionService::class)->state($company);
-            $out['company'] = $company->only('id', 'uid', 'name', 'slug', 'logo_url', 'icon_url', 'brand_color', 'status', 'phone', 'address', 'gst_number');
+            $out['company'] = $company->only('id', 'uid', 'name', 'slug', 'logo_url', 'icon_url', 'brand_color', 'status', 'phone', 'address', 'gst_number', 'gst_enabled');
             $out['plan'] = $state['plan'];
             $out['subscription'] = $state['subscription']?->only('status', 'billing_cycle', 'starts_at', 'ends_at');
             $out['subscription_expired'] = $state['expired'];

@@ -42,7 +42,8 @@ export default function QrMenu() {
   const list = useMemo(() => (menu?.items || []).filter((i) => (cat === 'all' || i.category_id === +cat) && i.name.toLowerCase().includes(q.toLowerCase())), [menu, cat, q])
   const lines = Object.values(cart)
   const count = lines.reduce((a, l) => a + l.quantity, 0)
-  const total = lines.reduce((a, l) => a + l.price * l.quantity * (1 - l.discount / 100) * (1 + l.gst / 100), 0)
+  const gstOn = menu?.company?.gst_enabled !== false
+  const total = lines.reduce((a, l) => a + l.price * l.quantity * (1 - l.discount / 100) * (1 + (gstOn ? l.gst : 0) / 100), 0)
   const unit = (i, v) => +(v?.price ?? i.price) * (1 - i.discount_percent / 100)
 
   const add = (i, v) => {
@@ -71,7 +72,7 @@ export default function QrMenu() {
   const { company } = menu
 
   return (
-    <div className="mx-auto min-h-full max-w-xl pb-28">
+    <div className="mx-auto min-h-full max-w-xl pb-32">
       <header className="sticky top-0 z-20 border-b border-line bg-white/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
           {company.logo_url ? <img src={company.logo_url} alt="" className="h-11 w-11 rounded-xl object-cover" /> : <div className="grid h-11 w-11 place-items-center rounded-xl bg-brand font-bold text-white">{company.name[0]}</div>}
@@ -93,9 +94,9 @@ export default function QrMenu() {
                 {i.description && <p className="mt-1 line-clamp-2 text-xs text-muted">{i.description}</p>}
                 <div className="mt-2 flex items-center gap-2"><b>{money(unit(i))}</b>{+i.discount_percent > 0 && <s className="text-xs text-muted">{money(i.price)}</s>}{i.variants.length > 0 && <span className="text-[11px] text-muted">· {i.variants.length + 1} sizes</span>}</div>
               </div>
-              <div className="flex shrink-0 flex-col items-center justify-between">
-                {i.image_path ? <img src={`${location.origin}/storage/${i.image_path}`} alt="" className="h-20 w-20 rounded-xl object-cover" /> : <div className="grid h-20 w-20 place-items-center rounded-2xl bg-brand-soft"><UtensilsCrossed className="h-7 w-7 text-brand/40" strokeWidth={1.6} /></div>}
-                <button onClick={() => (i.variants.length ? setPick(i) : add(i))} className="-mt-3 min-h-11 rounded-2xl border border-brand bg-white px-6 text-sm font-extrabold text-brand shadow-card transition active:scale-95 active:bg-brand-soft">{qty ? `ADD · ${qty}` : 'ADD'}</button>
+              <div className="flex w-24 shrink-0 flex-col items-stretch gap-2">
+                {i.image_path ? <img src={`${location.origin}/storage/${i.image_path}`} alt="" className="h-24 w-24 rounded-2xl object-cover" /> : <div className="grid h-24 w-24 place-items-center rounded-2xl bg-brand-soft"><UtensilsCrossed className="h-7 w-7 text-brand/40" strokeWidth={1.6} /></div>}
+                <button onClick={() => (i.variants.length ? setPick(i) : add(i))} className={`min-h-11 w-full rounded-2xl border px-2 text-sm font-extrabold shadow-card transition active:scale-95 ${qty ? 'border-brand bg-brand text-white' : 'border-brand bg-white text-brand active:bg-brand-soft'}`}>{qty ? `ADDED · ${qty}` : 'ADD'}</button>
               </div>
             </div>
           )
@@ -104,8 +105,8 @@ export default function QrMenu() {
       </div>
 
       {count > 0 && (
-        <button onClick={() => setCartOpen(true)} className="safe-bottom fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-lg items-center justify-between rounded-[1.25rem] bg-accent px-5 py-4 text-white shadow-float">
-          <span className="flex items-center gap-2"><ShoppingCart className="h-5 w-5" />{count} item(s)</span><b>View cart · {money(total)}</b>
+        <button onClick={() => setCartOpen(true)} className="fixed inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 mx-auto flex min-h-14 max-w-lg items-center justify-between gap-3 rounded-[1.25rem] bg-accent px-5 py-3.5 text-white shadow-float transition active:scale-[.98]">
+          <span className="flex items-center gap-2 whitespace-nowrap"><ShoppingCart className="h-5 w-5 shrink-0" />{count}<span className="hidden min-[360px]:inline">item(s)</span></span><b className="whitespace-nowrap">View cart · {money(total)}</b>
         </button>
       )}
 
@@ -130,7 +131,7 @@ export default function QrMenu() {
           </div>
           <Input label="Cooking instructions" value={cust.notes} onChange={(e) => setCust({ ...cust, notes: e.target.value })} />
           {error && <p className="text-sm text-rose-600">{error}</p>}
-          <div className="flex justify-between border-t border-line pt-3 text-sm"><span className="text-muted">Total incl. GST (final bill is calculated at billing)</span><b className="text-lg">{money(total)}</b></div>
+          <div className="flex justify-between border-t border-line pt-3 text-sm"><span className="text-muted">{gstOn ? 'Total incl. GST' : 'Total'} (final bill is calculated at billing)</span><b className="text-lg">{money(total)}</b></div>
           <Button variant="accent" size="lg" className="w-full" loading={busy} onClick={place}>Place order</Button>
         </div>
       </Modal>

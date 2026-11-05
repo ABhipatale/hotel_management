@@ -41,13 +41,6 @@ export function AuthProvider({ children }) {
     return data
   }
 
-  const register = async (formData) => {
-    const { data } = await api.post('/auth/register', formData)
-    tokenStore.set(data.token)
-    load(data)
-    return data
-  }
-
   const logout = async () => {
     try {
       await api.post('/auth/logout')
@@ -59,6 +52,21 @@ export function AuthProvider({ children }) {
 
   const refresh = useCallback(() => api.get('/auth/me').then((r) => load(r.data)), [load])
 
+  // Re-read the account (GST switch, subscription…) when the user comes back to the app after a while
+  const userId = session?.user?.id
+  useEffect(() => {
+    if (!userId) return undefined
+    let last = Date.now()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && Date.now() - last > 30000) {
+        last = Date.now()
+        refresh().catch(() => {})
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [userId, refresh])
+
   const value = useMemo(() => {
     const perms = session?.permissions || []
     return {
@@ -68,7 +76,6 @@ export function AuthProvider({ children }) {
       can: (p) => perms.includes('*') || perms.includes(p),
       hasFeature: (f) => !!session?.plan?.features?.includes(f),
       login,
-      register,
       logout,
       refresh,
     }

@@ -12,13 +12,10 @@ use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\Super\SuperAdminController;
 use App\Http\Controllers\Api\TableController;
-use App\Models\SubscriptionPlan;
 use Illuminate\Support\Facades\Route;
 
 // ---------- Public ----------
-Route::get('plans', fn () => SubscriptionPlan::where('is_active', true)->orderBy('price_monthly')->get());
 Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:auth');
-Route::post('auth/register', [AuthController::class, 'register'])->middleware('throttle:register');
 
 // Per-company PWA manifest: each company gets its own installable app name, colour and icon.
 Route::get('public/manifest/{slug}.webmanifest', [PublicMenuController::class, 'manifest'])
@@ -47,9 +44,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('companies/{id}/branding', [SuperAdminController::class, 'branding']);
         Route::post('companies/{id}/subscription', [SuperAdminController::class, 'assignSubscription']);
         Route::delete('companies/{id}', [SuperAdminController::class, 'destroyCompany']);
-        Route::get('plans', [SuperAdminController::class, 'plans']);
-        Route::post('plans', [SuperAdminController::class, 'savePlan']);
-        Route::put('plans/{id}', [SuperAdminController::class, 'savePlan']);
+        Route::get('pricing', [SuperAdminController::class, 'pricing']);
+        Route::put('pricing', [SuperAdminController::class, 'savePricing']);
         Route::get('payments', [SuperAdminController::class, 'payments']);
         Route::get('settings', [SuperAdminController::class, 'settings']);
         Route::put('settings', [SuperAdminController::class, 'saveSettings']);
@@ -63,7 +59,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
         // Subscription (always reachable, even when expired)
         Route::get('subscription', [SubscriptionController::class, 'current']);
-        Route::get('subscription/plans', [SubscriptionController::class, 'plans']);
+        Route::get('subscription/pricing', [SubscriptionController::class, 'pricing']);
         Route::get('subscription/payments', [SubscriptionController::class, 'payments'])->middleware('perm:subscription.manage');
         Route::post('subscription', [SubscriptionController::class, 'subscribe'])->middleware('perm:subscription.manage');
         Route::get('support', [SettingsController::class, 'tickets']);

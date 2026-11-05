@@ -103,8 +103,6 @@ body {
   -webkit-backdrop-filter: saturate(160%) blur(14px);
   backdrop-filter: saturate(160%) blur(14px);
 }
-.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
-.safe-top { padding-top: env(safe-area-inset-top); }
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .tabular { font-variant-numeric: tabular-nums; }

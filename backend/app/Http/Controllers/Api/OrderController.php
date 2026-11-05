@@ -52,6 +52,7 @@ class OrderController extends Controller
         $d = $r->validate([
             'table_id' => ['nullable', Tenant::exists('hotel_tables')],
             'type' => 'nullable|in:dine_in,takeaway,delivery',
+            'generate_bill' => 'sometimes|boolean', // counter sale: create the order and bill it in one step
             'notes' => 'nullable|string|max:255',
             'customer_name' => 'nullable|string|max:120',
             'customer_phone' => 'nullable|string|max:20',
@@ -62,8 +63,20 @@ class OrderController extends Controller
         ]);
         $table = ! empty($d['table_id']) ? HotelTable::findOrFail($d['table_id']) : null;
         $branch = $table?->branch_id ?? $this->branch($r);
+        // No table => it cannot be a dine-in order; treat it as takeaway.
+        if (! $table && ($d['type'] ?? 'dine_in') === 'dine_in') {
+            $d['type'] = 'takeaway';
+        }
+        $withBill = $r->boolean('generate_bill');
+        abort_if($withBill && ! $r->user()->hasPermission('billing.manage'), 403, 'You cannot generate bills.');
 
         $order = $this->orders->place($branch, $table, $d, 'staff', $r->user());
+
+        if ($withBill) {
+            $bill = $this->orders->generateBill($order, $r->user());
+            \App\Models\AuditLog::record('bill.generate', 'bill', $bill->id);
+            $order->load('bill.items');
+        }
 
         return response()->json($order, 201);
     }

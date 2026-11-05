@@ -25,11 +25,12 @@ class DatabaseSeeder extends Seeder
             Permission::updateOrCreate(['slug' => $slug], ['label' => $label]);
         }
 
-        $premium = SubscriptionPlan::updateOrCreate(['slug' => 'premium'], [
-            'name' => 'Premium', 'price_monthly' => 3499, 'price_yearly' => 34990,
-            'max_staff' => null, 'max_tables' => null, 'max_branches' => 20,
-            'features' => config('hms.features'), 'trial_days' => 14,
-        ]);
+        // One subscription for everybody. Prices are only set on first install; the admin edits them later.
+        $premium = SubscriptionPlan::firstOrNew(['slug' => 'premium']);
+        if (! $premium->exists) {
+            $premium->forceFill(['name' => 'Subscription', 'price_monthly' => 3499, 'price_yearly' => 34990]);
+        }
+        $premium->forceFill(['max_staff' => null, 'max_tables' => null, 'max_branches' => 1, 'features' => config('hms.features'), 'is_active' => true])->save();
 
         // Single-plan product: Premium is the only plan offered.
         SubscriptionPlan::where('slug', '!=', 'premium')->update(['is_active' => false]);
@@ -48,7 +49,6 @@ class DatabaseSeeder extends Seeder
     private function demo(SubscriptionPlan $premium): void
     {
         $prov = app(CompanyProvisioner::class);
-        $subs = app(SubscriptionService::class);
 
         $companies = [
             ['Hotel Atithi', 'atithi@demo.test', $premium, [['Paneer Butter Masala', 240], ['Dal Tadka', 180], ['Butter Naan', 45]]],
@@ -63,7 +63,6 @@ class DatabaseSeeder extends Seeder
                 'company_name' => $name, 'owner_name' => $name.' Owner', 'email' => $email, 'password' => 'Demo@12345',
                 'phone' => '9999900000', 'address' => 'Main Road', 'city' => 'Karad', 'state' => 'Maharashtra', 'pin_code' => '415110', 'gst_number' => '27ABCDE1234F1Z5',
             ], null, $plan);
-            $subs->activate($company, $plan, 'monthly', 'seed');
 
             Tenant::as($company, function () use ($company, $dishes, $email) {
                 $branch = Branch::where('is_default', true)->first();

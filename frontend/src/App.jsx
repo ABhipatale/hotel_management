@@ -5,11 +5,10 @@ import { ConfirmProvider } from './context/ConfirmContext'
 import Layout from './components/Layout'
 import { Spinner } from './components/ui'
 import Login from './pages/auth/Login'
-import Register from './pages/auth/Register'
 import QrMenu from './pages/public/QrMenu'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import Companies from './pages/admin/Companies'
-import Plans from './pages/admin/Plans'
+import Pricing from './pages/admin/Pricing'
 import { AdminPayments, AdminSettings, AdminTickets } from './pages/admin/Misc'
 import Dashboard from './pages/app/Dashboard'
 import Tables from './pages/app/Tables'
@@ -58,13 +57,12 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
             <Route path="/menu/:slug/table/:token" element={<QrMenu />} />
 
             <Route path="/admin" element={<Guard superAdmin><Layout /></Guard>}>
               <Route index element={<AdminDashboard />} />
               <Route path="companies" element={<Companies />} />
-              <Route path="plans" element={<Plans />} />
+              <Route path="pricing" element={<Pricing />} />
               <Route path="payments" element={<AdminPayments />} />
               <Route path="tickets" element={<AdminTickets />} />
               <Route path="settings" element={<AdminSettings />} />

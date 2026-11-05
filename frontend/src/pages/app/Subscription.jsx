@@ -1,79 +1,104 @@
 import { useState } from 'react'
-import { Check } from 'lucide-react'
+import { CalendarCheck, Check, ShieldCheck } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import { dateOnly, money } from '../../lib/format'
-import { Badge, Button, Card, PageHeader, Spinner, statusTone, Table } from '../../components/ui'
+import { Badge, Button, Card, PageHeader, SectionTitle, Spinner, statusTone, Table } from '../../components/ui'
 
-const FEATURE_LABEL = { qr: 'QR ordering', thermal: 'Thermal printing', reports: 'Sales reports', advanced_reports: 'Advanced reports', inventory: 'Inventory', expenses: 'Expenses', pnl: 'Profit & Loss', advanced_permissions: 'Advanced permissions' }
+const INCLUDED = ['Unlimited staff & tables', 'QR menu ordering', 'Thermal bill printing', 'Reports & inventory', 'Expenses & profit tracking']
 
+/** One subscription, paid monthly or yearly. */
 export default function Subscription() {
   const { refresh } = useAuth()
   const toast = useToast()
   const ask = useConfirm()
   const { data: cur, loading, reload } = useApi('/subscription')
-  const { data: plans } = useApi('/subscription/plans')
+  const { data: price } = useApi('/subscription/pricing')
   const { data: pays, reload: reloadPays } = useApi('/subscription/payments')
-  const [cycle, setCycle] = useState('monthly')
   const [busy, setBusy] = useState(null)
 
-  const choose = async (p) => {
-    if (!(await ask({ title: `Switch to ${p.name}?`, message: `You will be billed ${cycle}. Your plan changes immediately.`, confirmText: 'Switch plan', tone: 'primary' }))) return
-    setBusy(p.id)
-    try { await api.post('/subscription', { plan_id: p.id, billing_cycle: cycle }); toast.success('Subscription updated'); await refresh(); reload(); reloadPays() } catch (e) { toast.error(e) } finally { setBusy(null) }
+  const buy = async (cycle) => {
+    const amount = cycle === 'yearly' ? price.price_yearly : price.price_monthly
+    const verb = cur?.expired ? 'Renew' : 'Extend'
+    if (!(await ask({
+      title: `${verb} ${cycle}?`,
+      message: `${money(amount)} for ${cycle === 'yearly' ? '1 year' : '1 month'}. ${cur?.expired ? 'Access is restored immediately.' : 'It is added after your current end date.'}`,
+      confirmText: `Pay ${money(amount)}`,
+      tone: 'primary',
+    }))) return
+    setBusy(cycle)
+    try {
+      await api.post('/subscription', { billing_cycle: cycle })
+      toast.success('Subscription updated')
+      await refresh(); reload(); reloadPays()
+    } catch (e) { toast.error(e) } finally { setBusy(null) }
   }
 
-  if (loading) return <Spinner />
+  if (loading || !price) return <Spinner />
   const sub = cur.subscription
-  const lim = (v, used) => `${used} / ${v ?? '∞'}`
+  const expired = cur.expired
+  const daysLeft = sub ? Math.ceil((new Date(sub.ends_at) - Date.now()) / 86400000) : 0
+  const saving = price.price_monthly * 12 - price.price_yearly
 
   return (
-    <>
-      <PageHeader title="Subscription" sub="Plan, usage and billing history" />
-      <Card className="mb-5 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="text-xs text-muted">Current plan</div>
-          <div className="text-xl font-semibold">{cur.plan?.name || 'None'} <Badge tone={cur.expired ? 'red' : statusTone(sub?.status)}>{cur.expired ? 'expired' : sub?.status}</Badge></div>
-          <div className="text-sm text-muted">{cur.expired ? 'Expired on' : 'Renews / ends on'} {dateOnly(sub?.ends_at)}</div>
+    <div className="space-y-6">
+      <PageHeader title="Subscription" sub="Pay monthly or yearly — everything is included" />
+
+      {/* Current status */}
+      <Card className={`flex flex-wrap items-center justify-between gap-4 ${expired ? '!bg-rose-50' : ''}`}>
+        <div className="flex items-center gap-4">
+          <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl ${expired ? 'bg-rose-100 text-rose-700' : 'bg-brand-soft text-brand'}`}><CalendarCheck className="h-6 w-6" /></span>
+          <div>
+            <div className="flex items-center gap-2 text-lg font-extrabold">{expired ? 'Subscription expired' : 'Subscription active'} <Badge tone={expired ? 'red' : statusTone(sub?.status)}>{expired ? 'expired' : 'active'}</Badge></div>
+            <div className="text-sm text-muted">
+              {sub ? <><span className="capitalize">{sub.billing_cycle}</span> · {expired ? 'ended' : 'renews / ends'} on <b className="text-ink">{dateOnly(sub.ends_at)}</b></> : 'No subscription yet'}
+            </div>
+          </div>
         </div>
-        <div className="flex gap-6 text-sm">
-          <div><div className="text-xs text-muted">Staff</div><b>{lim(cur.plan?.max_staff, cur.usage.staff)}</b></div>
-          <div><div className="text-xs text-muted">Tables</div><b>{lim(cur.plan?.max_tables, cur.usage.tables)}</b></div>
-        </div>
+        {sub && !expired && <span className={`rounded-full px-3.5 py-1.5 text-sm font-extrabold ${daysLeft <= 7 ? 'bg-accent text-white' : 'bg-brand-soft text-brand'}`}>{Math.max(daysLeft, 0)} day{daysLeft === 1 ? '' : 's'} left</span>}
       </Card>
 
-      <div className="mb-4 inline-flex rounded-full border border-line bg-white p-1">
-        {['monthly', 'yearly'].map((c) => <button key={c} onClick={() => setCycle(c)} className={`min-h-11 rounded-full px-6 text-sm font-bold capitalize transition ${cycle === c ? 'bg-brand text-white' : 'text-muted'}`}>{c}</button>)}
-      </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        {plans?.map((p) => {
-          const isCur = cur.plan?.id === p.id && !cur.expired
-          return (
-            <Card key={p.id} className={isCur ? 'ring-2 ring-brand' : ''}>
-              <div className="flex items-center justify-between"><h3 className="text-lg font-semibold">{p.name}</h3>{isCur && <Badge tone="violet">current</Badge>}</div>
-              <div className="mt-1 text-2xl font-semibold">{money(cycle === 'yearly' ? p.price_yearly : p.price_monthly)}<span className="text-sm font-normal text-muted"> /{cycle === 'yearly' ? 'year' : 'month'}</span></div>
-              <ul className="my-4 space-y-1.5 text-sm">
-                <li className="flex gap-2"><Check className="h-4 w-4 text-emerald-500" />{p.max_staff ?? 'Unlimited'} staff</li>
-                <li className="flex gap-2"><Check className="h-4 w-4 text-emerald-500" />{p.max_tables ?? 'Unlimited'} tables</li>
-                {(p.features || []).map((f) => <li key={f} className="flex gap-2"><Check className="h-4 w-4 text-emerald-500" />{FEATURE_LABEL[f] || f}</li>)}
-              </ul>
-              <Button className="w-full" variant={isCur ? 'secondary' : 'primary'} loading={busy === p.id} onClick={() => choose(p)}>{isCur ? 'Renew' : cur.plan && p.price_monthly < cur.plan.price_monthly ? 'Downgrade' : 'Choose plan'}</Button>
-            </Card>
-          )
-        })}
-      </div>
-      <p className="mt-3 text-xs text-muted">Payments are processed by the platform’s payment gateway. In development, a simulated gateway activates plans instantly.</p>
+      {/* Prices */}
+      <section>
+        <SectionTitle title={expired ? 'Renew your subscription' : 'Extend your subscription'} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card className="flex flex-col">
+            <div className="text-sm font-bold text-muted">Monthly</div>
+            <div className="tabular mt-1 text-[34px] font-extrabold leading-tight tracking-tight">{money(price.price_monthly)}</div>
+            <div className="text-sm text-muted">per month</div>
+            <Button className="mt-5 w-full" size="lg" loading={busy === 'monthly'} disabled={!!busy} onClick={() => buy('monthly')}>{expired ? 'Renew' : 'Add'} 1 month</Button>
+          </Card>
 
-      <h3 className="mb-3 mt-8 font-semibold">Payment history</h3>
-      <Table rows={pays} empty="No payments yet" columns={[
-        { header: 'Invoice', key: 'invoice_no' },
-        { header: 'Date', render: (p) => dateOnly(p.paid_at || p.created_at) },
-        { header: 'Amount', render: (p) => money(p.amount) },
-        { header: 'Status', render: (p) => <Badge tone={statusTone(p.status)}>{p.status}</Badge> },
-      ]} />
-    </>
+          <Card className="relative flex flex-col !border-brand ring-2 ring-brand/20">
+            {saving > 0 && <span className="absolute right-4 top-4 rounded-full bg-accent px-3 py-1 text-xs font-extrabold text-white">Save {money(saving)}</span>}
+            <div className="text-sm font-bold text-brand">Yearly · best value</div>
+            <div className="tabular mt-1 text-[34px] font-extrabold leading-tight tracking-tight">{money(price.price_yearly)}</div>
+            <div className="text-sm text-muted">per year · {money(price.price_yearly / 12)}/month</div>
+            <Button variant="accent" className="mt-5 w-full" size="lg" loading={busy === 'yearly'} disabled={!!busy} onClick={() => buy('yearly')}>{expired ? 'Renew' : 'Add'} 1 year</Button>
+          </Card>
+        </div>
+
+        <Card className="mt-4">
+          <div className="mb-3 text-sm font-extrabold">Included in both</div>
+          <ul className="grid gap-2 text-sm font-medium sm:grid-cols-2">
+            {INCLUDED.map((t) => <li key={t} className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-brand" strokeWidth={3} />{t}</li>)}
+          </ul>
+        </Card>
+        <p className="mt-3 flex items-center gap-1.5 text-xs text-muted"><ShieldCheck className="h-4 w-4" /> Payments are processed by the platform's payment gateway.</p>
+      </section>
+
+      <section>
+        <SectionTitle title="Payment history" />
+        <Table rows={pays} empty="No payments yet" columns={[
+          { header: 'Invoice', key: 'invoice_no' },
+          { header: 'Date', render: (p) => dateOnly(p.paid_at || p.created_at) },
+          { header: 'Amount', render: (p) => <b className="tabular">{money(p.amount)}</b> },
+          { header: 'Status', render: (p) => <Badge tone={statusTone(p.status)}>{p.status}</Badge> },
+        ]} />
+      </section>
+    </div>
   )
 }

@@ -11,15 +11,18 @@ use Illuminate\Support\Str;
 
 class SubscriptionService
 {
-    public function startTrial(Company $company, SubscriptionPlan $plan): Subscription
+    /** Subscription granted by the platform admin when a company is created (no payment record). */
+    public function grant(Company $company, SubscriptionPlan $plan, string $cycle = 'monthly'): Subscription
     {
+        $start = now();
+
         return Subscription::create([
             'company_id' => $company->id,
             'plan_id' => $plan->id,
-            'billing_cycle' => 'trial',
-            'status' => 'trial',
-            'starts_at' => now(),
-            'ends_at' => now()->addDays($plan->trial_days),
+            'billing_cycle' => $cycle,
+            'status' => 'active',
+            'starts_at' => $start,
+            'ends_at' => $cycle === 'yearly' ? $start->copy()->addYear() : $start->copy()->addMonth(),
         ]);
     }
 

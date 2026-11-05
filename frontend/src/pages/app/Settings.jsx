@@ -53,7 +53,7 @@ export default function Settings() {
           <h3 className="mb-3 font-semibold">Company & branding</h3>
           <form onSubmit={saveCompany} className="space-y-3">
             <Input label="Company name" required value={f.name || ''} onChange={s('name')} />
-            <div className="grid grid-cols-2 gap-3"><Input label="Phone" value={f.phone || ''} onChange={s('phone')} /><Input label="GST number" value={f.gst_number || ''} onChange={s('gst_number')} /></div>
+            <div className="grid grid-cols-2 gap-3"><Input label="Phone" value={f.phone || ''} onChange={s('phone')} /><Input label="GST number" value={f.gst_enabled === false ? '' : f.gst_number || ''} onChange={s('gst_number')} disabled={f.gst_enabled === false} placeholder={f.gst_enabled === false ? 'GST is off' : ''} hint={f.gst_enabled === false ? 'GST is switched off for your business. Ask the administrator to turn it on.' : undefined} /></div>
             <Input label="Address" value={f.address || ''} onChange={s('address')} />
             <div className="grid grid-cols-3 gap-3"><Input label="City" value={f.city || ''} onChange={s('city')} /><Input label="State" value={f.state || ''} onChange={s('state')} /><Input label="PIN" value={f.pin_code || ''} onChange={s('pin_code')} /></div>
             <div className="space-y-5 rounded-2xl bg-slate-50 p-4">

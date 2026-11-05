@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Armchair, BarChart3, Bell, Building2, CreditCard, Layers, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
-  Settings, ShoppingBag, Store, Users, UtensilsCrossed, Wallet,
+  Armchair, BarChart3, Bell, Building2, CreditCard, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
+  Settings, ShoppingBag, Store, Tag, Users, UtensilsCrossed, Wallet,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useApi } from '../lib/useApi'
@@ -11,7 +11,7 @@ import { Avatar, Modal } from './ui'
 const ADMIN_NAV = [
   { to: '/admin', icon: LayoutDashboard, label: 'Overview', end: true },
   { to: '/admin/companies', icon: Building2, label: 'Companies' },
-  { to: '/admin/plans', icon: Layers, label: 'Plans' },
+  { to: '/admin/pricing', icon: Tag, label: 'Pricing' },
   { to: '/admin/payments', icon: Wallet, label: 'Payments' },
   { to: '/admin/tickets', icon: LifeBuoy, label: 'Support' },
   { to: '/admin/settings', icon: Settings, label: 'Settings' },
@@ -27,7 +27,7 @@ const TENANT_NAV = [
   { to: '/app/expenses', icon: Wallet, label: 'Expenses', perm: 'expenses.manage' },
   { to: '/app/reports', icon: BarChart3, label: 'Reports', perm: 'reports.view' },
   { to: '/app/staff', icon: Users, label: 'Staff', perm: 'users.manage' },
-  { to: '/app/subscription', icon: CreditCard, label: 'Plan', perm: 'subscription.manage' },
+  { to: '/app/subscription', icon: CreditCard, label: 'Subscription', perm: 'subscription.manage' },
   { to: '/app/settings', icon: Settings, label: 'Settings', perm: 'settings.manage' },
 ]
 
@@ -57,7 +57,6 @@ export default function Layout() {
 
   const items = isSuperAdmin ? ADMIN_NAV : TENANT_NAV.filter((n) => can(n.perm))
   const canNew = !isSuperAdmin && can('orders.create')
-  const daysLeft = subscription ? Math.ceil((new Date(subscription.ends_at) - Date.now()) / 86400000) : null
 
   // Mobile: up to 4 primary tabs around the centre "new order" button. Everything else lives in the
   // account menu that opens from the avatar in the top-right corner.
@@ -121,7 +120,7 @@ export default function Layout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* App bar: Deep Teal on phones, clean white on desktop */}
-        <header className="safe-top sticky top-0 z-30 bg-brand text-white lg:bg-white! lg:text-ink! lg:ring-1 lg:ring-line">
+        <header className="pt-[env(safe-area-inset-top)] sticky top-0 z-30 bg-brand text-white lg:bg-white! lg:text-ink! lg:ring-1 lg:ring-line">
           <div className="flex items-center gap-3 px-4 py-3 lg:px-8">
             <div className="lg:hidden"><Logo company={company} isSuperAdmin={isSuperAdmin} /></div>
             <div className="min-w-0 flex-1 leading-tight lg:hidden">
@@ -136,9 +135,6 @@ export default function Layout() {
 
         {!isSuperAdmin && subscription_expired && (
           <div className="bg-rose-600 px-4 py-2.5 text-center text-sm font-medium text-white">Subscription expired — read-only. <NavLink to="/app/subscription" className="font-extrabold underline">Renew</NavLink></div>
-        )}
-        {!isSuperAdmin && !subscription_expired && subscription?.status === 'trial' && daysLeft !== null && (
-          <div className="bg-accent-soft px-4 py-2 text-center text-xs font-semibold text-amber-800">Free trial · {Math.max(daysLeft, 0)} day(s) left{can('subscription.manage') && <> · <NavLink to="/app/subscription" className="font-extrabold underline">Choose plan</NavLink></>}</div>
         )}
 
         <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 py-5 pb-36 sm:px-6 lg:px-8 lg:pb-8">

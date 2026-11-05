@@ -24,7 +24,8 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer }
   if (company.bill_header) line(company.bill_header)
   if (company.address) line(company.address)
   if (company.phone) line(`Ph: ${company.phone}`)
-  if (company.gst_number) line(`GSTIN: ${company.gst_number}`)
+  const gstOn = company.gst_enabled !== false
+  if (gstOn && company.gst_number) line(`GSTIN: ${company.gst_number}`)
   push(ESC, 0x61, 0)
   rule()
   two(`Bill: ${bill.bill_no}`, new Date(bill.created_at).toLocaleDateString('en-IN'))
@@ -38,7 +39,7 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer }
   rule()
   two('Subtotal', money(bill.subtotal))
   if (Number(bill.discount)) two('Discount', `-${money(bill.discount)}`)
-  two('Tax (GST)', money(bill.tax))
+  if (gstOn) two('Tax (GST)', money(bill.tax))
   push(ESC, 0x45, 1)
   push(GS, 0x21, 0x01)
   two('TOTAL', money(bill.grand_total))

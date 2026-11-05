@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { ArrowRight, BarChart3, Lock, Mail, QrCode, Receipt, ShieldCheck, Store } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { errMsg } from '../../lib/api'
@@ -37,7 +37,7 @@ export default function Login() {
   return (
     <div className="flex min-h-dvh flex-col bg-brand-gradient lg:flex-row">
       {/* Hero */}
-      <div className="safe-top relative flex flex-1 flex-col justify-end overflow-hidden px-6 pb-12 pt-14 text-white lg:justify-center lg:px-20">
+      <div className="relative flex flex-1 flex-col justify-end overflow-hidden px-6 pb-12 pt-[calc(3.5rem+env(safe-area-inset-top))] text-white lg:justify-center lg:px-20">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/5" />
         <div className="pointer-events-none absolute -left-12 top-1/3 h-44 w-44 rounded-full bg-white/5" />
         <div className="pointer-events-none absolute bottom-10 right-8 h-20 w-20 rounded-[1.25rem] bg-accent/25 rotate-12" />
@@ -54,7 +54,7 @@ export default function Login() {
       </div>
 
       {/* Form sheet */}
-      <div className="safe-bottom flex items-center justify-center rounded-t-[1.25rem] bg-white px-6 pb-8 pt-9 shadow-float lg:w-[32rem] lg:rounded-none lg:px-14">
+      <div className="flex items-center justify-center rounded-t-[1.25rem] bg-white px-6 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-9 shadow-float lg:w-[32rem] lg:rounded-none lg:px-14">
         <form onSubmit={submit} className="animate-page w-full max-w-sm space-y-5">
           <div>
             <h2 className="text-[26px] font-extrabold tracking-tight">Welcome back</h2>
@@ -65,7 +65,7 @@ export default function Login() {
           <Input label="Password" icon={Lock} type="password" autoComplete="current-password" required placeholder="Enter your password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
           <Button type="submit" size="lg" loading={busy} className="w-full">Sign in <ArrowRight className="h-5 w-5" /></Button>
           <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted"><ShieldCheck className="h-4 w-4 text-emerald-500" /> Secure, encrypted sign-in</div>
-          <p className="border-t border-line pt-4 text-center text-sm text-muted">New restaurant or hotel? <Link to="/register" className="inline-flex min-h-11 items-center px-1 font-extrabold text-brand">Start free trial</Link></p>
+          <p className="border-t border-line pt-4 text-center text-sm text-muted">Don't have an account? Accounts are created by your administrator.</p>
         </form>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { api, toFormData } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { money } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import { Badge, Button, Card, Chips, Empty, Input, Modal, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
 
@@ -11,6 +12,8 @@ const BLANK = { category_id: '', name: '', description: '', price: '', gst_perce
 
 export default function MenuManager() {
   const toast = useToast()
+  const { company } = useAuth()
+  const gstOn = company?.gst_enabled !== false
   const ask = useConfirm()
   const { data: cats, reload: reloadCats } = useApi('/menu/categories')
   const { data: items, loading, reload } = useApi('/menu/items')
@@ -55,7 +58,7 @@ export default function MenuManager() {
               {i.image_url ? <img src={i.image_url} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover" /> : <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-brand-soft"><UtensilsCrossed className="h-7 w-7 text-brand/40" strokeWidth={1.6} /></div>}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5"><i className={`h-2.5 w-2.5 shrink-0 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} /><span className="truncate font-medium">{i.name}</span></div>
-                <div className="text-xs text-muted">{i.category?.name} · GST {i.gst_percent}%</div>
+                <div className="text-xs text-muted">{i.category?.name}{gstOn ? ` · GST ${i.gst_percent}%` : ''}</div>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5"><b className="text-brand">{money(i.price)}</b>{Number(i.discount_percent) > 0 && <Badge tone="green">{i.discount_percent}% off</Badge>}{i.variants.length > 0 && <Badge tone="violet">{i.variants.length} variants</Badge>}{i.stock !== null && <Badge tone={i.stock < 5 ? 'red' : 'slate'}>stock {i.stock}</Badge>}</div>
                 <div className="mt-2 flex gap-1.5">
                   <Button size="sm" variant="secondary" onClick={() => toggle(i)}>{i.is_available ? 'Hide' : 'Show'}</Button>
@@ -74,7 +77,7 @@ export default function MenuManager() {
             <Input label="Name" required value={edit.name} onChange={s('name')} />
             <Select label="Category" required value={edit.category_id} onChange={s('category_id')}>{cats?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select>
             <Input label="Price (₹)" type="number" min="0" step="0.01" required value={edit.price} onChange={s('price')} />
-            <Input label="GST %" type="number" min="0" max="28" step="0.01" value={edit.gst_percent} onChange={s('gst_percent')} />
+            <Input label="GST %" type="number" min="0" max="28" step="0.01" value={gstOn ? edit.gst_percent : ''} onChange={s('gst_percent')} disabled={!gstOn} placeholder={gstOn ? '' : 'GST is off'} />
             <Input label="Discount %" type="number" min="0" max="100" value={edit.discount_percent} onChange={s('discount_percent')} />
             <Input label="Stock (blank = unlimited)" type="number" min="0" value={edit.stock} onChange={s('stock')} />
             <Input label="Special offer text" value={edit.offer_text || ''} onChange={s('offer_text')} />

@@ -13,12 +13,15 @@ export default function NewOrder() {
   const [params] = useSearchParams()
   const nav = useNavigate()
   const toast = useToast()
-  const { can } = useAuth()
+  const { can, company } = useAuth()
+  const gstOn = company?.gst_enabled !== false
   const { data: items, loading } = useApi('/menu/items')
   const { data: cats } = useApi('/menu/categories')
   const { data: tables } = useApi('/tables')
-  const [tableId, setTableId] = useState(params.get('table') || '')
-  const [type, setType] = useState('dine_in')
+  // "Order for": a table, or no table at all (walk-in takeaway / delivery). A table is never required.
+  const [target, setTarget] = useState(params.get('table') ? `t:${params.get('table')}` : 'takeaway')
+  const tableId = target.startsWith('t:') ? target.slice(2) : ''
+  const type = tableId ? 'dine_in' : target
   const [cat, setCat] = useState('all')
   const [q, setQ] = useState('')
   const [cart, setCart] = useState({})
@@ -33,7 +36,7 @@ export default function NewOrder() {
   )
   const lines = Object.values(cart)
   const count = lines.reduce((a, l) => a + l.quantity, 0)
-  const total = lines.reduce((a, l) => a + l.price * l.quantity * (1 - l.discount / 100) * (1 + l.gst / 100), 0)
+  const total = lines.reduce((a, l) => a + l.price * l.quantity * (1 - l.discount / 100) * (1 + (gstOn ? l.gst : 0) / 100), 0)
 
   const add = (item, variant) => {
     const key = `${item.id}:${variant?.id || 0}`
@@ -51,17 +54,23 @@ export default function NewOrder() {
 
   const tapItem = (i) => (i.variants?.length ? setPick(i) : add(i))
 
-  const submit = async () => {
-    if (type === 'dine_in' && !tableId) return toast.error('Select a table')
-    setBusy(true)
+  // withBill = counter sale: create the order and generate its bill in one step, then go straight to payment.
+  const submit = async (withBill = false) => {
+    setBusy(withBill ? 'bill' : 'order')
     try {
-      await api.post('/orders', {
-        table_id: type === 'dine_in' ? tableId : null,
+      const { data } = await api.post('/orders', {
+        table_id: tableId || null,
         type, notes: notes || null,
+        generate_bill: withBill || undefined,
         items: lines.map((l) => ({ food_item_id: l.food_item_id, variant_id: l.variant_id || null, quantity: l.quantity })),
       })
-      toast.success('Order placed')
-      nav(can('billing.manage') ? '/app/orders' : '/app/tables')
+      if (withBill && data.bill) {
+        toast.success(`Bill ${data.bill.bill_no} generated`)
+        nav(`/app/billing?pay=${data.bill.id}`)
+      } else {
+        toast.success('Order placed')
+        nav(can('billing.manage') ? '/app/orders' : '/app/tables')
+      }
     } catch (e) { toast.error(e) } finally { setBusy(false) }
   }
 
@@ -69,14 +78,18 @@ export default function NewOrder() {
 
   const Cart = (
     <div className="flex h-full flex-col">
-      <div className="mb-3 grid grid-cols-2 gap-2">
-        <Select value={type} onChange={(e) => setType(e.target.value)}><option value="dine_in">Dine-in</option><option value="takeaway">Takeaway</option><option value="delivery">Delivery</option></Select>
-        {type === 'dine_in' && (
-          <Select value={tableId} onChange={(e) => setTableId(e.target.value)}>
-            <option value="">Select table</option>
-            {tables?.map((t) => <option key={t.id} value={t.id}>T{t.number} · {t.status}</option>)}
-          </Select>
-        )}
+      <div className="mb-3">
+        <Select aria-label="Order for" value={target} onChange={(e) => setTarget(e.target.value)}>
+          <optgroup label="No table">
+            <option value="takeaway">Walk-in / Takeaway</option>
+            <option value="delivery">Delivery</option>
+          </optgroup>
+          {tables?.length > 0 && (
+            <optgroup label="Dine-in tables">
+              {tables.map((t) => <option key={t.id} value={`t:${t.id}`}>Table {t.number} · {t.status}</option>)}
+            </optgroup>
+          )}
+        </Select>
       </div>
       <div className="flex-1 space-y-2 overflow-y-auto">
         {!lines.length && <p className="py-10 text-center text-sm text-muted">Cart is empty</p>}
@@ -93,8 +106,11 @@ export default function NewOrder() {
       </div>
       <div className="mt-3 space-y-3 border-t border-line pt-3">
         <Input placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
-        <div className="flex justify-between text-sm"><span className="text-muted">Estimated total (incl. GST)</span><b className="text-lg">{money(total)}</b></div>
-        <Button variant="accent" size="lg" className="w-full" disabled={!lines.length} loading={busy} onClick={submit}>Place order</Button>
+        <div className="flex justify-between text-sm"><span className="text-muted">{gstOn ? 'Estimated total (incl. GST)' : 'Estimated total'}</span><b className="text-lg">{money(total)}</b></div>
+        <div className={`grid gap-2 ${can('billing.manage') ? 'grid-cols-2' : ''}`}>
+          <Button variant="accent" size="lg" disabled={!lines.length || !!busy} loading={busy === 'order'} onClick={() => submit(false)}>Place order</Button>
+          {can('billing.manage') && <Button variant="secondary" size="lg" disabled={!lines.length || !!busy} loading={busy === 'bill'} onClick={() => submit(true)}>Place & bill</Button>}
+        </div>
       </div>
     </div>
   )

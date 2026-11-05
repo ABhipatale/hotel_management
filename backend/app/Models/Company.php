@@ -10,7 +10,7 @@ class Company extends Model
     use SoftDeletes;
 
     protected $guarded = ['id', 'uid', 'status'];
-    protected $casts = ['settings' => 'array'];
+    protected $casts = ['settings' => 'array', 'gst_enabled' => 'boolean'];
     protected $appends = ['logo_url', 'icon_url'];
 
     public function getIconUrlAttribute(): ?string
@@ -43,6 +43,7 @@ class Company extends Model
     {
         return [
             'name' => $this->name,
+            'gst_enabled' => $this->gst_enabled,
             'slug' => $this->slug,
             'logo_url' => $this->logo_url,
             'icon_url' => $this->icon_url,

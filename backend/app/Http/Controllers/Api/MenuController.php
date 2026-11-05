@@ -114,6 +114,9 @@ class MenuController extends Controller
     private function fields(Request $r, array $d): array
     {
         unset($d['variants'], $d['image']);
+        if (! Tenant::company()->gst_enabled) {
+            unset($d['gst_percent']);
+        }
         if ($r->hasFile('image')) {
             $d['image_path'] = $r->file('image')->store('food/'.Tenant::id(), 'public');
         }

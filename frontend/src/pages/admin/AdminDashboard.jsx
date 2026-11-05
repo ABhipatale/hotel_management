@@ -17,7 +17,6 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Registered companies" value={num(d.companies_total)} icon={Building2} />
         <Stat label="Active" value={num(d.companies_active)} icon={Store} tone="green" />
-        <Stat label="On trial" value={num(d.companies_trial)} icon={CalendarClock} tone="sky" />
         <Stat label="Inactive / suspended" value={num(d.companies_inactive)} icon={Building2} tone="rose" />
         <Stat label="Paid subscribers" value={num(d.subscribers)} icon={Repeat} tone="green" />
         <Stat label="Total revenue" value={money(d.revenue_total)} icon={IndianRupee} tone="amber" />
@@ -44,9 +43,9 @@ export default function AdminDashboard() {
           ) : <p className="py-10 text-center text-sm text-muted">No payments yet</p>}
         </Card>
         <Card>
-          <h3 className="mb-3 font-semibold">Subscribers by plan</h3>
-          {d.plan_breakdown.length ? d.plan_breakdown.map((p) => (
-            <div key={p.name} className="flex items-center justify-between border-b border-line py-2.5 text-sm last:border-0"><span>{p.name}</span><b>{p.total}</b></div>
+          <h3 className="mb-3 font-semibold">Monthly vs yearly</h3>
+          {d.cycle_breakdown.length ? d.cycle_breakdown.map((p) => (
+            <div key={p.name} className="flex items-center justify-between border-b border-line py-2.5 text-sm last:border-0"><span className="capitalize">{p.name}</span><b>{p.total}</b></div>
           )) : <p className="py-10 text-center text-sm text-muted">No active subscriptions</p>}
         </Card>
       </div>

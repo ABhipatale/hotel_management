@@ -30,16 +30,14 @@ class SuperAdminController extends Controller
             'companies_total' => Company::count(),
             'companies_active' => Company::where('status', 'active')->count(),
             'companies_inactive' => Company::whereIn('status', ['inactive', 'suspended'])->count(),
-            'companies_trial' => Company::where('status', 'trial')->count(),
             'subscribers' => $active->count(),
             'revenue_total' => (float) SubscriptionPayment::where('status', 'paid')->sum('amount'),
             'mrr' => round($mrr, 2),
             'expiring_soon' => Subscription::whereIn('status', ['active', 'trial'])->whereBetween('ends_at', [now(), now()->addDays(7)])->count(),
             'users_total' => User::whereNotNull('company_id')->count(),
             'orders_total' => Order::count(),
-            'plan_breakdown' => Subscription::where('status', 'active')->where('ends_at', '>', now())
-                ->join('subscription_plans', 'subscription_plans.id', '=', 'subscriptions.plan_id')
-                ->select('subscription_plans.name', DB::raw('count(*) as total'))->groupBy('subscription_plans.name')->get(),
+            'cycle_breakdown' => Subscription::where('status', 'active')->where('ends_at', '>', now())
+                ->select('billing_cycle as name', DB::raw('count(*) as total'))->groupBy('billing_cycle')->get(),
             'revenue_by_month' => SubscriptionPayment::where('status', 'paid')->where('paid_at', '>=', now()->subMonths(11)->startOfMonth())->get()
                 ->groupBy(fn ($p) => $p->paid_at->format('Y-m'))->map(fn ($g) => round($g->sum('amount'), 2)),
         ];
@@ -85,10 +83,11 @@ class SuperAdminController extends Controller
             'state' => 'nullable|string|max:80',
             'pin_code' => 'nullable|string|max:10',
             'gst_number' => 'nullable|string|max:20',
-            'plan_id' => 'nullable|exists:subscription_plans,id',
+            'gst_enabled' => 'sometimes|boolean',
+            'billing_cycle' => 'required|in:monthly,yearly',
         ]);
-        $plan = ! empty($data['plan_id']) ? SubscriptionPlan::find($data['plan_id']) : null;
-        [$company] = $provisioner->provision($data, null, $plan);
+        $plan = SubscriptionPlan::current();
+        [$company] = $provisioner->provision($data, null, $plan, $data['billing_cycle']);
         AuditLog::record('super.company.create', 'company', $company->id);
 
         return response()->json($company, 201);
@@ -102,11 +101,20 @@ class SuperAdminController extends Controller
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email',
             'address' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:80',
+            'state' => 'nullable|string|max:80',
+            'pin_code' => 'nullable|string|max:10',
             'gst_number' => 'nullable|string|max:20',
+            'gst_enabled' => 'sometimes|boolean',
         ]);
+        // While GST is off its fields are locked: the stored number is kept (so switching GST back on restores it)
+        if (array_key_exists('gst_enabled', $data) ? ! $data['gst_enabled'] : ! $c->gst_enabled) {
+            unset($data['gst_number']);
+        }
         $c->update($data);
+        AuditLog::record('super.company.update', 'company', $id, ['gst_enabled' => $c->gst_enabled]);
 
-        return $c;
+        return $c->refresh();
     }
 
     /** Super admin can set any company's logo and app icon. */
@@ -160,41 +168,33 @@ class SuperAdminController extends Controller
 
     public function assignSubscription(Request $request, int $id, SubscriptionService $subs)
     {
-        $data = $request->validate(['plan_id' => 'required|exists:subscription_plans,id', 'billing_cycle' => 'required|in:monthly,yearly', 'trial' => 'sometimes|boolean']);
+        $data = $request->validate(['billing_cycle' => 'required|in:monthly,yearly']);
         $company = Company::findOrFail($id);
-        $plan = SubscriptionPlan::findOrFail($data['plan_id']);
-        $sub = ! empty($data['trial']) ? $subs->startTrial($company, $plan) : $subs->activate($company, $plan, $data['billing_cycle'], 'manual');
+        $plan = SubscriptionPlan::current();
+        $sub = $subs->activate($company, $plan, $data['billing_cycle'], 'manual');
         AuditLog::record('super.subscription.assign', 'company', $id, $data);
 
         return $sub->load('plan');
     }
 
-    // --- Plans ---
-    public function plans()
+    // --- Pricing (single subscription: monthly or yearly) ---
+    public function pricing()
     {
-        return SubscriptionPlan::orderBy('price_monthly')->get();
+        $p = SubscriptionPlan::current();
+
+        return ['price_monthly' => (float) $p->price_monthly, 'price_yearly' => (float) $p->price_yearly];
     }
 
-    public function savePlan(Request $request, ?int $id = null)
+    public function savePricing(Request $request)
     {
-        // Drop feature flags that no longer exist (e.g. the removed multi_branch) instead of failing validation.
-        $request->merge(['features' => array_values(array_intersect((array) $request->input('features', []), config('hms.features')))]);
-        $data = $request->validate([
-            'name' => 'required|string|max:80',
-            'slug' => 'required|alpha_dash|max:40|unique:subscription_plans,slug'.($id ? ",$id" : ''),
-            'price_monthly' => 'required|numeric|min:0',
-            'price_yearly' => 'required|numeric|min:0',
-            'max_staff' => 'nullable|integer|min:1',
-            'max_tables' => 'nullable|integer|min:1',
-            'max_branches' => 'sometimes|integer|min:1',
-            'features' => 'array',
-            'features.*' => 'in:'.implode(',', config('hms.features')),
-            'trial_days' => 'required|integer|min:0|max:90',
-            'is_active' => 'boolean',
+        $d = $request->validate([
+            'price_monthly' => 'required|numeric|min:0|max:10000000',
+            'price_yearly' => 'required|numeric|min:0|max:100000000',
         ]);
-        $plan = $id ? tap(SubscriptionPlan::findOrFail($id))->update($data) : SubscriptionPlan::create($data);
+        SubscriptionPlan::current()->update($d);
+        AuditLog::record('super.pricing.update', 'subscription_plan', null, $d);
 
-        return response()->json($plan, $id ? 200 : 201);
+        return $this->pricing();
     }
 
     // --- Payments / reports ---

@@ -60,15 +60,33 @@ class TenantIsolationTest extends TestCase
         });
     }
 
-    public function test_registration_provisions_a_full_tenant(): void
+    public function test_only_super_admin_creates_companies_and_there_is_no_free_trial(): void
     {
-        $res = $this->postJson('/api/auth/register', [
-            'company_name' => 'Shivraj Dhaba', 'owner_name' => 'Shivraj', 'phone' => '9876543210',
-            'email' => 'shivraj@test.dev', 'password' => 'Secret123', 'password_confirmation' => 'Secret123',
-            'address' => 'NH4', 'city' => 'Satara', 'state' => 'MH', 'pin_code' => '415001',
-        ])->assertCreated();
+        // Public sign-up and the public plan list are gone
+        $this->postJson('/api/auth/register', ['company_name' => 'Sneaky'])->assertNotFound();
+        $this->getJson('/api/plans')->assertNotFound();
+        // A company owner cannot create companies
+        $this->postJson('/api/admin/companies', ['company_name' => 'X'], $this->as('atithi'))->assertForbidden();
 
-        $res->assertJsonPath('user.role', 'owner')->assertJsonPath('company.status', 'trial')->assertJsonPath('subscription.status', 'trial');
+        $admin = $this->login('admin@hms.test', 'Admin@12345');
+        // the billing period is mandatory; there is no plan to choose (one subscription for everybody)
+        $this->postJson('/api/admin/companies', ['company_name' => 'Shivraj Dhaba'], $admin)->assertStatus(422);
+
+        $this->postJson('/api/admin/companies', [
+            'company_name' => 'Shivraj Dhaba', 'owner_name' => 'Shivraj', 'phone' => '9876543210',
+            'email' => 'shivraj@test.dev', 'password' => 'Secret123',
+            'address' => 'NH4', 'city' => 'Satara', 'state' => 'MH', 'pin_code' => '415001',
+            'billing_cycle' => 'yearly',
+        ], $admin)->assertCreated();
+
+        $res = $this->postJson('/api/auth/login', ['email' => 'shivraj@test.dev', 'password' => 'Secret123'])->assertOk();
+        // Active straight away for the admin-chosen period: no trial state anywhere
+        $res->assertJsonPath('user.role', 'owner')->assertJsonPath('company.status', 'active')
+            ->assertJsonPath('subscription.status', 'active')->assertJsonPath('subscription.billing_cycle', 'yearly')
+            ->assertJsonPath('subscription_expired', false);
+        $this->assertTrue(\Carbon\Carbon::parse($res->json('subscription.ends_at'))->isAfter(now()->addMonths(11)));
+        $this->assertSame(0, \App\Models\SubscriptionPayment::count()); // granting is not a sale
+
         $h = ['Authorization' => 'Bearer '.$res->json('token')];
         $this->getJson('/api/menu/categories', $h)->assertOk()->assertJsonCount(count(config('hms.default_categories')));
         $this->getJson('/api/tables', $h)->assertOk()->assertJsonCount(0); // no leakage of other companies' tables
@@ -277,14 +295,16 @@ class TenantIsolationTest extends TestCase
         $this->postJson('/api/branches', ['name' => 'Pune Branch'], $f)->assertStatus(404);
     }
 
-    public function test_limits_are_enforced_for_a_restricted_plan(): void
+    public function test_limits_are_enforced_when_the_subscription_has_them(): void
     {
-        // Plans remain data-driven: a limited plan (if ever created by super admin) is enforced.
-        $plan = \App\Models\SubscriptionPlan::create(['name' => 'Tiny', 'slug' => 'tiny', 'max_staff' => 3, 'max_tables' => 2, 'max_branches' => 1, 'features' => ['qr']]);
-        $reg = $this->postJson('/api/auth/register', [
-            'company_name' => 'Tiny Cafe', 'owner_name' => 'T', 'phone' => '9', 'email' => 'tiny@test.dev', 'password' => 'Secret123', 'password_confirmation' => 'Secret123',
-            'address' => 'x', 'city' => 'x', 'state' => 'x', 'pin_code' => '1', 'plan_id' => $plan->id,
-        ])->assertCreated();
+        // Limits/features are data on the one subscription row; if set, they are enforced.
+        \App\Models\SubscriptionPlan::query()->update(['max_staff' => 3, 'max_tables' => 2, 'features' => ['qr']]);
+        $admin = $this->login('admin@hms.test', 'Admin@12345');
+        $this->postJson('/api/admin/companies', [
+            'company_name' => 'Tiny Cafe', 'owner_name' => 'T', 'phone' => '9', 'email' => 'tiny@test.dev', 'password' => 'Secret123',
+            'billing_cycle' => 'monthly',
+        ], $admin)->assertCreated();
+        $reg = $this->postJson('/api/auth/login', ['email' => 'tiny@test.dev', 'password' => 'Secret123'])->assertOk();
         $t = ['Authorization' => 'Bearer '.$reg->json('token')];
         foreach (['a', 'b'] as $n) {
             $this->postJson('/api/staff', ['name' => $n, 'email' => "$n@tiny.dev", 'password' => 'Secret123', 'role' => 'waiter'], $t)->assertCreated();
@@ -306,8 +326,7 @@ class TenantIsolationTest extends TestCase
         $this->postJson('/api/menu/categories', ['name' => 'Nope'], $a)->assertStatus(402)->assertJsonPath('code', 'subscription_expired');
         $this->getJson('/api/subscription', $a)->assertOk();                          // renewal path stays open
 
-        $planId = \App\Models\SubscriptionPlan::where('slug', 'premium')->value('id');
-        $this->postJson('/api/subscription', ['plan_id' => $planId, 'billing_cycle' => 'monthly'], $a)->assertCreated();
+        $this->postJson('/api/subscription', ['billing_cycle' => 'monthly'], $a)->assertCreated();
         $this->postJson('/api/menu/categories', ['name' => 'Back'], $a)->assertCreated();
     }
 
@@ -328,15 +347,29 @@ class TenantIsolationTest extends TestCase
         $this->getJson("/api/tables/{$x['table']->id}/qr", $a)->assertOk()->assertHeader('Content-Type', 'image/svg+xml');
     }
 
-    public function test_super_admin_can_save_a_plan_that_still_carries_the_removed_multi_branch_flag(): void
+    public function test_one_subscription_with_monthly_and_yearly_prices(): void
     {
         $admin = $this->login('admin@hms.test', 'Admin@12345');
-        $plan = \App\Models\SubscriptionPlan::where('slug', 'premium')->first();
-        $res = $this->putJson("/api/admin/plans/{$plan->id}", [
-            'name' => 'Premium', 'slug' => 'premium', 'price_monthly' => 3499, 'price_yearly' => 34990,
-            'max_staff' => null, 'max_tables' => null, 'trial_days' => 14, 'is_active' => true,
-            'features' => ['qr', 'multi_branch', 'reports'], // legacy flag from older data
-        ], $admin)->assertOk();
-        $this->assertSame(['qr', 'reports'], $res->json('features'));
+        $owner = $this->as('atithi');
+
+        // The plan catalogue is gone
+        $this->getJson('/api/admin/plans', $admin)->assertNotFound();
+        $this->getJson('/api/subscription/plans', $owner)->assertNotFound();
+
+        $this->getJson('/api/admin/pricing', $admin)->assertOk()->assertJsonStructure(['price_monthly', 'price_yearly']);
+        $this->putJson('/api/admin/pricing', ['price_monthly' => -5, 'price_yearly' => 10], $admin)->assertStatus(422);
+        $this->putJson('/api/admin/pricing', ['price_monthly' => 999, 'price_yearly' => 9990], $owner)->assertForbidden();
+        $this->putJson('/api/admin/pricing', ['price_monthly' => 999, 'price_yearly' => 9990], $admin)->assertOk()
+            ->assertJsonPath('price_monthly', 999)->assertJsonPath('price_yearly', 9990);
+
+        // Owners see the new prices and renew either way
+        $this->getJson('/api/subscription/pricing', $owner)->assertOk()->assertJsonPath('price_monthly', 999)->assertJsonPath('price_yearly', 9990);
+        $this->postJson('/api/subscription', ['billing_cycle' => 'yearly'], $owner)->assertCreated()->assertJsonPath('billing_cycle', 'yearly');
+        $this->assertEquals(9990, \App\Models\SubscriptionPayment::latest('id')->value('amount'));
+        $this->postJson('/api/subscription', ['billing_cycle' => 'weekly'], $owner)->assertStatus(422);
+
+        // Renewing extends from the current end date instead of wasting the remaining time
+        $sub = $this->getJson('/api/subscription', $owner)->assertOk();
+        $this->assertTrue(\Carbon\Carbon::parse($sub->json('subscription.ends_at'))->isAfter(now()->addMonths(11)));
     }
 }
