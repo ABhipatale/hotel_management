@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import Img from '../../components/Img'
+import { compressImage } from '../../lib/image'
 import { Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react'
 import { api, toFormData } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
@@ -57,7 +59,7 @@ export default function MenuManager() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((i) => (
             <Card key={i.id} className={`flex gap-3 ${i.is_available ? '' : 'opacity-60'}`}>
-              {i.image_url ? <img src={i.image_url} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover" /> : <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-brand-soft"><UtensilsCrossed className="h-7 w-7 text-brand/40" strokeWidth={1.6} /></div>}
+              {i.image_url ? <Img src={i.image_url} thumb className="h-20 w-20 shrink-0 rounded-xl object-cover" /> : <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-brand-soft"><UtensilsCrossed className="h-7 w-7 text-brand/40" strokeWidth={1.6} /></div>}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5"><i className={`h-2.5 w-2.5 shrink-0 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} /><span className="truncate font-medium">{i.name}</span></div>
                 <div className="text-xs text-muted">{i.category?.name}{gstOn ? ` · ${t('GST {n}%', { n: i.gst_percent })}` : ''}</div>
@@ -83,7 +85,7 @@ export default function MenuManager() {
             <Input label={t('Discount %')} type="number" min="0" max="100" value={edit.discount_percent} onChange={s('discount_percent')} />
             <Input label={t('Stock (blank = unlimited)')} type="number" min="0" value={edit.stock} onChange={s('stock')} />
             <Input label={t('Special offer text')} value={edit.offer_text || ''} onChange={s('offer_text')} />
-            <Input label={t('Image')} type="file" accept="image/*" onChange={(e) => setImage(e.target.files[0])} />
+            <Input label={t('Image')} type="file" accept="image/*" onChange={async (e) => setImage(await compressImage(e.target.files[0]))} />
             <div className="sm:col-span-2"><Textarea label={t('Description')} value={edit.description || ''} onChange={s('description')} /></div>
             <div className="flex gap-5 text-sm sm:col-span-2">
               <label className="flex items-center gap-2"><input type="checkbox" checked={edit.is_veg} onChange={(e) => setEdit({ ...edit, is_veg: e.target.checked })} /> {t('Vegetarian')}</label>

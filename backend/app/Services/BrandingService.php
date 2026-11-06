@@ -12,10 +12,8 @@ class BrandingService
 {
     public function storeLogo(Company $c, UploadedFile $file): void
     {
-        if ($c->logo_path) {
-            Storage::disk('public')->delete($c->logo_path);
-        }
-        $c->logo_path = $file->store('logos', 'public');
+        app(ImageService::class)->delete($c->logo_path);
+        $c->logo_path = app(ImageService::class)->store($file, 'logos', 512, null);
     }
 
     public function storeIcon(Company $c, UploadedFile $file): void

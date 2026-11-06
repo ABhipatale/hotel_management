@@ -44,7 +44,7 @@ export default function Onboarding() {
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             {company?.logo_url
-              ? <img src={company.logo_url} alt="" className="h-11 w-11 shrink-0 rounded-xl bg-white object-contain p-1" />
+              ? <img src={company.logo_url} alt="" decoding="async" className="h-11 w-11 shrink-0 rounded-xl bg-white object-contain p-1" />
               : <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/15 text-lg font-extrabold">{company?.name?.[0]}</span>}
             <div className="min-w-0">
               <div className="truncate text-base font-extrabold">{company?.name}</div>

@@ -1,30 +1,32 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { Fragment } from 'react'
+import { Fragment, lazy, Suspense } from 'react'
 import { I18nProvider, useI18n } from './i18n'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import { ConfirmProvider } from './context/ConfirmContext'
 import Layout from './components/Layout'
-import { Spinner } from './components/ui'
+import { PageSkeleton, Spinner } from './components/ui'
 import Login from './pages/auth/Login'
-import QrMenu from './pages/public/QrMenu'
-import AdminDashboard from './pages/admin/AdminDashboard'
-import Companies from './pages/admin/Companies'
-import Pricing from './pages/admin/Pricing'
-import { AdminPayments, AdminSettings, AdminTickets } from './pages/admin/Misc'
-import Dashboard from './pages/app/Dashboard'
-import Tables from './pages/app/Tables'
-import NewOrder from './pages/app/NewOrder'
-import Orders from './pages/app/Orders'
-import Billing from './pages/app/Billing'
-import MenuManager from './pages/app/MenuManager'
-import Staff from './pages/app/Staff'
-import Expenses from './pages/app/Expenses'
-import Inventory from './pages/app/Inventory'
-import Reports from './pages/app/Reports'
-import Settings from './pages/app/Settings'
-import Subscription from './pages/app/Subscription'
-import Onboarding from './pages/app/Onboarding'
+const QrMenu = lazy(() => import('./pages/public/QrMenu'))
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
+const Companies = lazy(() => import('./pages/admin/Companies'))
+const Pricing = lazy(() => import('./pages/admin/Pricing'))
+const AdminPayments = lazy(() => import('./pages/admin/Misc').then((m) => ({ default: m.AdminPayments })))
+const AdminSettings = lazy(() => import('./pages/admin/Misc').then((m) => ({ default: m.AdminSettings })))
+const AdminTickets = lazy(() => import('./pages/admin/Misc').then((m) => ({ default: m.AdminTickets })))
+const Dashboard = lazy(() => import('./pages/app/Dashboard'))
+const Tables = lazy(() => import('./pages/app/Tables'))
+const NewOrder = lazy(() => import('./pages/app/NewOrder'))
+const Orders = lazy(() => import('./pages/app/Orders'))
+const Billing = lazy(() => import('./pages/app/Billing'))
+const MenuManager = lazy(() => import('./pages/app/MenuManager'))
+const Staff = lazy(() => import('./pages/app/Staff'))
+const Expenses = lazy(() => import('./pages/app/Expenses'))
+const Inventory = lazy(() => import('./pages/app/Inventory'))
+const Reports = lazy(() => import('./pages/app/Reports'))
+const Settings = lazy(() => import('./pages/app/Settings'))
+const Subscription = lazy(() => import('./pages/app/Subscription'))
+const Onboarding = lazy(() => import('./pages/app/Onboarding'))
 
 function homeFor(a) {
   if (a.isSuperAdmin) return '/admin'
@@ -67,6 +69,7 @@ export default function App() {
         <ConfirmProvider>
         <AuthProvider>
           <LangKeyed>
+          <Suspense fallback={<PageSkeleton />}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
@@ -97,6 +100,7 @@ export default function App() {
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
           </LangKeyed>
         </AuthProvider>
         </ConfirmProvider>

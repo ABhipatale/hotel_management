@@ -60,7 +60,7 @@ export default function Settings() {
             <div className="grid grid-cols-3 gap-3"><Input label="City" value={f.city || ''} onChange={s('city')} /><Input label="State" value={f.state || ''} onChange={s('state')} /><Input label="PIN" value={f.pin_code || ''} onChange={s('pin_code')} /></div>
             <div className="space-y-5 rounded-2xl bg-slate-50 p-4">
               <ImagePicker label="Company logo" hint="Shown in the app header, on bills and on your QR menu. Any shape; PNG with transparent background looks best." current={f.logo_url} file={logo} onChange={setLogo} rounded="rounded-2xl" fit="object-contain bg-white" />
-              <ImagePicker label="App icon" hint="The icon on the phone home screen when installed. Square PNG, at least 512 x 512 px (min 192)." current={removeIcon ? null : f.icon_url} file={icon} onChange={(x) => { setIcon(x); setRemoveIcon(false) }} onRemove={f.icon_url ? () => setRemoveIcon(true) : undefined} />
+              <ImagePicker raw label="App icon" hint="The icon on the phone home screen when installed. Square PNG, at least 512 x 512 px (min 192)." current={removeIcon ? null : f.icon_url} file={icon} onChange={(x) => { setIcon(x); setRemoveIcon(false) }} onRemove={f.icon_url ? () => setRemoveIcon(true) : undefined} />
             </div>
             <Textarea label="Bill header" value={f.bill_header || ''} onChange={s('bill_header')} />
             <Textarea label="Bill footer" value={f.bill_footer || ''} onChange={s('bill_footer')} />

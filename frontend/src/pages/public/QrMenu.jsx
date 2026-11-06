@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Img from '../../components/Img'
 import { useParams } from 'react-router-dom'
 import { CheckCircle2, ChefHat, Clock, Minus, Plus, Search, ShoppingCart, UtensilsCrossed } from 'lucide-react'
 import { api, errMsg } from '../../lib/api'
@@ -79,7 +80,7 @@ export default function QrMenu() {
     <div className="mx-auto min-h-full max-w-xl pb-32">
       <header className="sticky top-0 z-20 border-b border-line bg-white/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
-          {company.logo_url ? <img src={company.logo_url} alt="" className="h-11 w-11 rounded-xl object-cover" /> : <div className="grid h-11 w-11 place-items-center rounded-xl bg-brand font-bold text-white">{company.name[0]}</div>}
+          {company.logo_url ? <img src={company.logo_url} alt="" decoding="async" className="h-11 w-11 rounded-xl object-cover" /> : <div className="grid h-11 w-11 place-items-center rounded-xl bg-brand font-bold text-white">{company.name[0]}</div>}
           <div className="min-w-0 flex-1"><div className="truncate font-semibold">{company.name}</div><div className="text-xs text-muted">{t('Table {n}', { n: menu.table.number })}</div></div>
           {orders.length > 0 && <button onClick={() => setTrackOpen(true)} className="flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-medium text-brand"><Clock className="h-3.5 w-3.5" />{t('My orders')}</button>}
         </div>
@@ -100,7 +101,7 @@ export default function QrMenu() {
                 <div className="mt-2 flex items-center gap-2"><b>{money(unit(i))}</b>{+i.discount_percent > 0 && <s className="text-xs text-muted">{money(i.price)}</s>}{i.variants.length > 0 && <span className="text-[11px] text-muted">· {t('{n} sizes', { n: i.variants.length + 1 })}</span>}</div>
               </div>
               <div className="flex w-24 shrink-0 flex-col items-stretch gap-2">
-                {i.image_path ? <img src={`${location.origin}/storage/${i.image_path}`} alt="" className="h-24 w-24 rounded-2xl object-cover" /> : <div className="grid h-24 w-24 place-items-center rounded-2xl bg-brand-soft"><UtensilsCrossed className="h-7 w-7 text-brand/40" strokeWidth={1.6} /></div>}
+                {i.image_path ? <Img src={`${location.origin}/storage/${i.image_path}`} thumb className="h-24 w-24 rounded-2xl object-cover" /> : <div className="grid h-24 w-24 place-items-center rounded-2xl bg-brand-soft"><UtensilsCrossed className="h-7 w-7 text-brand/40" strokeWidth={1.6} /></div>}
                 <button onClick={() => (i.variants.length ? setPick(i) : add(i))} className={`min-h-11 w-full rounded-2xl border px-2 text-sm font-extrabold shadow-card transition active:scale-95 ${qty ? 'border-brand bg-brand text-white' : 'border-brand bg-white text-brand active:bg-brand-soft'}`}>{qty ? t('ADDED · {n}', { n: qty }) : t('ADD')}</button>
               </div>
             </div>

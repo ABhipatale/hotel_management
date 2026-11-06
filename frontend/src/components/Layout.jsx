@@ -41,7 +41,7 @@ function Logo({ company, isSuperAdmin, size = 'h-11 w-11' }) {
   const tile = `${size} shrink-0 rounded-2xl`
   if (isSuperAdmin) return <div className={`grid ${tile} place-items-center bg-ivory text-brand`}><Store className="h-5 w-5" strokeWidth={2.3} /></div>
   return company?.logo_url
-    ? <img src={company.logo_url} alt="" className={`${tile} bg-white object-contain p-1`} />
+    ? <img src={company.logo_url} alt="" decoding="async" className={`${tile} bg-white object-contain p-1`} />
     : <div className={`grid ${tile} place-items-center bg-ivory text-lg font-extrabold text-brand`}>{company?.name?.[0]}</div>
 }
 

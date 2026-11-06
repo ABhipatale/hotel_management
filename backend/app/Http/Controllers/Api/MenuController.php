@@ -72,7 +72,7 @@ class MenuController extends Controller
         $d = $this->validated($r, true);
 
         return DB::transaction(function () use ($r, $item, $d) {
-            $item->update($this->fields($r, $d));
+            $item->update($this->fields($r, $d, $item));
             if (array_key_exists('variants', $d)) {
                 $this->syncVariants($item, $d['variants'] ?? []);
             }
@@ -111,14 +111,18 @@ class MenuController extends Controller
         ]);
     }
 
-    private function fields(Request $r, array $d): array
+    private function fields(Request $r, array $d, ?FoodItem $existing = null): array
     {
         unset($d['variants'], $d['image']);
         if (! Tenant::company()->gst_enabled) {
             unset($d['gst_percent']);
         }
         if ($r->hasFile('image')) {
-            $d['image_path'] = $r->file('image')->store('food/'.Tenant::id(), 'public');
+            $images = app(\App\Services\ImageService::class);
+            if ($old = $existing?->image_path) {
+                $images->delete($old);
+            }
+            $d['image_path'] = $images->store($r->file('image'), 'food/'.Tenant::id());
         }
 
         return $d;

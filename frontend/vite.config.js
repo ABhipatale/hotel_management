@@ -26,7 +26,25 @@ export default defineConfig({
       workbox: {
         // Never cache API responses: tenant data must always come fresh from the server.
         navigateFallbackDenylist: [/^\/api/, /^\/storage/],
-        runtimeCaching: [],
+        // Pictures and fonts are cached on the phone after the first view, so repeat visits need (almost) no data.
+        // API responses are deliberately NOT cached: tenant data must always come fresh from the server.
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/storage/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'hms-images', expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 30 }, cacheableResponse: { statuses: [200] } },
+          },
+          {
+            urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com',
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'hms-font-css' },
+          },
+          {
+            urlPattern: ({ url }) => url.origin === 'https://fonts.gstatic.com',
+            handler: 'CacheFirst',
+            options: { cacheName: 'hms-fonts', expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 }, cacheableResponse: { statuses: [0, 200] } },
+          },
+        ],
       },
     }),
   ],

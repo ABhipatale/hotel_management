@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { ImagePlus, X } from 'lucide-react'
 import { useT } from '../i18n'
+import { compressImage } from '../lib/image'
 
 /** Square upload tile with live preview. `current` is the saved URL; `onChange(file|null)` reports a new pick. */
-export default function ImagePicker({ label, hint, current, file, onChange, onRemove, rounded = 'rounded-[1.25rem]', fit = 'object-cover' }) {
+export default function ImagePicker({ label, hint, current, file, onChange, onRemove, raw = false, rounded = 'rounded-[1.25rem]', fit = 'object-cover' }) {
   const t = useT()
   const ref = useRef(null)
   const [preview, setPreview] = useState(null)
@@ -38,7 +39,7 @@ export default function ImagePicker({ label, hint, current, file, onChange, onRe
           </div>
           {hint && <p className="text-[11px] leading-snug text-muted">{t(hint)}</p>}
         </div>
-        <input ref={ref} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => onChange(e.target.files[0] || null)} />
+        <input ref={ref} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={async (e) => { const f = e.target.files[0] || null; e.target.value = ''; onChange(f && !raw ? await compressImage(f) : f) }} />
       </div>
     </div>
   )

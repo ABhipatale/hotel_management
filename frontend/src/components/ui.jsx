@@ -133,7 +133,7 @@ export const SectionTitle = ({ title, action }) => {
 export function Avatar({ name = '', size = 'md', src, className }) {
   const dim = { sm: 'h-9 w-9 text-sm', md: 'h-11 w-11 text-base', lg: 'h-14 w-14 text-xl' }[size]
   return src
-    ? <img src={src} alt="" className={cx('shrink-0 rounded-full object-cover ring-2 ring-white/40', dim, className)} />
+    ? <img src={src} alt="" decoding="async" className={cx('shrink-0 rounded-full object-cover ring-2 ring-white/40', dim, className)} />
     : <span className={cx('grid shrink-0 place-items-center rounded-full bg-white/20 font-extrabold uppercase text-white ring-2 ring-white/30', dim, className)}>{name.trim()[0]}</span>
 }
 

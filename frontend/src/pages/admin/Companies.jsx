@@ -43,7 +43,7 @@ export default function Companies() {
           columns={[
             { header: 'Company', render: (c) => (
               <div className="flex items-center gap-3">
-                {c.icon_url || c.logo_url ? <img src={c.icon_url || c.logo_url} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover" /> : <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-soft font-bold text-brand">{c.name[0]}</div>}
+                {c.icon_url || c.logo_url ? <img src={c.icon_url || c.logo_url} alt="" decoding="async" className="h-10 w-10 shrink-0 rounded-xl object-cover" /> : <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-soft font-bold text-brand">{c.name[0]}</div>}
                 <div><div className="font-medium">{c.name}</div><div className="text-xs text-muted">{c.uid} · {c.email}</div></div>
               </div>
             ) },
@@ -160,7 +160,7 @@ function BrandingEditor({ company, onDone }) {
     <div className="space-y-5 rounded-2xl bg-slate-50 p-4">
       <div className="text-sm font-semibold">{tr('Logo & app icon')}</div>
       <ImagePicker label="Company logo" current={company.logo_url} file={logo} onChange={setLogo} rounded="rounded-2xl" fit="object-contain bg-white" />
-      <ImagePicker label="App icon (square, 512 x 512 recommended)" current={removeIcon ? null : company.icon_url} file={icon} onChange={(x) => { setIcon(x); setRemoveIcon(false) }} onRemove={company.icon_url ? () => setRemoveIcon(true) : undefined} />
+      <ImagePicker raw label="App icon (square, 512 x 512 recommended)" current={removeIcon ? null : company.icon_url} file={icon} onChange={(x) => { setIcon(x); setRemoveIcon(false) }} onRemove={company.icon_url ? () => setRemoveIcon(true) : undefined} />
       <Button className="w-full" disabled={!dirty} loading={busy} onClick={save}>Save branding</Button>
     </div>
   )
