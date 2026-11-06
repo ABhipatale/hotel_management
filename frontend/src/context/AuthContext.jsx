@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { api, setUnauthorizedHandler, tokenStore } from '../lib/api'
 import { applyBrand } from '../lib/branding'
+import { useI18n } from '../i18n'
 
 const AuthCtx = createContext(null)
 export const useAuth = () => useContext(AuthCtx)
@@ -9,6 +10,7 @@ export const useAuth = () => useContext(AuthCtx)
 const applyBranding = (company) => applyBrand(company)
 
 export function AuthProvider({ children }) {
+  const { setDefault } = useI18n()
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(!!tokenStore.get())
 
@@ -22,7 +24,8 @@ export function AuthProvider({ children }) {
   const load = useCallback((data) => {
     setSession(data)
     applyBranding(data.company)
-  }, [])
+    if (data.company?.default_language) setDefault(data.company.default_language)
+  }, [setDefault])
 
   useEffect(() => {
     setUnauthorizedHandler(clear)

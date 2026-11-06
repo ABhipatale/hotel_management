@@ -18,6 +18,7 @@ Object.values(modules).forEach((m) => {
 })
 
 const KEY = 'hms.lang'
+const hasChoice = () => { try { return LANGS.some((l) => l.code === localStorage.getItem(KEY)) } catch { return false } }
 const read = () => { try { const v = localStorage.getItem(KEY); return LANGS.some((l) => l.code === v) ? v : 'en' } catch { return 'en' } }
 
 const fill = (s, vars) => (vars ? s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] ?? m)) : s)
@@ -26,7 +27,7 @@ const fill = (s, vars) => (vars ? s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] ?? 
 let current = read()
 export const tr = (s, vars) => fill((current !== 'en' && dict[current]?.[s]) || s, vars)
 
-const Ctx = createContext({ lang: 'en', setLang: () => {}, t: (s, v) => fill(s, v) })
+const Ctx = createContext({ lang: 'en', setLang: () => {}, setDefault: () => {}, t: (s, v) => fill(s, v) })
 
 export function I18nProvider({ children }) {
   const [lang, setLangState] = useState(read)
@@ -38,11 +39,17 @@ export function I18nProvider({ children }) {
     try { localStorage.setItem(KEY, l) } catch { /* private mode */ }
   }, [])
 
+  // The company's default language (set by the platform admin) applies only until the user picks their own
+  const setDefault = useCallback((l) => {
+    if (LANGS.some((x) => x.code === l) && !hasChoice()) { current = l; setLangState(l) }
+  }, [])
+
   const value = useMemo(() => ({
     lang,
     setLang,
+    setDefault,
     t: (s, vars) => fill((lang !== 'en' && dict[lang]?.[s]) || s, vars),
-  }), [lang, setLang])
+  }), [lang, setLang, setDefault])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

@@ -12,7 +12,7 @@ const STEPS = [['pending', 'Received'], ['accepted', 'Accepted'], ['preparing', 
 
 /** Public, unauthenticated customer menu. Tenant comes from the URL slug + secret table token (validated server-side). */
 export default function QrMenu() {
-  const { t } = useI18n()
+  const { t, setDefault } = useI18n()
   const { slug, token } = useParams()
   const base = `/public/menu/${slug}/table/${token}`
   const [menu, setMenu] = useState(null)
@@ -31,8 +31,9 @@ export default function QrMenu() {
     api.get(base).then((r) => {
       setMenu(r.data)
       applyBrand(r.data.company, ' · Menu')
+      setDefault(r.data.company?.default_language)
     }).catch((e) => setError(e.response?.status === 404 ? 'This QR code is not valid or the restaurant is currently unavailable.' : errMsg(e)))
-  }, [base])
+  }, [base, setDefault])
 
   const loadOrders = useCallback(() => api.get(`${base}/orders`).then((r) => setOrders(r.data)).catch(() => {}), [base])
   useEffect(() => {

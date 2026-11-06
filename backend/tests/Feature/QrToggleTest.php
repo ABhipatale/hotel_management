@@ -75,4 +75,19 @@ class QrToggleTest extends TestCase
         ], $admin)->assertCreated()->assertJsonPath('qr_enabled', false);
         $this->postJson('/api/auth/login', ['email' => 'noqr@test.dev', 'password' => 'Secret123'])->assertJsonPath('company.qr_enabled', false);
     }
+
+    public function test_default_language_is_set_by_the_platform_admin(): void
+    {
+        $admin = $this->h('admin@hms.test', 'Admin@12345');
+        $this->postJson('/api/admin/companies', [
+            'company_name' => 'Marathi Dhaba', 'owner_name' => 'M', 'phone' => '9', 'email' => 'mr@test.dev', 'password' => 'Secret123',
+            'billing_cycle' => 'monthly', 'default_language' => 'mr',
+        ], $admin)->assertCreated()->assertJsonPath('default_language', 'mr');
+        $this->postJson('/api/auth/login', ['email' => 'mr@test.dev', 'password' => 'Secret123'])->assertJsonPath('company.default_language', 'mr');
+        $this->postJson('/api/auth/login', ['email' => 'atithi@demo.test', 'password' => 'Demo@12345'])->assertJsonPath('company.default_language', 'en');
+
+        $id = \App\Models\Company::where('slug', 'marathi-dhaba')->value('id');
+        $this->putJson("/api/admin/companies/$id", ['default_language' => 'hi'], $admin)->assertOk()->assertJsonPath('default_language', 'hi');
+        $this->putJson("/api/admin/companies/$id", ['default_language' => 'fr'], $admin)->assertStatus(422);
+    }
 }

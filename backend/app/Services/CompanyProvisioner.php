@@ -40,6 +40,7 @@ class CompanyProvisioner
                 'email' => $data['email'],
                 'gst_enabled' => (bool) ($data['gst_enabled'] ?? true),
                 'qr_enabled' => (bool) ($data['qr_enabled'] ?? true),
+                'default_language' => $data['default_language'] ?? 'en',
                 'gst_number' => ($data['gst_enabled'] ?? true) ? ($data['gst_number'] ?? null) : null,
                 'bill_footer' => 'Thank you! Visit again.',
                 'settings' => ['currency' => 'INR', 'expiry_grace_days' => 0],

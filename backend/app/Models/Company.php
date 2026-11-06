@@ -44,6 +44,7 @@ class Company extends Model
         return [
             'name' => $this->name,
             'gst_enabled' => $this->gst_enabled,
+            'default_language' => $this->default_language ?: 'en',
             'slug' => $this->slug,
             'logo_url' => $this->logo_url,
             'icon_url' => $this->icon_url,

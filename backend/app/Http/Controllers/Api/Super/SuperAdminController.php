@@ -85,6 +85,7 @@ class SuperAdminController extends Controller
             'gst_number' => 'nullable|string|max:20',
             'gst_enabled' => 'sometimes|boolean',
             'qr_enabled' => 'sometimes|boolean',
+            'default_language' => 'sometimes|in:en,hi,mr',
             'billing_cycle' => 'nullable|in:monthly,yearly', // empty = customer purchases the plan on first login
         ]);
         $plan = SubscriptionPlan::current();
@@ -108,6 +109,7 @@ class SuperAdminController extends Controller
             'gst_number' => 'nullable|string|max:20',
             'gst_enabled' => 'sometimes|boolean',
             'qr_enabled' => 'sometimes|boolean',
+            'default_language' => 'sometimes|in:en,hi,mr',
         ]);
         // While GST is off its fields are locked: the stored number is kept (so switching GST back on restores it)
         if (array_key_exists('gst_enabled', $data) ? ! $data['gst_enabled'] : ! $c->gst_enabled) {
