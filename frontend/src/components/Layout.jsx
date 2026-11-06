@@ -130,7 +130,7 @@ export default function Layout() {
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-brand p-4 text-white lg:flex">
         <div className="flex items-center gap-3 rounded-2xl bg-white/10 p-3 ring-1 ring-white/10">
           <Logo company={company} isSuperAdmin={isSuperAdmin} />
-          <div className="min-w-0 leading-tight"><div className="truncate font-extrabold">{isSuperAdmin ? 'Hotel SaaS' : company?.name}</div><div className="text-xs text-white/60">{isSuperAdmin ? 'Platform admin' : company?.uid}</div></div>
+          <div className="min-w-0 leading-tight"><div className="truncate font-extrabold">{isSuperAdmin ? 'Hotel SaaS' : company?.name}</div><div className="text-xs text-white/60">{isSuperAdmin ? t('Platform admin') : company?.uid}</div></div>
         </div>
         <nav className="mt-5 flex flex-1 flex-col gap-1 overflow-y-auto">
           {items.map(({ to, icon: Icon, label, end }) => (

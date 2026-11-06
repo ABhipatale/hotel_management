@@ -1,10 +1,12 @@
 import { Building2, CalendarClock, IndianRupee, Repeat, ShoppingBag, Store, TrendingUp, Users } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useApi } from '../../lib/useApi'
+import { useT } from '../../i18n'
 import { money, num } from '../../lib/format'
 import { Card, ErrorNote, PageHeader, Spinner, Stat } from '../../components/ui'
 
 export default function AdminDashboard() {
+  const t = useT()
   const { data: d, loading, error } = useApi('/admin/dashboard')
   if (loading) return <Spinner />
   if (error) return <ErrorNote>{error}</ErrorNote>
@@ -28,7 +30,7 @@ export default function AdminDashboard() {
 
       <div className="mt-5 grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <h3 className="mb-3 font-semibold">Revenue by month</h3>
+          <h3 className="mb-3 font-semibold">{t('Revenue by month')}</h3>
           {rev.length ? (
             <div className="h-64">
               <ResponsiveContainer>
@@ -40,13 +42,13 @@ export default function AdminDashboard() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          ) : <p className="py-10 text-center text-sm text-muted">No payments yet</p>}
+          ) : <p className="py-10 text-center text-sm text-muted">{t('No payments yet')}</p>}
         </Card>
         <Card>
-          <h3 className="mb-3 font-semibold">Monthly vs yearly</h3>
+          <h3 className="mb-3 font-semibold">{t('Monthly vs yearly')}</h3>
           {d.cycle_breakdown.length ? d.cycle_breakdown.map((p) => (
-            <div key={p.name} className="flex items-center justify-between border-b border-line py-2.5 text-sm last:border-0"><span className="capitalize">{p.name}</span><b>{p.total}</b></div>
-          )) : <p className="py-10 text-center text-sm text-muted">No active subscriptions</p>}
+            <div key={p.name} className="flex items-center justify-between border-b border-line py-2.5 text-sm last:border-0"><span className="capitalize">{t(p.name)}</span><b>{p.total}</b></div>
+          )) : <p className="py-10 text-center text-sm text-muted">{t('No active subscriptions')}</p>}
         </Card>
       </div>
     </>

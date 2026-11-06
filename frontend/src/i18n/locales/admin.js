@@ -1,6 +1,8 @@
 // Super-admin (platform operator) screens
 export default {
   hi: {
+    'Default language': 'डिफ़ॉल्ट भाषा',
+    "The language this company's app opens in. Each user can still switch it themselves.": 'इस कंपनी का ऐप इसी भाषा में खुलेगा। हर यूज़र अपनी भाषा खुद बदल सकता है।',
     'Platform overview': 'प्लेटफ़ॉर्म का सारांश',
     'All registered companies at a glance': 'सभी पंजीकृत कंपनियाँ एक नज़र में',
     'Registered companies': 'पंजीकृत कंपनियाँ',
@@ -97,6 +99,8 @@ export default {
     'Support': 'सहायता',
   },
   mr: {
+    'Default language': 'डीफॉल्ट भाषा',
+    "The language this company's app opens in. Each user can still switch it themselves.": 'या कंपनीचे अॅप याच भाषेत उघडेल. प्रत्येक वापरकर्ता स्वतःची भाषा बदलू शकतो.',
     'Platform overview': 'प्लॅटफॉर्मचा आढावा',
     'All registered companies at a glance': 'सर्व नोंदणीकृत कंपन्या एका नजरेत',
     'Registered companies': 'नोंदणीकृत कंपन्या',

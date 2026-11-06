@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { I18nProvider } from './i18n'
+import { Fragment } from 'react'
+import { I18nProvider, useI18n } from './i18n'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import { ConfirmProvider } from './context/ConfirmContext'
@@ -52,6 +53,12 @@ function Home() {
   return <Navigate to={a.user ? homeFor(a) : '/login'} replace />
 }
 
+/** Remount the screens when the language changes so every string (incl. non-hook ones) refreshes. */
+function LangKeyed({ children }) {
+  const { lang } = useI18n()
+  return <Fragment key={lang}>{children}</Fragment>
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -59,6 +66,7 @@ export default function App() {
       <ToastProvider>
         <ConfirmProvider>
         <AuthProvider>
+          <LangKeyed>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
@@ -89,6 +97,7 @@ export default function App() {
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </LangKeyed>
         </AuthProvider>
         </ConfirmProvider>
       </ToastProvider>

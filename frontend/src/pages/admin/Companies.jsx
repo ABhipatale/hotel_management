@@ -4,12 +4,14 @@ import { api, toFormData } from '../../lib/api'
 import ImagePicker from '../../components/ImagePicker'
 import { useApi } from '../../lib/useApi'
 import { dateOnly } from '../../lib/format'
+import { useT } from '../../i18n'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import { Badge, Button, Input, Modal, PageHeader, Select, ListSkeleton, statusTone, Switch, Table } from '../../components/ui'
 
 export default function Companies() {
   const toast = useToast()
+  const tr = useT()
   const ask = useConfirm()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
@@ -27,11 +29,11 @@ export default function Companies() {
       <div className="mb-4 flex flex-wrap gap-3">
         <div className="relative min-w-[200px] flex-1">
           <Search className="absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, company ID" className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm w-full pl-11" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr('Search name, email, company ID')} className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm w-full pl-11" />
         </div>
         <select value={status} onChange={(e) => setStatus(e.target.value)} className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm">
-          <option value="">All statuses</option>
-          {['active', 'inactive', 'suspended'].map((s) => <option key={s}>{s}</option>)}
+          <option value="">{tr('All statuses')}</option>
+          {['active', 'inactive', 'suspended'].map((s) => <option key={s} value={s}>{tr(s)}</option>)}
         </select>
       </div>
 
@@ -45,7 +47,7 @@ export default function Companies() {
                 <div><div className="font-medium">{c.name}</div><div className="text-xs text-muted">{c.uid} · {c.email}</div></div>
               </div>
             ) },
-            { header: 'Subscription', render: (c) => (c.current_subscription ? <span className="capitalize">{c.current_subscription.billing_cycle}</span> : <Badge tone="amber">Awaiting purchase</Badge>) },
+            { header: 'Subscription', render: (c) => (c.current_subscription ? <span className="capitalize">{tr(c.current_subscription.billing_cycle)}</span> : <Badge tone="amber">Awaiting purchase</Badge>) },
             { header: 'Status', render: (c) => <Badge tone={c.deleted_at ? 'red' : statusTone(c.status)}>{c.deleted_at ? 'deleted' : c.status}</Badge> },
             { header: 'Expires', render: (c) => dateOnly(c.current_subscription?.ends_at) },
             { header: '', className: 'text-right', render: (c) => <Button size="sm" variant="secondary" onClick={() => setDetail(c)}>Manage</Button> },
@@ -63,7 +65,7 @@ export default function Companies() {
               {detail.status !== 'active' && <Button variant="soft" onClick={() => act(() => api.patch(`/admin/companies/${detail.id}/status`, { status: 'active' }), 'Activated')}>Activate</Button>}
               {detail.status !== 'inactive' && <Button variant="secondary" onClick={() => act(() => api.patch(`/admin/companies/${detail.id}/status`, { status: 'inactive' }), 'Deactivated')}>Deactivate</Button>}
               {detail.status !== 'suspended' && <Button variant="secondary" onClick={() => act(() => api.patch(`/admin/companies/${detail.id}/status`, { status: 'suspended' }), 'Suspended')}>Suspend</Button>}
-              <Button variant="danger" onClick={async () => (await ask({ title: 'Delete company?', message: `${detail.name} will be removed from the platform. Its data is kept according to the retention policy.`, confirmText: 'Delete company' })) && act(() => api.delete(`/admin/companies/${detail.id}`), 'Deleted')}>Delete</Button>
+              <Button variant="danger" onClick={async () => (await ask({ title: 'Delete company?', message: tr('{name} will be removed from the platform. Its data is kept according to the retention policy.', { name: detail.name }), confirmText: 'Delete company' })) && act(() => api.delete(`/admin/companies/${detail.id}`), 'Deleted')}>Delete</Button>
             </div>
             <CompanyDetailsEditor key={detail.id} company={detail} onDone={(c) => { setDetail(c); reload() }} />
             <BrandingEditor company={detail} onDone={(c) => { setDetail(c); reload() }} />
@@ -85,6 +87,14 @@ function GstFields({ enabled, number, onEnabled, onNumber }) {
   )
 }
 
+function LangSelect({ value, onChange }) {
+  return (
+    <Select label="Default language" value={value} onChange={(e) => onChange(e.target.value)} hint="The language this company's app opens in. Each user can still switch it themselves.">
+      <option value="en">English</option><option value="hi">हिन्दी (Hindi)</option><option value="mr">मराठी (Marathi)</option>
+    </Select>
+  )
+}
+
 function QrSwitch({ checked, onChange }) {
   return <Switch label="QR table ordering" checked={checked} onChange={onChange} hint={checked ? 'Tables get QR codes; customers can scan and order from their phone.' : 'QR codes and the customer QR menu are switched off for this company.'} />
 }
@@ -92,9 +102,10 @@ function QrSwitch({ checked, onChange }) {
 /** Super admin: edit company details, including the GST switch. */
 function CompanyDetailsEditor({ company, onDone }) {
   const toast = useToast()
+  const tr = useT()
   const [f, setF] = useState({
     name: company.name || '', phone: company.phone || '', email: company.email || '', address: company.address || '', city: company.city || '',
-    gst_enabled: company.gst_enabled !== false, gst_number: company.gst_number || '', qr_enabled: company.qr_enabled !== false,
+    gst_enabled: company.gst_enabled !== false, gst_number: company.gst_number || '', qr_enabled: company.qr_enabled !== false, default_language: company.default_language || 'en',
   })
   const [busy, setBusy] = useState(false)
   const s = (k) => (e) => setF({ ...f, [k]: e.target.value })
@@ -108,13 +119,14 @@ function CompanyDetailsEditor({ company, onDone }) {
   }
   return (
     <div className="space-y-4 rounded-2xl bg-canvas p-4 ring-1 ring-line">
-      <div className="text-sm font-semibold">Company details</div>
+      <div className="text-sm font-semibold">{tr('Company details')}</div>
       <Input label="Company name" value={f.name} onChange={s('name')} />
       <div className="grid grid-cols-2 gap-3"><Input label="Phone" value={f.phone} onChange={s('phone')} /><Input label="City" value={f.city} onChange={s('city')} /></div>
       <Input label="Email" type="email" value={f.email} onChange={s('email')} />
       <Input label="Address" value={f.address} onChange={s('address')} />
       <GstFields enabled={f.gst_enabled} number={f.gst_number} onEnabled={(v) => setF({ ...f, gst_enabled: v })} onNumber={(v) => setF({ ...f, gst_number: v })} />
       <QrSwitch checked={f.qr_enabled} onChange={(v) => setF({ ...f, qr_enabled: v })} />
+      <LangSelect value={f.default_language} onChange={(v) => setF({ ...f, default_language: v })} />
       <Button className="w-full" loading={busy} onClick={save}>Save details</Button>
     </div>
   )
@@ -123,6 +135,7 @@ function CompanyDetailsEditor({ company, onDone }) {
 /** Super admin: set a company's logo and app icon on its behalf. */
 function BrandingEditor({ company, onDone }) {
   const toast = useToast()
+  const tr = useT()
   const [logo, setLogo] = useState(null)
   const [icon, setIcon] = useState(null)
   const [removeIcon, setRemoveIcon] = useState(false)
@@ -141,7 +154,7 @@ function BrandingEditor({ company, onDone }) {
 
   return (
     <div className="space-y-5 rounded-2xl bg-slate-50 p-4">
-      <div className="text-sm font-semibold">Logo &amp; app icon</div>
+      <div className="text-sm font-semibold">{tr('Logo & app icon')}</div>
       <ImagePicker label="Company logo" current={company.logo_url} file={logo} onChange={setLogo} rounded="rounded-2xl" fit="object-contain bg-white" />
       <ImagePicker label="App icon (square, 512 x 512 recommended)" current={removeIcon ? null : company.icon_url} file={icon} onChange={(x) => { setIcon(x); setRemoveIcon(false) }} onRemove={company.icon_url ? () => setRemoveIcon(true) : undefined} />
       <Button className="w-full" disabled={!dirty} loading={busy} onClick={save}>Save branding</Button>
@@ -151,6 +164,7 @@ function BrandingEditor({ company, onDone }) {
 
 function RenewSubscription({ company, onDone }) {
   const toast = useToast()
+  const tr = useT()
   const [cycle, setCycle] = useState('monthly')
   const [busy, setBusy] = useState(false)
   const go = async () => {
@@ -159,9 +173,9 @@ function RenewSubscription({ company, onDone }) {
   }
   return (
     <div className="space-y-3 rounded-2xl bg-canvas p-4 ring-1 ring-line">
-      <div className="text-sm font-semibold">Renew subscription</div>
-      <Select aria-label="Billing period" value={cycle} onChange={(e) => setCycle(e.target.value)}><option value="monthly">Monthly</option><option value="yearly">Yearly</option></Select>
-      <p className="text-xs text-muted">Extends from the current end date and records the payment at today's price.</p>
+      <div className="text-sm font-semibold">{tr('Renew subscription')}</div>
+      <Select aria-label={tr('Billing period')} value={cycle} onChange={(e) => setCycle(e.target.value)}><option value="monthly">{tr('Monthly')}</option><option value="yearly">{tr('Yearly')}</option></Select>
+      <p className="text-xs text-muted">{tr("Extends from the current end date and records the payment at today's price.")}</p>
       <Button className="w-full" loading={busy} onClick={go}>Renew</Button>
     </div>
   )
@@ -169,7 +183,8 @@ function RenewSubscription({ company, onDone }) {
 
 function AddCompany({ open, onClose, onDone }) {
   const toast = useToast()
-  const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', gst_enabled: true, qr_enabled: true, gst_number: '', billing_cycle: '' })
+  const tr = useT()
+  const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', gst_enabled: true, qr_enabled: true, default_language: 'en', gst_number: '', billing_cycle: '' })
   const [busy, setBusy] = useState(false)
   const submit = async (e) => {
     e.preventDefault(); setBusy(true)
@@ -187,12 +202,13 @@ function AddCompany({ open, onClose, onDone }) {
         <Input label="City" value={f.city} onChange={s('city')} />
         <GstFields enabled={f.gst_enabled} number={f.gst_number} onEnabled={(v) => setF({ ...f, gst_enabled: v })} onNumber={(v) => setF({ ...f, gst_number: v })} />
       <QrSwitch checked={f.qr_enabled} onChange={(v) => setF({ ...f, qr_enabled: v })} />
+      <LangSelect value={f.default_language} onChange={(v) => setF({ ...f, default_language: v })} />
         <Select label="Subscription" value={f.billing_cycle} onChange={s('billing_cycle')}>
-          <option value="">Customer purchases the plan on first login</option>
-          <option value="monthly">I grant 1 month now</option>
-          <option value="yearly">I grant 1 year now</option>
+          <option value="">{tr('Customer purchases the plan on first login')}</option>
+          <option value="monthly">{tr('I grant 1 month now')}</option>
+          <option value="yearly">{tr('I grant 1 year now')}</option>
         </Select>
-        <p className="text-xs text-muted">{f.billing_cycle ? 'The company is active immediately for the chosen period. Renew it later from Manage.' : 'The owner’s first screen after signing in is the plan page (monthly or yearly). The app opens after they pay.'}</p>
+        <p className="text-xs text-muted">{f.billing_cycle ? tr('The company is active immediately for the chosen period. Renew it later from Manage.') : tr('The owner’s first screen after signing in is the plan page (monthly or yearly). The app opens after they pay.')}</p>
         <Button type="submit" loading={busy} className="w-full">Create</Button>
       </form>
     </Modal>
