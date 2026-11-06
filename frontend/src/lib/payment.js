@@ -1,4 +1,5 @@
 import { api } from './api'
+import { tr } from '../i18n'
 
 let scriptPromise
 function loadCheckout() {
@@ -7,7 +8,7 @@ function loadCheckout() {
     const s = document.createElement('script')
     s.src = 'https://checkout.razorpay.com/v1/checkout.js'
     s.onload = resolve
-    s.onerror = () => { scriptPromise = null; reject(new Error('Could not load the payment window. Check your internet connection.')) }
+    s.onerror = () => { scriptPromise = null; reject(new Error(tr('Could not load the payment window. Check your internet connection.'))) }
     document.head.appendChild(s)
   })
   return scriptPromise
@@ -40,7 +41,7 @@ export async function purchase(cycle) {
       handler: (resp) => resolve(resp),
       modal: { ondismiss: () => resolve(null) },
     })
-    rz.on('payment.failed', (r) => reject(new Error(r?.error?.description || 'Payment failed. You were not charged.')))
+    rz.on('payment.failed', (r) => reject(new Error(r?.error?.description || tr('Payment failed. You were not charged.'))))
     rz.open()
   })
   if (!result) return null

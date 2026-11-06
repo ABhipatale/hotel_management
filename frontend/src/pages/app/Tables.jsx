@@ -119,7 +119,7 @@ export default function Tables() {
             </div>
             {manage && (
               <div className="flex gap-2">
-                {hasFeature('qr') && <Button variant="secondary" className="flex-1" onClick={() => { const t = sel; setSel(null); showQr(t) }}><QrCode className="h-4 w-4" /> {tx('QR code')}</Button>}
+                {hasFeature('qr') && company?.qr_enabled !== false && <Button variant="secondary" className="flex-1" onClick={() => { const t = sel; setSel(null); showQr(t) }}><QrCode className="h-4 w-4" /> {tx('QR code')}</Button>}
                 <Button variant="ghost" onClick={() => remove(sel)}><Trash2 className="h-4 w-4 text-rose-600" /></Button>
               </div>
             )}

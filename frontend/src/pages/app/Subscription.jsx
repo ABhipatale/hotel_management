@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CalendarCheck } from 'lucide-react'
 import { purchase } from '../../lib/payment'
+import { useT } from '../../i18n'
 import PlanCards from '../../components/PlanCards'
 import { useApi } from '../../lib/useApi'
 import { useAuth } from '../../context/AuthContext'
@@ -12,6 +13,7 @@ import { Badge, Card, PageHeader, SectionTitle, Spinner, statusTone, Table } fro
 /** One subscription, paid monthly or yearly. */
 export default function Subscription() {
   const { refresh } = useAuth()
+  const t = useT()
   const toast = useToast()
   const ask = useConfirm()
   const { data: cur, loading, reload } = useApi('/subscription')
@@ -21,17 +23,20 @@ export default function Subscription() {
 
   const buy = async (cycle) => {
     const amount = cycle === 'yearly' ? price.price_yearly : price.price_monthly
-    const verb = cur?.expired ? 'Renew' : 'Extend'
+    const yearly = cycle === 'yearly'
+    const expiredNow = cur?.expired
     if (!(await ask({
-      title: `${verb} ${cycle}?`,
-      message: `${money(amount)} for ${cycle === 'yearly' ? '1 year' : '1 month'}. ${cur?.expired ? 'Access is restored immediately.' : 'It is added after your current end date.'}`,
-      confirmText: `Pay ${money(amount)}`,
+      title: expiredNow ? (yearly ? t('Renew yearly?') : t('Renew monthly?')) : (yearly ? t('Extend yearly?') : t('Extend monthly?')),
+      message: expiredNow
+        ? (yearly ? t('{amount} for 1 year. Access is restored immediately.', { amount: money(amount) }) : t('{amount} for 1 month. Access is restored immediately.', { amount: money(amount) }))
+        : (yearly ? t('{amount} for 1 year. It is added after your current end date.', { amount: money(amount) }) : t('{amount} for 1 month. It is added after your current end date.', { amount: money(amount) })),
+      confirmText: t('Pay {amount}', { amount: money(amount) }),
       tone: 'primary',
     }))) return
     setBusy(cycle)
     try {
       const sub = await purchase(cycle)
-      if (sub) { toast.success('Payment successful. Subscription updated'); await refresh(); reload(); reloadPays() }
+      if (sub) { toast.success(t('Payment successful. Subscription updated')); await refresh(); reload(); reloadPays() }
     } catch (e) { toast.error(e) } finally { setBusy(null) }
   }
 
@@ -49,13 +54,13 @@ export default function Subscription() {
         <div className="flex items-center gap-4">
           <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl ${expired ? 'bg-rose-100 text-rose-700' : 'bg-brand-soft text-brand'}`}><CalendarCheck className="h-6 w-6" /></span>
           <div>
-            <div className="flex items-center gap-2 text-lg font-extrabold">{expired ? 'Subscription expired' : 'Subscription active'} <Badge tone={expired ? 'red' : statusTone(sub?.status)}>{expired ? 'expired' : 'active'}</Badge></div>
+            <div className="flex items-center gap-2 text-lg font-extrabold">{expired ? t('Subscription expired') : t('Subscription active')} <Badge tone={expired ? 'red' : statusTone(sub?.status)}>{expired ? 'expired' : 'active'}</Badge></div>
             <div className="text-sm text-muted">
-              {sub ? <><span className="capitalize">{sub.billing_cycle}</span> · {expired ? 'ended' : 'renews / ends'} on <b className="text-ink">{dateOnly(sub.ends_at)}</b></> : 'No subscription yet'}
+              {sub ? <><span className="capitalize">{t(sub.billing_cycle)}</span> · {expired ? t('ended on') : t('renews / ends on')} <b className="text-ink">{dateOnly(sub.ends_at)}</b></> : t('No subscription yet')}
             </div>
           </div>
         </div>
-        {sub && !expired && <span className={`rounded-full px-3.5 py-1.5 text-sm font-extrabold ${daysLeft <= 7 ? 'bg-accent text-white' : 'bg-brand-soft text-brand'}`}>{Math.max(daysLeft, 0)} day{daysLeft === 1 ? '' : 's'} left</span>}
+        {sub && !expired && <span className={`rounded-full px-3.5 py-1.5 text-sm font-extrabold ${daysLeft <= 7 ? 'bg-accent text-white' : 'bg-brand-soft text-brand'}`}>{daysLeft === 1 ? t('1 day left') : t('{n} days left', { n: Math.max(daysLeft, 0) })}</span>}
       </Card>
 
       {/* Prices */}

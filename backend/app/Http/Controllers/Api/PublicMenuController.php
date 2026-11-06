@@ -110,7 +110,7 @@ class PublicMenuController extends Controller
     {
         $company = Company::where('slug', $slug)->whereIn('status', ['trial', 'active'])->firstOrFail();
         $state = app(SubscriptionService::class)->state($company);
-        abort_if($state['expired'] || ! $state['plan']?->hasFeature('qr'), 404);
+        abort_if(! $company->qr_enabled || $state['expired'] || ! $state['plan']?->hasFeature('qr'), 404);
 
         return Tenant::as($company, function () use ($company, $token) {
             $qr = TableQrToken::where('token', $token)->where('is_active', true)->firstOrFail(); // scoped to this company

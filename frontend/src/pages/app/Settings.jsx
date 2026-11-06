@@ -4,11 +4,13 @@ import { useApi } from '../../lib/useApi'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { dt } from '../../lib/format'
+import { useT } from '../../i18n'
 import ImagePicker from '../../components/ImagePicker'
 import { Button, Card, Input, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
 
 export default function Settings() {
   const { refresh, hasFeature } = useAuth()
+  const t = useT()
   const toast = useToast()
   const { data: company, loading } = useApi('/company')
   const { data: printer } = useApi('/printer')
@@ -19,7 +21,7 @@ export default function Settings() {
   const [icon, setIcon] = useState(null)
   const [removeIcon, setRemoveIcon] = useState(false)
   const [p, setP] = useState(null)
-  const [t, setT] = useState({ subject: '', message: '' })
+  const [tk, setTk] = useState({ subject: '', message: '' })
 
   useEffect(() => { if (company) setF(company) }, [company])
   useEffect(() => { if (printer) setP(printer); else if (printer === null) setP({ paper_width: '80mm', connection: 'browser', use_escpos: true, show_logo: true }) }, [printer])
@@ -30,17 +32,17 @@ export default function Settings() {
     try {
       const { data } = await api.post('/company', toFormData({ ...rest, logo, icon, remove_icon: removeIcon || undefined }))
       setF(data); setLogo(null); setIcon(null); setRemoveIcon(false)
-      toast.success('Branding updated')
+      toast.success(t('Branding updated'))
       await refresh()
     } catch (x) { toast.error(x) }
   }
   const savePrinter = async (e) => {
     e.preventDefault()
-    try { await api.put('/printer', { paper_width: p.paper_width, connection: p.connection, ip_address: p.ip_address || null, port: p.port || null, use_escpos: !!p.use_escpos, show_logo: !!p.show_logo }); toast.success('Printer settings saved') } catch (x) { toast.error(x) }
+    try { await api.put('/printer', { paper_width: p.paper_width, connection: p.connection, ip_address: p.ip_address || null, port: p.port || null, use_escpos: !!p.use_escpos, show_logo: !!p.show_logo }); toast.success(t('Printer settings saved')) } catch (x) { toast.error(x) }
   }
   const ticket = async (e) => {
     e.preventDefault()
-    try { await api.post('/support', t); setT({ subject: '', message: '' }); toast.success('Support request sent'); reloadTickets() } catch (x) { toast.error(x) }
+    try { await api.post('/support', tk); setTk({ subject: '', message: '' }); toast.success(t('Support request sent')); reloadTickets() } catch (x) { toast.error(x) }
   }
   const s = (k) => (e) => setF({ ...f, [k]: e.target.value })
 
@@ -50,7 +52,7 @@ export default function Settings() {
       <PageHeader title="Settings" sub="Branding, bill layout and printer" />
       <div className="grid gap-5 lg:grid-cols-2">
         <Card>
-          <h3 className="mb-3 font-semibold">Company & branding</h3>
+          <h3 className="mb-3 font-semibold">{t('Company & branding')}</h3>
           <form onSubmit={saveCompany} className="space-y-3">
             <Input label="Company name" required value={f.name || ''} onChange={s('name')} />
             <div className="grid grid-cols-2 gap-3"><Input label="Phone" value={f.phone || ''} onChange={s('phone')} /><Input label="GST number" value={f.gst_enabled === false ? '' : f.gst_number || ''} onChange={s('gst_number')} disabled={f.gst_enabled === false} placeholder={f.gst_enabled === false ? 'GST is off' : ''} hint={f.gst_enabled === false ? 'GST is switched off for your business. Ask the administrator to turn it on.' : undefined} /></div>
@@ -68,35 +70,35 @@ export default function Settings() {
 
         <div className="space-y-5">
           <Card>
-            <h3 className="mb-3 font-semibold">Thermal printer</h3>
-            {!hasFeature('thermal') && <p className="mb-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">Direct thermal printing needs the Pro plan; browser print is always available.</p>}
+            <h3 className="mb-3 font-semibold">{t('Thermal printer')}</h3>
+            {!hasFeature('thermal') && <p className="mb-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">{t('Direct thermal printing needs the Pro plan; browser print is always available.')}</p>}
             <form onSubmit={savePrinter} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <Select label="Paper width" value={p.paper_width} onChange={(e) => setP({ ...p, paper_width: e.target.value })}><option value="58mm">58 mm</option><option value="80mm">80 mm</option></Select>
-                <Select label="Connection" value={p.connection} onChange={(e) => setP({ ...p, connection: e.target.value })}><option value="browser">Browser print</option><option value="usb">USB</option><option value="bluetooth">Bluetooth</option><option value="network">Network</option></Select>
+                <Select label="Connection" value={p.connection} onChange={(e) => setP({ ...p, connection: e.target.value })}><option value="browser">{t('Browser print')}</option><option value="usb">USB</option><option value="bluetooth">Bluetooth</option><option value="network">{t('Network')}</option></Select>
               </div>
               {p.connection === 'network' && <div className="grid grid-cols-2 gap-3"><Input label="Printer IP" value={p.ip_address || ''} onChange={(e) => setP({ ...p, ip_address: e.target.value })} /><Input label="Port" type="number" value={p.port || 9100} onChange={(e) => setP({ ...p, port: e.target.value })} /></div>}
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.use_escpos} onChange={(e) => setP({ ...p, use_escpos: e.target.checked })} /> Use ESC/POS commands (USB / Bluetooth)</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.show_logo} onChange={(e) => setP({ ...p, show_logo: e.target.checked })} /> Print logo on browser receipts</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.use_escpos} onChange={(e) => setP({ ...p, use_escpos: e.target.checked })} /> {t('Use ESC/POS commands (USB / Bluetooth)')}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.show_logo} onChange={(e) => setP({ ...p, show_logo: e.target.checked })} /> {t('Print logo on browser receipts')}</label>
               <Button type="submit" className="w-full">Save printer</Button>
             </form>
           </Card>
 
           <Card>
-            <h3 className="mb-3 font-semibold">Contact support</h3>
+            <h3 className="mb-3 font-semibold">{t('Contact support')}</h3>
             <form onSubmit={ticket} className="space-y-3">
-              <Input label="Subject" required value={t.subject} onChange={(e) => setT({ ...t, subject: e.target.value })} />
-              <Textarea label="Message" required value={t.message} onChange={(e) => setT({ ...t, message: e.target.value })} />
+              <Input label="Subject" required value={tk.subject} onChange={(e) => setTk({ ...tk, subject: e.target.value })} />
+              <Textarea label="Message" required value={tk.message} onChange={(e) => setTk({ ...tk, message: e.target.value })} />
               <Button type="submit" variant="secondary" className="w-full">Send</Button>
             </form>
-            {tickets?.slice(0, 3).map((x) => <div key={x.id} className="mt-3 rounded-xl bg-slate-50 p-3 text-sm"><b>{x.subject}</b> <span className="text-xs text-muted">· {x.status}</span>{x.reply && <p className="mt-1 text-muted">Reply: {x.reply}</p>}</div>)}
+            {tickets?.slice(0, 3).map((x) => <div key={x.id} className="mt-3 rounded-xl bg-slate-50 p-3 text-sm"><b>{x.subject}</b> <span className="text-xs text-muted">· {t(x.status)}</span>{x.reply && <p className="mt-1 text-muted">{t('Reply: {text}', { text: x.reply })}</p>}</div>)}
           </Card>
         </div>
 
         <Card className="lg:col-span-2">
-          <h3 className="mb-3 font-semibold">Audit log</h3>
+          <h3 className="mb-3 font-semibold">{t('Audit log')}</h3>
           <div className="max-h-72 overflow-y-auto">
-            {logs?.length ? logs.map((l) => <div key={l.id} className="flex flex-col gap-0.5 border-b border-line py-2 text-sm last:border-0 sm:flex-row sm:justify-between sm:gap-3"><span>{l.action}{l.entity ? ` · ${l.entity} #${l.entity_id}` : ''}</span><span className="text-xs text-muted">{dt(l.created_at)} · {l.ip}</span></div>) : <p className="py-6 text-center text-sm text-muted">Nothing logged yet</p>}
+            {logs?.length ? logs.map((l) => <div key={l.id} className="flex flex-col gap-0.5 border-b border-line py-2 text-sm last:border-0 sm:flex-row sm:justify-between sm:gap-3"><span>{l.action}{l.entity ? ` · ${l.entity} #${l.entity_id}` : ''}</span><span className="text-xs text-muted">{dt(l.created_at)} · {l.ip}</span></div>) : <p className="py-6 text-center text-sm text-muted">{t('Nothing logged yet')}</p>}
           </div>
         </Card>
       </div>

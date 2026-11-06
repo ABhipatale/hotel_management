@@ -85,12 +85,16 @@ function GstFields({ enabled, number, onEnabled, onNumber }) {
   )
 }
 
+function QrSwitch({ checked, onChange }) {
+  return <Switch label="QR table ordering" checked={checked} onChange={onChange} hint={checked ? 'Tables get QR codes; customers can scan and order from their phone.' : 'QR codes and the customer QR menu are switched off for this company.'} />
+}
+
 /** Super admin: edit company details, including the GST switch. */
 function CompanyDetailsEditor({ company, onDone }) {
   const toast = useToast()
   const [f, setF] = useState({
     name: company.name || '', phone: company.phone || '', email: company.email || '', address: company.address || '', city: company.city || '',
-    gst_enabled: company.gst_enabled !== false, gst_number: company.gst_number || '',
+    gst_enabled: company.gst_enabled !== false, gst_number: company.gst_number || '', qr_enabled: company.qr_enabled !== false,
   })
   const [busy, setBusy] = useState(false)
   const s = (k) => (e) => setF({ ...f, [k]: e.target.value })
@@ -110,6 +114,7 @@ function CompanyDetailsEditor({ company, onDone }) {
       <Input label="Email" type="email" value={f.email} onChange={s('email')} />
       <Input label="Address" value={f.address} onChange={s('address')} />
       <GstFields enabled={f.gst_enabled} number={f.gst_number} onEnabled={(v) => setF({ ...f, gst_enabled: v })} onNumber={(v) => setF({ ...f, gst_number: v })} />
+      <QrSwitch checked={f.qr_enabled} onChange={(v) => setF({ ...f, qr_enabled: v })} />
       <Button className="w-full" loading={busy} onClick={save}>Save details</Button>
     </div>
   )
@@ -164,7 +169,7 @@ function RenewSubscription({ company, onDone }) {
 
 function AddCompany({ open, onClose, onDone }) {
   const toast = useToast()
-  const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', gst_enabled: true, gst_number: '', billing_cycle: '' })
+  const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', gst_enabled: true, qr_enabled: true, gst_number: '', billing_cycle: '' })
   const [busy, setBusy] = useState(false)
   const submit = async (e) => {
     e.preventDefault(); setBusy(true)
@@ -181,6 +186,7 @@ function AddCompany({ open, onClose, onDone }) {
         <Input label="Initial password" type="password" required value={f.password} onChange={s('password')} hint="Min 8 chars, letters + numbers" />
         <Input label="City" value={f.city} onChange={s('city')} />
         <GstFields enabled={f.gst_enabled} number={f.gst_number} onEnabled={(v) => setF({ ...f, gst_enabled: v })} onNumber={(v) => setF({ ...f, gst_number: v })} />
+      <QrSwitch checked={f.qr_enabled} onChange={(v) => setF({ ...f, qr_enabled: v })} />
         <Select label="Subscription" value={f.billing_cycle} onChange={s('billing_cycle')}>
           <option value="">Customer purchases the plan on first login</option>
           <option value="monthly">I grant 1 month now</option>
