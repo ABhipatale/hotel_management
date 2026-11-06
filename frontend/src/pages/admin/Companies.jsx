@@ -57,19 +57,23 @@ export default function Companies() {
 
       <AddCompany open={adding} onClose={() => setAdding(false)} onDone={() => { setAdding(false); reload() }} />
 
-      <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.name}>
+      <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.name} full>
         {detail && (
           <div className="space-y-4">
             <div className="text-sm text-muted">{detail.uid} · {detail.phone} · {detail.city}</div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {detail.status !== 'active' && <Button variant="soft" onClick={() => act(() => api.patch(`/admin/companies/${detail.id}/status`, { status: 'active' }), 'Activated')}>Activate</Button>}
               {detail.status !== 'inactive' && <Button variant="secondary" onClick={() => act(() => api.patch(`/admin/companies/${detail.id}/status`, { status: 'inactive' }), 'Deactivated')}>Deactivate</Button>}
               {detail.status !== 'suspended' && <Button variant="secondary" onClick={() => act(() => api.patch(`/admin/companies/${detail.id}/status`, { status: 'suspended' }), 'Suspended')}>Suspend</Button>}
               <Button variant="danger" onClick={async () => (await ask({ title: 'Delete company?', message: tr('{name} will be removed from the platform. Its data is kept according to the retention policy.', { name: detail.name }), confirmText: 'Delete company' })) && act(() => api.delete(`/admin/companies/${detail.id}`), 'Deleted')}>Delete</Button>
             </div>
-            <CompanyDetailsEditor key={detail.id} company={detail} onDone={(c) => { setDetail(c); reload() }} />
-            <BrandingEditor company={detail} onDone={(c) => { setDetail(c); reload() }} />
-            <RenewSubscription company={detail} onDone={() => { toast.success('Subscription updated'); reload(); setDetail(null) }} />
+            <div className="grid items-start gap-4 lg:grid-cols-2">
+              <CompanyDetailsEditor key={detail.id} company={detail} onDone={(c) => { setDetail(c); reload() }} />
+              <div className="space-y-4">
+                <BrandingEditor company={detail} onDone={(c) => { setDetail(c); reload() }} />
+                <RenewSubscription company={detail} onDone={() => { toast.success('Subscription updated'); reload(); setDetail(null) }} />
+              </div>
+            </div>
           </div>
         )}
       </Modal>
