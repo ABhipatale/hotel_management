@@ -1,6 +1,17 @@
 // Tables, New order, Billing, Menu manager, Receipt dialog
 export default {
   hi: {
+    'View': 'दृश्य',
+    'Picture cards': 'फोटो कार्ड',
+    'Compact list': 'छोटी सूची',
+    'Collect {amount}': '{amount} वसूल करें',
+    'Add your dishes and prices': 'अपने व्यंजन और दाम जोड़ें',
+    'Add your tables (optional for takeaway)': 'अपनी टेबल जोड़ें (टेकअवे के लिए ज़रूरी नहीं)',
+    'Add a waiter login': 'वेटर का लॉगिन बनाएँ',
+    'Get started in 3 steps': '3 आसान स्टेप में शुरू करें',
+    'Do these once and you are ready to take orders.': 'ये एक बार कर लें, फिर ऑर्डर लेना शुरू करें।',
+    'Remove one': 'एक कम करें',
+    'Add one': 'एक और जोड़ें',
     // statuses
     'Free': 'खाली', 'Available': 'उपलब्ध', 'Occupied': 'भरी हुई', 'Reserved': 'आरक्षित', 'Preparing': 'तैयार हो रहा', 'Ready': 'तैयार',
     'Billing': 'बिलिंग', 'Paid': 'भुगतान हुआ', 'Unpaid': 'बकाया', 'Void': 'रद्द', 'Refunded': 'वापस किया',
@@ -50,6 +61,17 @@ export default {
     'Network printers use the browser print dialog from this device.': 'नेटवर्क प्रिंटर इस डिवाइस के ब्राउज़र प्रिंट डायलॉग से चलते हैं।',
   },
   mr: {
+    'View': 'दृश्य',
+    'Picture cards': 'फोटो कार्ड',
+    'Compact list': 'लहान यादी',
+    'Collect {amount}': '{amount} वसूल करा',
+    'Add your dishes and prices': 'तुमचे पदार्थ आणि किमती जोडा',
+    'Add your tables (optional for takeaway)': 'तुमचे टेबल जोडा (टेकअवेसाठी गरज नाही)',
+    'Add a waiter login': 'वेटरचे लॉगिन तयार करा',
+    'Get started in 3 steps': '3 सोप्या पायऱ्यांत सुरू करा',
+    'Do these once and you are ready to take orders.': 'हे एकदा करा, मग ऑर्डर घ्यायला सुरुवात करा.',
+    'Remove one': 'एक कमी करा',
+    'Add one': 'आणखी एक जोडा',
     'Free': 'रिकामा', 'Available': 'उपलब्ध', 'Occupied': 'भरलेला', 'Reserved': 'राखीव', 'Preparing': 'तयार होत आहे', 'Ready': 'तयार',
     'Billing': 'बिलिंग', 'Paid': 'भरले', 'Unpaid': 'बाकी', 'Void': 'रद्द', 'Refunded': 'परत केले',
     'Tables': 'टेबल', 'Table {n}': 'टेबल {n}', 'Table {n} → {status}': 'टेबल {n} → {status}', '{busy} busy · {free} free': '{busy} व्यस्त · {free} रिकामे',

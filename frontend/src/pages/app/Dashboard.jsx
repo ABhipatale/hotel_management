@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import SetupChecklist from '../../components/SetupChecklist'
 import {
   AlertTriangle, Armchair, ArrowUpRight, BarChart3, CheckCircle2, Clock, Moon, Plus, QrCode, Receipt, ShoppingBag, Sun, Sunrise, TrendingDown,
   TrendingUp, Trophy, Users, UtensilsCrossed, Wallet,
@@ -95,6 +96,8 @@ export default function Dashboard() {
         <Stat label={t('Occupied tables')} value={num(occupied)} icon={Armchair} tone="amber" />
         <Stat label={t('Available tables')} value={num(d.available_tables)} icon={CheckCircle2} tone="green" />
       </section>
+
+      {can('users.manage') && <SetupChecklist />}
 
       {/* Quick actions */}
       {quick.length > 0 && (

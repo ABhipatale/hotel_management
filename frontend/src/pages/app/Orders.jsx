@@ -53,7 +53,9 @@ export default function Orders() {
                 {o.status === 'pending' && can('orders.create') && <Button size="sm" variant="soft" onClick={() => setStatus(o, 'accepted')}>{t('Accept')}</Button>}
                 {['accepted', 'preparing', 'ready'].includes(o.status) && <Button size="sm" variant="soft" onClick={() => setStatus(o, 'served')}>{t('Mark served')}</Button>}
                 {['served', 'ready', 'preparing', 'accepted'].includes(o.status) && !o.bill && <Button size="sm" onClick={() => bill(o)}>{t('Generate bill')}</Button>}
-                {o.bill && <Badge tone="blue">{t('Bill {no}', { no: o.bill.bill_no })} · {money(o.bill.grand_total)}</Badge>}
+                {o.bill && (can('billing.manage') && o.bill.status !== 'paid'
+                  ? <Link to={`/app/billing?pay=${o.bill.id}`} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-accent px-3.5 text-xs font-extrabold text-white shadow-card active:scale-95">{t('Collect {amount}', { amount: money(o.bill.grand_total) })}</Link>
+                  : <Badge tone="blue">{t('Bill {no}', { no: o.bill.bill_no })} · {money(o.bill.grand_total)}</Badge>)}
                 {['pending', 'accepted', 'preparing'].includes(o.status) && <Button size="sm" variant="ghost" onClick={async () => (await ask({ title: t('Cancel this order?'), message: t('The order will be cancelled and removed from the open list.'), confirmText: t('Cancel order'), cancelText: t('Keep order') })) && setStatus(o, 'cancelled')}>{t('Cancel')}</Button>}
               </div>
             </Card>
