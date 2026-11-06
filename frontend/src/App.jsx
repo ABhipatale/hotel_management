@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { I18nProvider } from './i18n'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import { ConfirmProvider } from './context/ConfirmContext'
@@ -54,6 +55,7 @@ function Home() {
 export default function App() {
   return (
     <BrowserRouter>
+      <I18nProvider>
       <ToastProvider>
         <ConfirmProvider>
         <AuthProvider>
@@ -90,6 +92,7 @@ export default function App() {
         </AuthProvider>
         </ConfirmProvider>
       </ToastProvider>
+      </I18nProvider>
     </BrowserRouter>
   )
 }

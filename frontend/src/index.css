@@ -36,7 +36,7 @@
   --shadow-card: 0 1px 2px rgb(29 26 23 / 0.04), 0 6px 18px -8px rgb(29 26 23 / 0.10);
   --shadow-lift: 0 2px 4px rgb(29 26 23 / 0.05), 0 14px 32px -14px rgb(29 26 23 / 0.20);
   --shadow-float: 0 10px 30px -10px rgb(29 26 23 / 0.35);
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Noto Sans Devanagari", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
   /* Teal scale (500/600 = brand) — replaces emerald, indigo, teal */
   --color-emerald-50: #EEF6F5;  --color-emerald-100: #D6E9E7; --color-emerald-200: #AFD3CF; --color-emerald-300: #82B8B2;

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { tr } from '../i18n'
 
 const TOKEN_KEY = 'hms.token'
 
@@ -33,8 +34,8 @@ api.interceptors.response.use(
 /** Human-readable message from a Laravel error response. */
 export function errMsg(err) {
   const d = err?.response?.data
-  if (d?.errors) return Object.values(d.errors).flat()[0]
-  return d?.message || err?.message || 'Something went wrong'
+  if (d?.errors) return tr(Object.values(d.errors).flat()[0])
+  return tr(d?.message || err?.message || 'Something went wrong')
 }
 
 /** Axios helper for multipart forms (logo / food images). Skips empty values. */
