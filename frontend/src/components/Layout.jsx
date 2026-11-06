@@ -7,6 +7,8 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
+import { useT } from '../i18n'
+import LangSwitch from './LangSwitch'
 import { usePwaInstall } from '../lib/pwa'
 import { useApi } from '../lib/useApi'
 import { Avatar, Modal } from './ui'
@@ -45,6 +47,7 @@ function Logo({ company, isSuperAdmin, size = 'h-11 w-11' }) {
 
 export default function Layout() {
   const { user, company, can, isSuperAdmin, logout, subscription_expired, subscription } = useAuth()
+  const t = useT()
   const [more, setMore] = useState(false)
   const nav = useNavigate()
   const loc = useLocation()
@@ -80,7 +83,10 @@ export default function Layout() {
   const msLeft = subscription?.ends_at ? new Date(subscription.ends_at) - Date.now() : Infinity
   const daysLeft = Math.ceil(msLeft / 86400000)
   const expiresSoon = msLeft > 0 && daysLeft <= 3
-  const endsText = daysLeft <= 1 ? (new Date(subscription?.ends_at).toDateString() === new Date().toDateString() ? 'ends today' : 'ends tomorrow') : `ends in ${daysLeft} days`
+  const endsText = daysLeft <= 1
+    ? (new Date(subscription?.ends_at).toDateString() === new Date().toDateString() ? t('Your subscription ends today.') : t('Your subscription ends tomorrow.'))
+    : t('Your subscription ends in {n} days.', { n: daysLeft })
+  const roleText = (r) => t(r?.replace('_', ' ') || '')
 
   const items = isSuperAdmin ? ADMIN_NAV : TENANT_NAV.filter((n) => can(n.perm))
   const canNew = !isSuperAdmin && can('orders.create')
@@ -100,14 +106,14 @@ export default function Layout() {
           {/* Coral active indicator */}
           <span className={`absolute left-1/2 top-0 h-[3px] -translate-x-1/2 rounded-full bg-accent transition-all duration-300 ${isActive ? 'w-7 opacity-100' : 'w-0 opacity-0'}`} />
           <i.icon className={`h-[22px] w-[22px] transition group-active:scale-90 ${isActive ? 'text-brand' : 'text-slate-400'}`} strokeWidth={isActive ? 2.5 : 2} />
-          <span className={isActive ? 'text-brand' : 'text-slate-400'}>{i.label}</span>
+          <span className={isActive ? 'text-brand' : 'text-slate-400'}>{t(i.label)}</span>
         </>
       )}
     </NavLink>
   )
 
   const BellBtn = (
-    <button onClick={() => nav('/app/orders')} aria-label={`Notifications${pendingCount ? `, ${pendingCount} new order${pendingCount > 1 ? 's' : ''}` : ''}`} className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 text-white ring-1 ring-white/20 transition active:scale-90 lg:bg-ivory lg:text-brand lg:ring-0">
+    <button onClick={() => nav('/app/orders')} aria-label={pendingCount ? t(pendingCount > 1 ? 'Notifications, {n} new orders' : 'Notifications, {n} new order', { n: pendingCount }) : t('Notifications')} className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 text-white ring-1 ring-white/20 transition active:scale-90 lg:bg-ivory lg:text-brand lg:ring-0">
       <Bell className="h-5 w-5" />
       {pendingCount > 0 && (
         <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-[10px] font-extrabold text-white ring-2 ring-brand lg:ring-white">
@@ -132,20 +138,21 @@ export default function Layout() {
               {({ isActive }) => (
                 <>
                   {isActive && <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-accent" />}
-                  <Icon className="h-[18px] w-[18px]" /> {label}
+                  <Icon className="h-[18px] w-[18px]" /> {t(label)}
                 </>
               )}
             </NavLink>
           ))}
         </nav>
+        <LangSwitch tone="dark" className="mt-4 w-full justify-between" />
         <div className="mt-4 flex items-center gap-3 border-t border-white/15 pt-4">
           <Avatar name={user?.name} className="!bg-ivory !text-brand !ring-0" />
-          <div className="min-w-0 flex-1 leading-tight"><div className="truncate text-sm font-bold">{user?.name}</div><div className="text-xs capitalize text-white/60">{user?.role?.replace('_', ' ')}</div></div>
-          <button onClick={doLogout} className="grid h-10 w-10 place-items-center rounded-xl text-white/70 transition hover:bg-white/10 hover:text-white" aria-label="Log out"><LogOut className="h-[18px] w-[18px]" /></button>
+          <div className="min-w-0 flex-1 leading-tight"><div className="truncate text-sm font-bold">{user?.name}</div><div className="text-xs capitalize text-white/60">{roleText(user?.role)}</div></div>
+          <button onClick={doLogout} className="grid h-10 w-10 place-items-center rounded-xl text-white/70 transition hover:bg-white/10 hover:text-white" aria-label={t('Log out')}><LogOut className="h-[18px] w-[18px]" /></button>
         </div>
         {!pwa.installed && (
           <button onClick={doInstall} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-white/15 px-3 text-sm font-bold text-white transition hover:bg-white/25">
-            <Download className="h-[18px] w-[18px]" /> Install app
+            <Download className="h-[18px] w-[18px]" /> {t('Install app')}
           </button>
         )}
       </aside>
@@ -157,23 +164,23 @@ export default function Layout() {
             <div className="lg:hidden"><Logo company={company} isSuperAdmin={isSuperAdmin} /></div>
             <div className="min-w-0 flex-1 leading-tight lg:hidden">
               <div className="truncate text-[17px] font-extrabold tracking-tight">{isSuperAdmin ? 'Hotel SaaS' : company?.name}</div>
-              <div className="truncate text-xs font-medium text-white/70">Hi, {user?.name?.split(' ')[0]} · <span className="capitalize">{user?.role?.replace('_', ' ')}</span></div>
+              <div className="truncate text-xs font-medium text-white/70">{t('Hi, {name}', { name: user?.name?.split(' ')[0] })} · <span className="capitalize">{roleText(user?.role)}</span></div>
             </div>
             <div className="hidden flex-1 lg:block" />
             {showBell && BellBtn}
-            <button onClick={() => setMore(true)} aria-label="Account menu" className="lg:hidden"><Avatar name={user?.name} className="!bg-ivory !text-brand !ring-0" /></button>
+            <button onClick={() => setMore(true)} aria-label={t('Account menu')} className="lg:hidden"><Avatar name={user?.name} className="!bg-ivory !text-brand !ring-0" /></button>
           </div>
         </header>
 
         {!isSuperAdmin && subscription_expired && (
-          <div className="bg-rose-600 px-4 py-2.5 text-center text-sm font-medium text-white">Subscription expired — read-only. {can('subscription.manage') ? <NavLink to="/app/subscription" className="font-extrabold underline">Renew</NavLink> : <span className="font-bold">Please ask the owner to renew.</span>}</div>
+          <div className="bg-rose-600 px-4 py-2.5 text-center text-sm font-medium text-white">{t('Subscription expired — read-only.')} {can('subscription.manage') ? <NavLink to="/app/subscription" className="font-extrabold underline">{t('Renew')}</NavLink> : <span className="font-bold">{t('Please ask the owner to renew.')}</span>}</div>
         )}
         {/* Heads-up banner during the last 3 days before the subscription ends */}
         {!isSuperAdmin && !subscription_expired && expiresSoon && (
           <div role="status" className="flex items-center justify-center gap-2 bg-accent px-4 py-2 text-center text-[13px] font-bold text-white">
             <Clock className="h-4 w-4 shrink-0" />
-            <span>Your subscription {endsText}.</span>
-            {can('subscription.manage') ? <NavLink to="/app/subscription" className="shrink-0 rounded-full bg-white/20 px-3 py-1 text-xs font-extrabold underline-offset-2 hover:underline">Renew now</NavLink> : <span className="font-medium opacity-90">Ask the owner to renew.</span>}
+            <span>{endsText}</span>
+            {can('subscription.manage') ? <NavLink to="/app/subscription" className="shrink-0 rounded-full bg-white/20 px-3 py-1 text-xs font-extrabold underline-offset-2 hover:underline">{t('Renew now')}</NavLink> : <span className="font-medium opacity-90">{t('Ask the owner to renew.')}</span>}
           </div>
         )}
 
@@ -183,13 +190,13 @@ export default function Layout() {
       </div>
 
       {/* Bottom navigation (phones & small tablets): white bar, teal active icon, coral indicator + FAB */}
-      <nav aria-label="Primary" className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] lg:hidden">
+      <nav aria-label={t('Primary')} className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] lg:hidden">
         <div className="pointer-events-auto mx-auto flex max-w-md items-end rounded-[1.25rem] bg-white px-2 shadow-float ring-1 ring-line">
           {/* Two equal-width groups keep the New Order button exactly centred, whatever the tab count */}
           <div className="flex min-w-0 flex-1">{left.map(tab)}</div>
           {canNew && (
             <div className="flex w-20 shrink-0 justify-center">
-              <button onClick={() => nav('/app/order/new')} aria-label="New order" className="-mt-7 grid h-16 w-16 place-items-center rounded-full bg-accent text-white shadow-[0_12px_24px_-8px_rgb(255_104_69/.8)] ring-[5px] ring-white transition active:scale-90">
+              <button onClick={() => nav('/app/order/new')} aria-label={t('New order')} className="-mt-7 grid h-16 w-16 place-items-center rounded-full bg-accent text-white shadow-[0_12px_24px_-8px_rgb(255_104_69/.8)] ring-[5px] ring-white transition active:scale-90">
                 <Plus className="h-8 w-8" strokeWidth={2.6} />
               </button>
             </div>
@@ -202,18 +209,19 @@ export default function Layout() {
         <div className="grid grid-cols-3 gap-3">
           {rest.map(({ to, icon: Icon, label }) => (
             <NavLink key={to} to={to} className="flex min-h-[6.5rem] flex-col items-center justify-center gap-2.5 rounded-[1.25rem] bg-canvas px-2 py-4 text-center text-xs font-bold text-slate-700 ring-1 ring-line transition active:scale-95">
-              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-brand shadow-card"><Icon className="h-5 w-5" strokeWidth={2.2} /></span>{label}
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-brand shadow-card"><Icon className="h-5 w-5" strokeWidth={2.2} /></span>{t(label)}
             </NavLink>
           ))}
         </div>
-        <div className="mt-5 flex items-center gap-3 rounded-[1.25rem] bg-canvas p-3.5 ring-1 ring-line">
+        <div className="mt-5 flex justify-center"><LangSwitch /></div>
+        <div className="mt-4 flex items-center gap-3 rounded-[1.25rem] bg-canvas p-3.5 ring-1 ring-line">
           <Avatar name={user?.name} size="lg" className="!bg-brand !ring-0" />
           <div className="min-w-0 flex-1 leading-tight"><div className="truncate font-bold">{user?.name}</div><div className="truncate text-xs text-muted">{user?.email}</div></div>
-          <button onClick={doLogout} className="flex min-h-11 items-center gap-1.5 rounded-2xl bg-white px-3.5 text-sm font-bold text-rose-600 shadow-card transition active:scale-95"><LogOut className="h-4 w-4" /> Log out</button>
+          <button onClick={doLogout} className="flex min-h-11 items-center gap-1.5 rounded-2xl bg-white px-3.5 text-sm font-bold text-rose-600 shadow-card transition active:scale-95"><LogOut className="h-4 w-4" /> {t('Log out')}</button>
         </div>
         {!pwa.installed && (
           <button onClick={doInstall} className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-brand px-4 text-sm font-extrabold text-white shadow-card transition active:scale-[0.98]">
-            <Download className="h-5 w-5" strokeWidth={2.4} /> Install app
+            <Download className="h-5 w-5" strokeWidth={2.4} /> {t('Install app')}
           </button>
         )}
       </Modal>

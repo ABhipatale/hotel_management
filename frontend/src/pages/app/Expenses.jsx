@@ -5,6 +5,7 @@ import { useApi } from '../../lib/useApi'
 import { dateOnly, money, today } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
+import { useT } from '../../i18n'
 import { Button, Input, Modal, PageHeader, ListSkeleton, Table } from '../../components/ui'
 
 const CATS = ['Groceries', 'Salaries', 'Rent', 'Electricity', 'Gas', 'Maintenance', 'Marketing', 'Other']
@@ -12,6 +13,7 @@ const CATS = ['Groceries', 'Salaries', 'Rent', 'Electricity', 'Gas', 'Maintenanc
 export default function Expenses() {
   const toast = useToast()
   const ask = useConfirm()
+  const t = useT()
   const [range, setRange] = useState({ from: today().slice(0, 8) + '01', to: today() })
   const { data, loading, reload, error } = useApi('/expenses', { params: range })
   const [edit, setEdit] = useState(null)
@@ -19,34 +21,34 @@ export default function Expenses() {
 
   const save = async (e) => {
     e.preventDefault()
-    try { await api.post('/expenses', edit); toast.success('Expense added'); setEdit(null); reload() } catch (x) { toast.error(x) }
+    try { await api.post('/expenses', edit); toast.success(t('Expense added')); setEdit(null); reload() } catch (x) { toast.error(x) }
   }
-  const del = async (x) => { if (await ask({ title: 'Delete this expense?', message: 'It will be removed from your expense totals.', confirmText: 'Delete expense' })) { try { await api.delete(`/expenses/${x.id}`); reload() } catch (e) { toast.error(e) } } }
+  const del = async (x) => { if (await ask({ title: t('Delete this expense?'), message: t('It will be removed from your expense totals.'), confirmText: t('Delete expense') })) { try { await api.delete(`/expenses/${x.id}`); reload() } catch (e) { toast.error(e) } } }
 
   return (
     <>
-      <PageHeader title="Expenses" sub={`Total in range: ${money(total)}`} actions={<Button onClick={() => setEdit({ category: CATS[0], description: '', amount: '', expense_date: today() })}><Plus className="h-4 w-4" /> Add expense</Button>} />
+      <PageHeader title={t('Expenses')} sub={t('Total in range: {amount}', { amount: money(total) })} actions={<Button onClick={() => setEdit({ category: CATS[0], description: '', amount: '', expense_date: today() })}><Plus className="h-4 w-4" /> {t('Add expense')}</Button>} />
       <div className="mb-4 flex flex-wrap gap-3">
         <Input type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
         <Input type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
       </div>
       {error ? <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{error}</p> : loading ? <ListSkeleton /> : (
         <Table rows={data} columns={[
-          { header: 'Date', render: (x) => dateOnly(x.expense_date) },
-          { header: 'Category', key: 'category' },
-          { header: 'Description', render: (x) => x.description || '—' },
-          { header: 'Amount', render: (x) => <b>{money(x.amount)}</b> },
-          { header: '', className: 'text-right', render: (x) => <button onClick={() => del(x)} aria-label="Delete expense" className="grid h-11 w-11 place-items-center rounded-xl bg-rose-50 active:bg-rose-100"><Trash2 className="h-5 w-5 text-rose-600" /></button> },
+          { header: t('Date'), render: (x) => dateOnly(x.expense_date) },
+          { header: t('Category'), render: (x) => t(x.category) },
+          { header: t('Description'), render: (x) => x.description || '—' },
+          { header: t('Amount'), render: (x) => <b>{money(x.amount)}</b> },
+          { header: '', className: 'text-right', render: (x) => <button onClick={() => del(x)} aria-label={t('Delete expense')} className="grid h-11 w-11 place-items-center rounded-xl bg-rose-50 active:bg-rose-100"><Trash2 className="h-5 w-5 text-rose-600" /></button> },
         ]} />
       )}
-      <Modal open={!!edit} onClose={() => setEdit(null)} title="Add expense">
+      <Modal open={!!edit} onClose={() => setEdit(null)} title={t('Add expense')}>
         {edit && (
           <form onSubmit={save} className="space-y-3">
-            <label className="block"><span className="mb-1 block text-xs font-medium text-muted">Category</span><input list="cats" required className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm w-full" value={edit.category} onChange={(e) => setEdit({ ...edit, category: e.target.value })} /><datalist id="cats">{CATS.map((c) => <option key={c} value={c} />)}</datalist></label>
-            <Input label="Amount (₹)" type="number" min="0.01" step="0.01" required value={edit.amount} onChange={(e) => setEdit({ ...edit, amount: e.target.value })} />
-            <Input label="Date" type="date" required value={edit.expense_date} onChange={(e) => setEdit({ ...edit, expense_date: e.target.value })} />
-            <Input label="Description" value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} />
-            <Button type="submit" className="w-full">Save</Button>
+            <label className="block"><span className="mb-1 block text-xs font-medium text-muted">{t('Category')}</span><input list="cats" required className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm w-full" value={edit.category} onChange={(e) => setEdit({ ...edit, category: e.target.value })} /><datalist id="cats">{CATS.map((c) => <option key={c} value={c} label={t(c)} />)}</datalist></label>
+            <Input label={t('Amount (₹)')} type="number" min="0.01" step="0.01" required value={edit.amount} onChange={(e) => setEdit({ ...edit, amount: e.target.value })} />
+            <Input label={t('Date')} type="date" required value={edit.expense_date} onChange={(e) => setEdit({ ...edit, expense_date: e.target.value })} />
+            <Input label={t('Description')} value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} />
+            <Button type="submit" className="w-full">{t('Save')}</Button>
           </form>
         )}
       </Modal>

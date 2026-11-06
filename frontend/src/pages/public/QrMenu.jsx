@@ -5,11 +5,14 @@ import { api, errMsg } from '../../lib/api'
 import { applyBrand } from '../../lib/branding'
 import { money } from '../../lib/format'
 import { Button, Chips, Input, Modal, Spinner } from '../../components/ui'
+import LangSwitch from '../../components/LangSwitch'
+import { useI18n } from '../../i18n'
 
 const STEPS = [['pending', 'Received'], ['accepted', 'Accepted'], ['preparing', 'Cooking'], ['ready', 'Ready'], ['served', 'Served']]
 
 /** Public, unauthenticated customer menu. Tenant comes from the URL slug + secret table token (validated server-side). */
 export default function QrMenu() {
+  const { t } = useI18n()
   const { slug, token } = useParams()
   const base = `/public/menu/${slug}/table/${token}`
   const [menu, setMenu] = useState(null)
@@ -67,7 +70,7 @@ export default function QrMenu() {
     } catch (e) { setError(errMsg(e)) } finally { setBusy(false) }
   }
 
-  if (error && !menu) return <div className="grid min-h-full place-items-center p-6 text-center"><div><UtensilsCrossed className="mx-auto mb-3 h-10 w-10 text-slate-300" /><p className="max-w-xs text-muted">{error}</p></div></div>
+  if (error && !menu) return <div className="grid min-h-full place-items-center p-6 text-center"><div><UtensilsCrossed className="mx-auto mb-3 h-10 w-10 text-slate-300" /><p className="max-w-xs text-muted">{t(error)}</p><LangSwitch className="mt-5" /></div></div>
   if (!menu) return <Spinner />
   const { company } = menu
 
@@ -76,11 +79,12 @@ export default function QrMenu() {
       <header className="sticky top-0 z-20 border-b border-line bg-white/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
           {company.logo_url ? <img src={company.logo_url} alt="" className="h-11 w-11 rounded-xl object-cover" /> : <div className="grid h-11 w-11 place-items-center rounded-xl bg-brand font-bold text-white">{company.name[0]}</div>}
-          <div className="min-w-0 flex-1"><div className="truncate font-semibold">{company.name}</div><div className="text-xs text-muted">Table {menu.table.number}</div></div>
-          {orders.length > 0 && <button onClick={() => setTrackOpen(true)} className="flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-medium text-brand"><Clock className="h-3.5 w-3.5" />My orders</button>}
+          <div className="min-w-0 flex-1"><div className="truncate font-semibold">{company.name}</div><div className="text-xs text-muted">{t('Table {n}', { n: menu.table.number })}</div></div>
+          {orders.length > 0 && <button onClick={() => setTrackOpen(true)} className="flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-medium text-brand"><Clock className="h-3.5 w-3.5" />{t('My orders')}</button>}
         </div>
-        <div className="relative mt-3"><Search className="absolute left-3 top-3 h-4 w-4 text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search dishes" className="w-full rounded-xl border border-line bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand" /></div>
-        <div className="-mb-3 mt-3"><Chips value={cat} onChange={setCat} items={[['all', 'All'], ...menu.categories.map((c) => [String(c.id), c.name])]} /></div>
+        <div className="mt-3"><LangSwitch className="w-full justify-between" /></div>
+        <div className="relative mt-3"><Search className="absolute left-3 top-3 h-4 w-4 text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Search dishes')} className="w-full rounded-xl border border-line bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand" /></div>
+        <div className="-mb-3 mt-3"><Chips value={cat} onChange={setCat} items={[['all', t('All')], ...menu.categories.map((c) => [String(c.id), c.name])]} /></div>
       </header>
 
       <div className="space-y-3 p-4">
@@ -92,31 +96,31 @@ export default function QrMenu() {
                 <div className="flex items-center gap-1.5"><i className={`h-3 w-3 shrink-0 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} /><span className="font-medium">{i.name}</span></div>
                 {i.offer_text && <div className="mt-0.5 text-xs font-medium text-emerald-600">{i.offer_text}</div>}
                 {i.description && <p className="mt-1 line-clamp-2 text-xs text-muted">{i.description}</p>}
-                <div className="mt-2 flex items-center gap-2"><b>{money(unit(i))}</b>{+i.discount_percent > 0 && <s className="text-xs text-muted">{money(i.price)}</s>}{i.variants.length > 0 && <span className="text-[11px] text-muted">· {i.variants.length + 1} sizes</span>}</div>
+                <div className="mt-2 flex items-center gap-2"><b>{money(unit(i))}</b>{+i.discount_percent > 0 && <s className="text-xs text-muted">{money(i.price)}</s>}{i.variants.length > 0 && <span className="text-[11px] text-muted">· {t('{n} sizes', { n: i.variants.length + 1 })}</span>}</div>
               </div>
               <div className="flex w-24 shrink-0 flex-col items-stretch gap-2">
                 {i.image_path ? <img src={`${location.origin}/storage/${i.image_path}`} alt="" className="h-24 w-24 rounded-2xl object-cover" /> : <div className="grid h-24 w-24 place-items-center rounded-2xl bg-brand-soft"><UtensilsCrossed className="h-7 w-7 text-brand/40" strokeWidth={1.6} /></div>}
-                <button onClick={() => (i.variants.length ? setPick(i) : add(i))} className={`min-h-11 w-full rounded-2xl border px-2 text-sm font-extrabold shadow-card transition active:scale-95 ${qty ? 'border-brand bg-brand text-white' : 'border-brand bg-white text-brand active:bg-brand-soft'}`}>{qty ? `ADDED · ${qty}` : 'ADD'}</button>
+                <button onClick={() => (i.variants.length ? setPick(i) : add(i))} className={`min-h-11 w-full rounded-2xl border px-2 text-sm font-extrabold shadow-card transition active:scale-95 ${qty ? 'border-brand bg-brand text-white' : 'border-brand bg-white text-brand active:bg-brand-soft'}`}>{qty ? t('ADDED · {n}', { n: qty }) : t('ADD')}</button>
               </div>
             </div>
           )
         })}
-        {!list.length && <p className="py-12 text-center text-sm text-muted">No dishes found</p>}
+        {!list.length && <p className="py-12 text-center text-sm text-muted">{t('No dishes found')}</p>}
       </div>
 
       {count > 0 && (
         <button onClick={() => setCartOpen(true)} className="fixed inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 mx-auto flex min-h-14 max-w-lg items-center justify-between gap-3 rounded-[1.25rem] bg-accent px-5 py-3.5 text-white shadow-float transition active:scale-[.98]">
-          <span className="flex items-center gap-2 whitespace-nowrap"><ShoppingCart className="h-5 w-5 shrink-0" />{count}<span className="hidden min-[360px]:inline">item(s)</span></span><b className="whitespace-nowrap">View cart · {money(total)}</b>
+          <span className="flex items-center gap-2 whitespace-nowrap"><ShoppingCart className="h-5 w-5 shrink-0" />{count}<span className="hidden min-[360px]:inline">{t('item(s)')}</span></span><b className="whitespace-nowrap">{t('View cart')} · {money(total)}</b>
         </button>
       )}
 
       <Modal open={!!pick} onClose={() => setPick(null)} title={pick?.name}>
-        {pick && [{ id: null, name: 'Regular', price: pick.price }, ...pick.variants].map((v) => (
+        {pick && [{ id: null, name: t('Regular'), price: pick.price }, ...pick.variants].map((v) => (
           <button key={v.id ?? 'base'} onClick={() => { add(pick, v.id ? v : null); setPick(null) }} className="mb-2 flex w-full items-center justify-between rounded-xl border border-line px-4 py-3 text-sm"><span>{v.name}</span><b>{money(unit(pick, v))}</b></button>
         ))}
       </Modal>
 
-      <Modal open={cartOpen} onClose={() => setCartOpen(false)} title="Your cart">
+      <Modal open={cartOpen} onClose={() => setCartOpen(false)} title={t('Your cart')}>
         <div className="space-y-3">
           {lines.map((l) => (
             <div key={l.key} className="flex items-center justify-between gap-3 text-sm">
@@ -126,23 +130,23 @@ export default function QrMenu() {
             </div>
           ))}
           <div className="grid grid-cols-2 gap-3 pt-2">
-            <Input label="Your name (optional)" value={cust.customer_name} onChange={(e) => setCust({ ...cust, customer_name: e.target.value })} />
-            <Input label="Mobile (optional)" inputMode="tel" value={cust.customer_phone} onChange={(e) => setCust({ ...cust, customer_phone: e.target.value })} />
+            <Input label={t('Your name (optional)')} value={cust.customer_name} onChange={(e) => setCust({ ...cust, customer_name: e.target.value })} />
+            <Input label={t('Mobile (optional)')} inputMode="tel" value={cust.customer_phone} onChange={(e) => setCust({ ...cust, customer_phone: e.target.value })} />
           </div>
-          <Input label="Cooking instructions" value={cust.notes} onChange={(e) => setCust({ ...cust, notes: e.target.value })} />
-          {error && <p className="text-sm text-rose-600">{error}</p>}
-          <div className="flex justify-between border-t border-line pt-3 text-sm"><span className="text-muted">{gstOn ? 'Total incl. GST' : 'Total'} (final bill is calculated at billing)</span><b className="text-lg">{money(total)}</b></div>
-          <Button variant="accent" size="lg" className="w-full" loading={busy} onClick={place}>Place order</Button>
+          <Input label={t('Cooking instructions')} value={cust.notes} onChange={(e) => setCust({ ...cust, notes: e.target.value })} />
+          {error && <p className="text-sm text-rose-600">{t(error)}</p>}
+          <div className="flex justify-between border-t border-line pt-3 text-sm"><span className="text-muted">{gstOn ? t('Total incl. GST (final bill is calculated at billing)') : t('Total (final bill is calculated at billing)')}</span><b className="text-lg">{money(total)}</b></div>
+          <Button variant="accent" size="lg" className="w-full" loading={busy} onClick={place}>{t('Place order')}</Button>
         </div>
       </Modal>
 
-      <Modal open={trackOpen} onClose={() => setTrackOpen(false)} title="Your orders">
-        {!orders.length ? <p className="py-6 text-center text-sm text-muted">No active orders</p> : orders.map((o) => {
+      <Modal open={trackOpen} onClose={() => setTrackOpen(false)} title={t('Your orders')}>
+        {!orders.length ? <p className="py-6 text-center text-sm text-muted">{t('No active orders')}</p> : orders.map((o) => {
           const idx = Math.max(0, STEPS.findIndex(([s]) => s === o.status))
           return (
             <div key={o.id} className="mb-4 rounded-2xl border border-line p-3">
               <div className="mb-3 flex items-center justify-between"><b className="text-sm">{o.order_no}</b>{o.status === 'ready' || o.status === 'served' ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <ChefHat className="h-5 w-5 text-brand" />}</div>
-              <div className="mb-3 flex items-center">{STEPS.map(([s, l], i) => <div key={s} className="flex flex-1 flex-col items-center"><div className={`h-2 w-full ${i <= idx ? 'bg-brand' : 'bg-slate-200'} ${i === 0 ? 'rounded-l-full' : ''} ${i === STEPS.length - 1 ? 'rounded-r-full' : ''}`} /><span className={`mt-1 text-[10px] ${i === idx ? 'font-semibold text-brand' : 'text-muted'}`}>{l}</span></div>)}</div>
+              <div className="mb-3 flex items-center">{STEPS.map(([s, l], i) => <div key={s} className="flex flex-1 flex-col items-center"><div className={`h-2 w-full ${i <= idx ? 'bg-brand' : 'bg-slate-200'} ${i === 0 ? 'rounded-l-full' : ''} ${i === STEPS.length - 1 ? 'rounded-r-full' : ''}`} /><span className={`mt-1 text-[10px] ${i === idx ? 'font-semibold text-brand' : 'text-muted'}`}>{t(l)}</span></div>)}</div>
               <ul className="space-y-0.5 text-sm text-muted">{o.items.map((i) => <li key={i.id}>{i.quantity}× {i.name}{i.variant ? ` (${i.variant})` : ''}</li>)}</ul>
             </div>
           )

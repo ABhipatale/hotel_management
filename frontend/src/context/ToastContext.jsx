@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useState } from 'react'
 import { AlertCircle } from 'lucide-react'
 import { errMsg } from '../lib/api'
+import { useT } from '../i18n'
 
 const ToastCtx = createContext(null)
 export const useToast = () => useContext(ToastCtx)
@@ -14,6 +15,7 @@ const SuccessIcon = () => (
 )
 
 export function ToastProvider({ children }) {
+  const tr = useT()
   const [items, setItems] = useState([])
   const push = useCallback((kind, text) => {
     const id = Math.random().toString(36).slice(2)
@@ -31,7 +33,7 @@ export function ToastProvider({ children }) {
         {items.map((t) => (
           <div key={t.id} role="status" className="animate-toast pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-2xl bg-ink/95 px-3.5 py-3 text-sm font-medium text-white shadow-float ring-1 ring-white/10 backdrop-blur">
             {t.kind === 'ok' ? <SuccessIcon /> : <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-rose-500/20"><AlertCircle className="h-5 w-5 text-rose-400" /></span>}
-            <span className="min-w-0 flex-1 leading-snug">{t.text}</span>
+            <span className="min-w-0 flex-1 leading-snug">{tr(t.text)}</span>
           </div>
         ))}
       </div>

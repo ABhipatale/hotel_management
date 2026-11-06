@@ -1,11 +1,21 @@
 import { Eye, EyeOff, Loader2, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Children, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useT } from '../i18n'
+
+// Plain-string content passed to the shared components is translated here, so pages get i18n for free.
+const tx = (t, x) => {
+  if (typeof x !== 'string') return x
+  const k = x.trim()
+  return k ? x.replace(k, t(k)) : x
+}
+const txs = (t, c) => Children.map(c, (n) => tx(t, n))
 
 export const cx = (...a) => a.filter(Boolean).join(' ')
 
 /* ───────────────────────── Buttons ───────────────────────── */
 export function Button({ variant = 'primary', size = 'md', loading, className, children, ...p }) {
+  const t = useT()
   const v = {
     primary: 'bg-brand text-white shadow-[0_6px_16px_-6px_rgb(23_100_95/.55)] hover:bg-brand-dark',
     // Coral is reserved for the key call-to-action on a screen (new order, place order, collect payment…)
@@ -25,19 +35,20 @@ export function Button({ variant = 'primary', size = 'md', loading, className, c
       className={cx('inline-flex select-none items-center justify-center gap-2 rounded-2xl font-semibold transition duration-150 active:scale-[.97] disabled:pointer-events-none disabled:opacity-50', v, s, className)}
     >
       {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-      {children}
+      {txs(t, children)}
     </button>
   )
 }
 
 /* ───────────────────────── Form fields ───────────────────────── */
 export function Field({ label, hint, error, children }) {
+  const t = useT()
   return (
     <label className="block">
-      {label && <span className="mb-1.5 block text-[13px] font-semibold text-slate-700">{label}</span>}
+      {label && <span className="mb-1.5 block text-[13px] font-semibold text-slate-700">{tx(t, label)}</span>}
       {children}
-      {hint && !error && <span className="mt-1.5 block text-xs text-muted">{hint}</span>}
-      {error && <span role="alert" className="mt-1.5 block text-xs font-medium text-rose-600">{error}</span>}
+      {hint && !error && <span className="mt-1.5 block text-xs text-muted">{tx(t, hint)}</span>}
+      {error && <span role="alert" className="mt-1.5 block text-xs font-medium text-rose-600">{tx(t, error)}</span>}
     </label>
   )
 }
@@ -49,15 +60,16 @@ const inputState = (error) => (error ? 'border-rose-300 focus:border-rose-500 fo
 
 /** Text input. `icon` adds a leading icon; password inputs get a show/hide toggle automatically. */
 export const Input = ({ label, hint, error, className, icon: Icon, type, ...p }) => {
+  const t = useT()
   const [show, setShow] = useState(false)
   const isPw = type === 'password'
   return (
     <Field label={label} hint={hint} error={error}>
       <span className="relative block">
         {Icon && <Icon className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />}
-        <input {...p} type={isPw && show ? 'text' : type} className={cx(inputBase, inputState(error), Icon && 'pl-11', isPw && 'pr-12', className)} />
+        <input {...p} placeholder={tx(t, p.placeholder)} type={isPw && show ? 'text' : type} className={cx(inputBase, inputState(error), Icon && 'pl-11', isPw && 'pr-12', className)} />
         {isPw && (
-          <button type="button" tabIndex={-1} onClick={() => setShow((s) => !s)} aria-label={show ? 'Hide password' : 'Show password'} className="absolute right-1.5 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-xl text-slate-400 hover:text-slate-600">
+          <button type="button" tabIndex={-1} onClick={() => setShow((s) => !s)} aria-label={show ? t('Hide password') : t('Show password')} className="absolute right-1.5 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-xl text-slate-400 hover:text-slate-600">
             {show ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
           </button>
         )}
@@ -68,13 +80,14 @@ export const Input = ({ label, hint, error, className, icon: Icon, type, ...p })
 
 /** Accessible on/off switch with a 44px touch target. */
 export function Switch({ checked, onChange, label, hint, disabled }) {
+  const t = useT()
   return (
     <div className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-white px-4 py-2.5">
       <div className="min-w-0">
-        <div className="text-sm font-bold">{label}</div>
-        {hint && <div className="mt-0.5 text-xs leading-snug text-muted">{hint}</div>}
+        <div className="text-sm font-bold">{tx(t, label)}</div>
+        {hint && <div className="mt-0.5 text-xs leading-snug text-muted">{tx(t, hint)}</div>}
       </div>
-      <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)} className="flex h-11 w-16 shrink-0 items-center justify-center disabled:opacity-50">
+      <button type="button" role="switch" aria-checked={checked} aria-label={tx(t, label)} disabled={disabled} onClick={() => onChange(!checked)} className="flex h-11 w-16 shrink-0 items-center justify-center disabled:opacity-50">
         <span className={cx('relative h-8 w-14 rounded-full transition-colors duration-200', checked ? 'bg-brand' : 'bg-slate-300')}>
           <span className={cx('absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all duration-200', checked ? 'left-7' : 'left-1')} />
         </span>
@@ -91,11 +104,14 @@ export const Select = ({ label, hint, error, children, className, ...p }) => (
   </Field>
 )
 
-export const Textarea = ({ label, hint, error, ...p }) => (
+export const Textarea = ({ label, hint, error, ...p }) => {
+  const t = useT()
+  return (
   <Field label={label} hint={hint} error={error}>
-    <textarea rows={3} {...p} className={cx(inputBase, inputState(error), 'resize-none')} />
+    <textarea rows={3} {...p} placeholder={tx(t, p.placeholder)} className={cx(inputBase, inputState(error), 'resize-none')} />
   </Field>
-)
+  )
+}
 
 /* ───────────────────────── Surfaces ───────────────────────── */
 export const Card = ({ className, children, interactive, ...p }) => (
@@ -104,12 +120,15 @@ export const Card = ({ className, children, interactive, ...p }) => (
   </div>
 )
 
-export const SectionTitle = ({ title, action }) => (
+export const SectionTitle = ({ title, action }) => {
+  const t = useT()
+  return (
   <div className="mb-3 flex items-center justify-between">
-    <h2 className="text-[17px] font-extrabold tracking-tight">{title}</h2>
+    <h2 className="text-[17px] font-extrabold tracking-tight">{tx(t, title)}</h2>
     {action}
   </div>
-)
+  )
+}
 
 export function Avatar({ name = '', size = 'md', src, className }) {
   const dim = { sm: 'h-9 w-9 text-sm', md: 'h-11 w-11 text-base', lg: 'h-14 w-14 text-xl' }[size]
@@ -119,6 +138,7 @@ export function Avatar({ name = '', size = 'md', src, className }) {
 }
 
 export function Stat({ label, value, icon: Icon, tone = 'brand', sub }) {
+  const t = useT()
   const tones = {
     brand: 'bg-brand-soft text-brand',
     green: 'bg-emerald-50 text-emerald-600',
@@ -134,15 +154,16 @@ export function Stat({ label, value, icon: Icon, tone = 'brand', sub }) {
         </div>
       )}
       <div className="min-w-0">
-        <div className="truncate text-xs font-semibold text-muted">{label}</div>
+        <div className="truncate text-xs font-semibold text-muted">{tx(t, label)}</div>
         <div className="tabular truncate text-[22px] font-extrabold leading-tight tracking-tight">{value}</div>
-        {sub && <div className="mt-0.5 text-[11px] text-muted">{sub}</div>}
+        {sub && <div className="mt-0.5 text-[11px] text-muted">{tx(t, sub)}</div>}
       </div>
     </Card>
   )
 }
 
 export function Badge({ tone = 'slate', children, dot }) {
+  const tr = useT()
   const t = {
     slate: ['bg-slate-100 text-slate-600', 'bg-slate-400'],
     green: ['bg-emerald-50 text-emerald-700', 'bg-emerald-500'],
@@ -154,7 +175,7 @@ export function Badge({ tone = 'slate', children, dot }) {
   return (
     <span className={cx('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold capitalize', t[0])}>
       {dot !== false && <i className={cx('h-1.5 w-1.5 rounded-full', t[1])} />}
-      {children}
+      {txs(tr, children)}
     </span>
   )
 }
@@ -165,6 +186,7 @@ export const statusTone = (s) =>
 /* ───────────────────────── Overlays ───────────────────────── */
 /** Bottom sheet on phones, centred dialog on larger screens. */
 export function Modal({ open, onClose, title, children, wide }) {
+  const t = useT()
   useEffect(() => {
     if (!open) return
     const h = (e) => e.key === 'Escape' && onClose()
@@ -184,8 +206,8 @@ export function Modal({ open, onClose, title, children, wide }) {
       >
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden" />
         <div className="mb-5 flex items-center justify-between gap-3 border-b border-line pb-4">
-          <h3 className="text-xl font-extrabold tracking-tight">{title}</h3>
-          <button onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 active:scale-95" aria-label="Close">
+          <h3 className="text-xl font-extrabold tracking-tight">{tx(t, title)}</h3>
+          <button onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 active:scale-95" aria-label={t('Close')}>
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -200,8 +222,10 @@ export function Modal({ open, onClose, title, children, wide }) {
 export const Skeleton = ({ className, ...p }) => <div {...p} className={cx('skeleton rounded-xl', className)} />
 
 /** Full-page loading placeholder: shimmering skeletons shaped like a typical screen. */
-export const PageSkeleton = () => (
-  <div className="animate-fade space-y-5" aria-busy="true" aria-label="Loading">
+export const PageSkeleton = () => {
+  const t = useT()
+  return (
+  <div className="animate-fade space-y-5" aria-busy="true" aria-label={t('Loading')}>
     <div className="space-y-2"><Skeleton className="h-8 w-44" /><Skeleton className="h-4 w-64 max-w-full" /></div>
     <div className="flex gap-2 overflow-hidden">{[80, 96, 72, 88].map((w, i) => <Skeleton key={i} className="h-11 rounded-full" style={{ width: w }} />)}</div>
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
@@ -211,12 +235,15 @@ export const PageSkeleton = () => (
     </div>
     <Skeleton className="h-48 w-full rounded-[1.25rem]" />
   </div>
-)
+  )
+}
 export const Spinner = PageSkeleton
 
 /** Lighter placeholder for lists that load inside an already-rendered page. */
-export const ListSkeleton = ({ rows = 3 }) => (
-  <div className="animate-fade space-y-3" aria-busy="true" aria-label="Loading">
+export const ListSkeleton = ({ rows = 3 }) => {
+  const t = useT()
+  return (
+  <div className="animate-fade space-y-3" aria-busy="true" aria-label={t('Loading')}>
     {Array.from({ length: rows }).map((_, i) => (
       <div key={i} className="flex items-center gap-4 rounded-[1.25rem] border border-line/70 bg-white p-4 shadow-card">
         <Skeleton className="h-12 w-12 shrink-0 rounded-2xl" />
@@ -225,9 +252,12 @@ export const ListSkeleton = ({ rows = 3 }) => (
       </div>
     ))}
   </div>
-)
+  )
+}
 
-export const Empty = ({ icon: Icon, title, hint, action }) => (
+export const Empty = ({ icon: Icon, title, hint, action }) => {
+  const t = useT()
+  return (
   <div className="animate-pop grid place-items-center rounded-[1.25rem] border border-dashed border-line bg-white/70 px-6 py-14 text-center">
     {Icon && (
       <div className="relative mb-4 grid h-20 w-20 place-items-center">
@@ -236,28 +266,35 @@ export const Empty = ({ icon: Icon, title, hint, action }) => (
         <Icon className="relative h-8 w-8 text-brand" strokeWidth={2} />
       </div>
     )}
-    <div className="text-base font-extrabold">{title}</div>
-    {hint && <div className="mt-1.5 max-w-xs text-sm leading-relaxed text-muted">{hint}</div>}
+    <div className="text-base font-extrabold">{tx(t, title)}</div>
+    {hint && <div className="mt-1.5 max-w-xs text-sm leading-relaxed text-muted">{tx(t, hint)}</div>}
     {action && <div className="mt-5">{action}</div>}
   </div>
-)
+  )
+}
 
-export const PageHeader = ({ title, sub, actions }) => (
+export const PageHeader = ({ title, sub, actions }) => {
+  const t = useT()
+  return (
   <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
     <div className="min-w-0">
-      <h1 className="text-[26px] font-extrabold leading-tight tracking-tight sm:text-3xl">{title}</h1>
-      {sub && <p className="mt-0.5 text-sm text-muted">{sub}</p>}
+      <h1 className="text-[26px] font-extrabold leading-tight tracking-tight sm:text-3xl">{tx(t, title)}</h1>
+      {sub && <p className="mt-0.5 text-sm text-muted">{tx(t, sub)}</p>}
     </div>
     {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
   </div>
-)
+  )
+}
 
-export const ErrorNote = ({ children }) =>
-  children ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{children}</div> : null
+export const ErrorNote = ({ children }) => {
+  const t = useT()
+  return children ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{tx(t, children)}</div> : null
+}
 
 /* ───────────────────────── Navigation helpers ───────────────────────── */
 /** Pill filter row — horizontally scrollable on phones. */
 export function Chips({ items, value, onChange }) {
+  const t = useT()
   return (
     <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1">
       {items.map(([k, label]) => (
@@ -267,7 +304,7 @@ export function Chips({ items, value, onChange }) {
           aria-pressed={value === k}
           className={cx('min-h-11 shrink-0 whitespace-nowrap rounded-full px-5 text-sm font-semibold transition duration-200 active:scale-95', value === k ? 'bg-brand text-white shadow-[0_6px_14px_-6px_rgb(23_100_95/.55)]' : 'bg-white text-slate-600 shadow-sm ring-1 ring-line hover:ring-slate-300')}
         >
-          {label}
+          {tx(t, label)}
         </button>
       ))}
     </div>
@@ -276,6 +313,7 @@ export function Chips({ items, value, onChange }) {
 
 /** Table on desktop, stacked cards on phones (labels come from column headers). */
 export function Table({ columns, rows, empty = 'Nothing here yet', rowKey = 'id' }) {
+  const t = useT()
   if (!rows?.length) return <Empty title={empty} />
   const actions = columns.filter((c) => !c.header)
   const fields = columns.filter((c) => c.header)
@@ -284,7 +322,7 @@ export function Table({ columns, rows, empty = 'Nothing here yet', rowKey = 'id'
       <div className="hidden overflow-x-auto rounded-[1.25rem] border border-line/70 bg-white shadow-card md:block">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-muted">
-            <tr>{columns.map((c, i) => <th key={c.header || i} className={cx('px-5 py-3.5 font-bold', c.className)}>{c.header}</th>)}</tr>
+            <tr>{columns.map((c, i) => <th key={c.header || i} className={cx('px-5 py-3.5 font-bold', c.className)}>{tx(t, c.header)}</th>)}</tr>
           </thead>
           <tbody className="divide-y divide-line">
             {rows.map((r, i) => (
@@ -301,7 +339,7 @@ export function Table({ columns, rows, empty = 'Nothing here yet', rowKey = 'id'
           <div key={r[rowKey] ?? i} style={{ animationDelay: `${Math.min(i, 10) * 25}ms` }} className="animate-pop rounded-[1.25rem] border border-line/70 bg-white p-4 shadow-card">
             {fields.map((c, idx) => (
               <div key={c.header} className={cx('flex items-center justify-between gap-3 py-1.5 text-sm', idx === 0 && 'pb-3 text-base font-bold')}>
-                {idx !== 0 && <span className="text-xs font-medium text-muted">{c.header}</span>}
+                {idx !== 0 && <span className="text-xs font-medium text-muted">{tx(t, c.header)}</span>}
                 <span className={cx('min-w-0', idx !== 0 && 'text-right')}>{c.render ? c.render(r) : r[c.key]}</span>
               </div>
             ))}

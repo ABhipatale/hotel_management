@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, HelpCircle, Trash2 } from 'lucide-react'
 import { Button } from '../components/ui'
+import { useT } from '../i18n'
 
 const ConfirmCtx = createContext(null)
 
@@ -18,6 +19,7 @@ const TONES = {
 }
 
 export function ConfirmProvider({ children }) {
+  const tr = useT()
   const [state, setState] = useState(null)
   const resolver = useRef(null)
 
@@ -57,11 +59,11 @@ export function ConfirmProvider({ children }) {
             <div className={`mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full ${t.ring}`}>
               <t.icon className="h-8 w-8" />
             </div>
-            <h3 id="confirm-title" className="text-xl font-extrabold tracking-tight">{state.title}</h3>
-            {state.message && <p className="mt-2 text-sm leading-relaxed text-muted">{state.message}</p>}
+            <h3 id="confirm-title" className="text-xl font-extrabold tracking-tight">{tr(state.title)}</h3>
+            {state.message && <p className="mt-2 text-sm leading-relaxed text-muted">{tr(state.message)}</p>}
             <div className="mt-6 grid grid-cols-2 gap-3">
-              <Button variant="secondary" size="lg" onClick={() => close(false)}>{state.cancelText}</Button>
-              <Button variant={t.button} size="lg" autoFocus onClick={() => close(true)}>{state.confirmText}</Button>
+              <Button variant="secondary" size="lg" onClick={() => close(false)}>{tr(state.cancelText)}</Button>
+              <Button variant={t.button} size="lg" autoFocus onClick={() => close(true)}>{tr(state.confirmText)}</Button>
             </div>
           </div>
         </div>

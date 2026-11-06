@@ -2,6 +2,7 @@ import { MessageCircle, Printer } from 'lucide-react'
 import { buildReceipt, printBluetooth, printUsb } from '../lib/escpos'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
+import { useT } from '../i18n'
 import { Button } from './ui'
 
 const m = (n) => Number(n).toFixed(2)
@@ -9,6 +10,7 @@ const m = (n) => Number(n).toFixed(2)
 /** Company-branded receipt. Width follows this company's saved printer setting (58mm / 80mm). */
 export default function Receipt({ data, phone }) {
   const toast = useToast()
+  const t = useT()
   const { hasFeature } = useAuth()
   const { bill, company, printer, table, order_no, waiter } = data
   const gstOn = company.gst_enabled !== false
@@ -21,12 +23,12 @@ export default function Receipt({ data, phone }) {
       if (canEscpos) {
         const bytes = buildReceipt(data)
         conn === 'usb' ? await printUsb(bytes) : await printBluetooth(bytes)
-        toast.success('Sent to printer')
+        toast.success(t('Sent to printer'))
       } else {
         window.print()
       }
     } catch (e) {
-      toast.error(e.message || 'Printing failed — falling back to browser print')
+      toast.error(e.message || t('Printing failed — falling back to browser print'))
       if (e.name !== 'NotFoundError') setTimeout(() => window.print(), 300)
     }
   }
@@ -69,11 +71,11 @@ export default function Receipt({ data, phone }) {
 
       {/* Buttons wrap onto two rows on very narrow phones instead of overflowing the sheet */}
       <div className="mt-5 flex flex-wrap gap-2.5">
-        <Button className="min-w-[8.5rem] flex-1" onClick={print}><Printer className="h-4 w-4" /> Print</Button>
+        <Button className="min-w-[8.5rem] flex-1" onClick={print}><Printer className="h-4 w-4" /> {t('Print')}</Button>
         <Button variant="secondary" className="min-w-[8.5rem] flex-1" onClick={whatsapp}><MessageCircle className="h-4 w-4" /> WhatsApp</Button>
       </div>
-      {canEscpos && <p className="mt-2 text-center text-xs text-muted">Prints to your {conn === 'usb' ? 'USB' : 'Bluetooth'} thermal printer</p>}
-      {conn === 'network' && <p className="mt-2 text-center text-xs text-muted">Network printers use the browser print dialog from this device.</p>}
+      {canEscpos && <p className="mt-2 text-center text-xs text-muted">{t(conn === 'usb' ? 'Prints to your USB thermal printer' : 'Prints to your Bluetooth thermal printer')}</p>}
+      {conn === 'network' && <p className="mt-2 text-center text-xs text-muted">{t('Network printers use the browser print dialog from this device.')}</p>}
     </div>
   )
 }
