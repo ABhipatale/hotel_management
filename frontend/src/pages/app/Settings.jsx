@@ -6,6 +6,7 @@ import { useToast } from '../../context/ToastContext'
 import { dt } from '../../lib/format'
 import { useT } from '../../i18n'
 import ImagePicker from '../../components/ImagePicker'
+import SavedPrinter from '../../components/SavedPrinter'
 import { Button, Card, Input, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
 
 export default function Settings() {
@@ -77,6 +78,7 @@ export default function Settings() {
                 <Select label="Paper width" value={p.paper_width} onChange={(e) => setP({ ...p, paper_width: e.target.value })}><option value="58mm">58 mm</option><option value="80mm">80 mm</option></Select>
                 <Select label="Connection" value={p.connection} onChange={(e) => setP({ ...p, connection: e.target.value })}><option value="browser">{t('Browser print')}</option><option value="usb">USB</option><option value="bluetooth">Bluetooth</option><option value="network">{t('Network')}</option></Select>
               </div>
+              {(p.connection === 'usb' || p.connection === 'bluetooth') && <SavedPrinter kind={p.connection} />}
               {p.connection === 'network' && <div className="grid grid-cols-2 gap-3"><Input label="Printer IP" value={p.ip_address || ''} onChange={(e) => setP({ ...p, ip_address: e.target.value })} /><Input label="Port" type="number" value={p.port || 9100} onChange={(e) => setP({ ...p, port: e.target.value })} /></div>}
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.use_escpos} onChange={(e) => setP({ ...p, use_escpos: e.target.checked })} /> {t('Use ESC/POS commands (USB / Bluetooth)')}</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.show_logo} onChange={(e) => setP({ ...p, show_logo: e.target.checked })} /> {t('Print logo on browser receipts')}</label>

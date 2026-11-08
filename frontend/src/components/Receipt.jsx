@@ -28,7 +28,7 @@ export default function Receipt({ data, phone }) {
         window.print()
       }
     } catch (e) {
-      toast.error(e.message || t('Printing failed — falling back to browser print'))
+      toast.error(e.message ? t(e.message) : t('Printing failed — falling back to browser print'))
       if (e.name !== 'NotFoundError') setTimeout(() => window.print(), 300)
     }
   }

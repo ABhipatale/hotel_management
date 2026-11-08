@@ -1,6 +1,13 @@
 // Tables, New order, Billing, Menu manager, Receipt dialog
 export default {
   hi: {
+    'Printer saved. Printing will now connect automatically.': 'प्रिंटर सेव हो गया। अब प्रिंट अपने-आप जुड़ेगा।',
+    'Saved on this device. Print connects automatically.': 'इस डिवाइस पर सेव है। प्रिंट अपने-आप जुड़ता है।',
+    'Choose printer (one time)': 'प्रिंटर चुनें (सिर्फ़ एक बार)',
+    'Forget': 'भूल जाएँ',
+    'No printer selected. Tap Print again and choose your printer once.': 'प्रिंटर नहीं चुना गया। फिर से प्रिंट दबाएँ और एक बार प्रिंटर चुनें।',
+    'Could not reach the printer. Switch it on, keep it close, then try again.': 'प्रिंटर से कनेक्ट नहीं हुआ। उसे चालू करें, पास रखें और फिर कोशिश करें।',
+    'Printer access is blocked by the browser. Allow Bluetooth/USB for this site.': 'ब्राउज़र ने प्रिंटर एक्सेस रोक दिया है। इस साइट के लिए Bluetooth/USB की अनुमति दें।',
     'View': 'दृश्य',
     'Picture cards': 'फोटो कार्ड',
     'Compact list': 'छोटी सूची',
@@ -61,6 +68,13 @@ export default {
     'Network printers use the browser print dialog from this device.': 'नेटवर्क प्रिंटर इस डिवाइस के ब्राउज़र प्रिंट डायलॉग से चलते हैं।',
   },
   mr: {
+    'Printer saved. Printing will now connect automatically.': 'प्रिंटर जतन झाला. आता प्रिंट आपोआप जोडले जाईल.',
+    'Saved on this device. Print connects automatically.': 'या डिव्हाइसवर जतन केला आहे. प्रिंट आपोआप जोडले जाते.',
+    'Choose printer (one time)': 'प्रिंटर निवडा (फक्त एकदा)',
+    'Forget': 'विसरा',
+    'No printer selected. Tap Print again and choose your printer once.': 'प्रिंटर निवडला नाही. पुन्हा प्रिंट दाबा आणि एकदा प्रिंटर निवडा.',
+    'Could not reach the printer. Switch it on, keep it close, then try again.': 'प्रिंटरशी जोडता आले नाही. तो सुरू करा, जवळ ठेवा आणि पुन्हा प्रयत्न करा.',
+    'Printer access is blocked by the browser. Allow Bluetooth/USB for this site.': 'ब्राउझरने प्रिंटर प्रवेश रोखला आहे. या साइटसाठी Bluetooth/USB ची परवानगी द्या.',
     'View': 'दृश्य',
     'Picture cards': 'फोटो कार्ड',
     'Compact list': 'लहान यादी',
