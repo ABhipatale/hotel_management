@@ -27,7 +27,7 @@ Seeded logins (non-production only):
 | Super admin | admin@hms.test | Admin@12345 |
 | Hotel Atithi owner (Premium) | atithi@demo.test | Dem o@12345 |
 | Friends Restaurant owner (Premium) | friends@demo.test | Demo@12345 |
-| Waiter (per company) | `waiter.` + owner email, e.g. `waiter.atithi@demo.test` | Demo@12345 |
+| Waiter (per company) | `waiter.` + owner email, e.g. `waiter.atithi@demo.test` | Demo@12345 |  
 
 ## Tenant isolation design
 
