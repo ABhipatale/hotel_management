@@ -70,4 +70,17 @@ class ProductNumberTest extends TestCase
         $cb = $this->getJson('/api/menu/categories', $b)->json('0.id');
         $this->postJson('/api/menu/items', ['category_id' => $cb, 'name' => 'Y', 'price' => 1, 'code' => 777], $b)->assertCreated();
     }
+
+    public function test_marathi_name_is_saved_searchable_and_public(): void
+    {
+        $h = $this->h('atithi@demo.test');
+        $cat = $this->getJson('/api/menu/categories', $h)->json('0.id');
+        $a = $this->postJson('/api/menu/items', ['category_id' => $cat, 'name' => 'Bhakri', 'name_mr' => 'भाकरी', 'price' => 25], $h)->assertCreated()->assertJsonPath('name_mr', 'भाकरी');
+        $this->assertSame('Bhakri', $this->getJson('/api/menu/items?search='.urlencode('भाकरी'), $h)->json('0.name'));
+        $this->postJson('/api/menu/items/'.$a->json('id'), ['name_mr' => 'ज्वारी भाकरी'], $h)->assertOk()->assertJsonPath('name_mr', 'ज्वारी भाकरी');
+        $slug = $this->postJson('/api/auth/login', ['email' => 'atithi@demo.test', 'password' => 'Demo@12345'])->json('company.slug');
+        $token = \App\Models\TableQrToken::withoutGlobalScopes()->where('company_id', \App\Models\Company::where('slug', $slug)->value('id'))->value('token');
+        $menu = $this->getJson("/api/public/menu/$slug/table/$token")->assertOk()->json('items');
+        $this->assertContains('ज्वारी भाकरी', array_column($menu, 'name_mr'));
+    }
 }

@@ -44,7 +44,7 @@ export default function QrMenu() {
     return () => clearInterval(t)
   }, [menu, loadOrders])
 
-  const list = useMemo(() => (menu?.items || []).filter((i) => (cat === 'all' || i.category_id === +cat) && i.name.toLowerCase().includes(q.toLowerCase())), [menu, cat, q])
+  const list = useMemo(() => (menu?.items || []).filter((i) => (cat === 'all' || i.category_id === +cat) && (i.name.toLowerCase().includes(q.toLowerCase()) || (i.name_mr || '').toLowerCase().includes(q.toLowerCase()))), [menu, cat, q])
   const lines = Object.values(cart)
   const count = lines.reduce((a, l) => a + l.quantity, 0)
   const gstOn = menu?.company?.gst_enabled !== false
@@ -96,6 +96,7 @@ export default function QrMenu() {
             <div key={i.id} className="flex gap-3 rounded-2xl border border-line bg-white p-3 shadow-sm">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5"><i className={`h-3 w-3 shrink-0 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} /><span className="font-medium">{i.name}</span></div>
+                {i.name_mr && <div className="text-sm text-muted">{i.name_mr}</div>}
                 {i.offer_text && <div className="mt-0.5 text-xs font-medium text-emerald-600">{i.offer_text}</div>}
                 {i.description && <p className="mt-1 line-clamp-2 text-xs text-muted">{i.description}</p>}
                 <div className="mt-2 flex items-center gap-2"><b>{money(unit(i))}</b>{+i.discount_percent > 0 && <s className="text-xs text-muted">{money(i.price)}</s>}{i.variants.length > 0 && <span className="text-[11px] text-muted">· {t('{n} sizes', { n: i.variants.length + 1 })}</span>}</div>

@@ -9,7 +9,6 @@ use App\Models\User;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 
 class StaffController extends Controller
 {
@@ -32,7 +31,7 @@ class StaffController extends Controller
             'name' => 'required|string|max:120',
             'email' => 'required|email|unique:users,email',
             'phone' => 'nullable|string|max:20',
-            'password' => ['required', Password::min(8)->letters()->numbers()],
+            'password' => ['required', 'string', 'min:6', 'max:100'],
             'role' => ['required', Rule::in(self::ASSIGNABLE)],
         ]);
 
@@ -57,7 +56,7 @@ class StaffController extends Controller
             'name' => 'sometimes|string|max:120',
             'email' => ['sometimes', 'email', Rule::unique('users', 'email')->ignore($u->id)],
             'phone' => 'nullable|string|max:20',
-            'password' => ['nullable', Password::min(8)->letters()->numbers()],
+            'password' => ['nullable', 'string', 'min:6', 'max:100'],
             'role' => ['sometimes', Rule::in(self::ASSIGNABLE)],
             'is_active' => 'sometimes|boolean',
         ]);

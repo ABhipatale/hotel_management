@@ -19,6 +19,18 @@ export default function Companies() {
   const [adding, setAdding] = useState(false)
   const [detail, setDetail] = useState(null)
 
+  // Opening Manage on a company that has not bought a plan yet sets the Monthly plan for it automatically
+  const manage = async (c) => {
+    setDetail(c)
+    if (c.current_subscription || c.deleted_at) return
+    try {
+      const { data: sub } = await api.post(`/admin/companies/${c.id}/subscription`, { billing_cycle: 'monthly' })
+      toast.success(tr('Monthly plan set automatically - this company had not purchased a plan yet'))
+      setDetail((d) => (d && d.id === c.id ? { ...d, current_subscription: sub } : d))
+      reload()
+    } catch (e) { toast.error(e) }
+  }
+
   const act = async (fn, msg) => {
     try { await fn(); toast.success(msg); reload(); setDetail(null) } catch (e) { toast.error(e) }
   }
@@ -50,7 +62,7 @@ export default function Companies() {
             { header: 'Subscription', render: (c) => (c.current_subscription ? <span className="capitalize">{tr(c.current_subscription.billing_cycle)}</span> : <Badge tone="amber">Awaiting purchase</Badge>) },
             { header: 'Status', render: (c) => <Badge tone={c.deleted_at ? 'red' : statusTone(c.status)}>{c.deleted_at ? 'deleted' : c.status}</Badge> },
             { header: 'Expires', render: (c) => dateOnly(c.current_subscription?.ends_at) },
-            { header: '', className: 'text-right', render: (c) => <Button size="sm" variant="secondary" onClick={() => setDetail(c)}>Manage</Button> },
+            { header: '', className: 'text-right', render: (c) => <Button size="sm" variant="secondary" onClick={() => manage(c)}>Manage</Button> },
           ]}
         />
       )}
@@ -202,7 +214,7 @@ function AddCompany({ open, onClose, onDone }) {
         <Input label="Owner name" required value={f.owner_name} onChange={s('owner_name')} />
         <Input label="Mobile" required value={f.phone} onChange={s('phone')} />
         <Input label="Owner email" type="email" required value={f.email} onChange={s('email')} />
-        <Input label="Initial password" type="password" required value={f.password} onChange={s('password')} hint="Min 8 chars, letters + numbers" />
+        <Input label="Initial password" type="password" required value={f.password} onChange={s('password')} hint="At least 6 characters (a 6-digit PIN is fine)" />
         <Input label="City" value={f.city} onChange={s('city')} />
         <GstFields enabled={f.gst_enabled} number={f.gst_number} onEnabled={(v) => setF({ ...f, gst_enabled: v })} onNumber={(v) => setF({ ...f, gst_number: v })} />
       <QrSwitch checked={f.qr_enabled} onChange={(v) => setF({ ...f, qr_enabled: v })} />

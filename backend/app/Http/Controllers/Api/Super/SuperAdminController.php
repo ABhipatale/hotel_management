@@ -16,7 +16,6 @@ use App\Services\CompanyProvisioner;
 use App\Services\SubscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rules\Password;
 
 /** Platform-level controller. All routes sit behind 'superadmin' (explicitly unscoped). */
 class SuperAdminController extends Controller
@@ -77,7 +76,7 @@ class SuperAdminController extends Controller
             'owner_name' => 'required|string|max:120',
             'phone' => 'required|string|max:20',
             'email' => 'required|email|unique:users,email',
-            'password' => ['required', Password::min(8)->letters()->numbers()],
+            'password' => ['required', 'string', 'min:6', 'max:100'],
             'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:80',
             'state' => 'nullable|string|max:80',

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Img from '../../components/Img'
 import { compressImage } from '../../lib/image'
-import { Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react'
+import { Download, Pencil, Plus, Trash2, Upload, UtensilsCrossed } from 'lucide-react'
 import { api, toFormData } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { money } from '../../lib/format'
@@ -11,7 +11,22 @@ import { useConfirm } from '../../context/ConfirmContext'
 import { useT } from '../../i18n'
 import { Badge, Button, Card, Chips, Empty, Input, Modal, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
 
-const BLANK = { code: '', category_id: '', name: '', description: '', price: '', gst_percent: 5, discount_percent: 0, is_veg: true, is_available: true, stock: '', offer_text: '', variants: [] }
+const BLANK = { code: '', category_id: '', name: '', name_mr: '', description: '', price: '', gst_percent: 5, discount_percent: 0, is_veg: true, is_available: true, stock: '', offer_text: '', variants: [] }
+
+const SAMPLE_CSV = [
+  'product_number,name,marathi_name,category,price,gst_percent,discount_percent,veg,available,stock,description,offer_text',
+  '101,Roti,चपाती,Breads,20,5,0,yes,yes,,Fresh tandoor roti,',
+  '102,Bhaji,भाजी,Main Course,60,5,0,yes,yes,50,"Seasonal vegetable, home style",',
+  '103,Chicken Biryani,चिकन बिर्याणी,Rice,220,5,10,no,yes,,Served with raita,Lunch special',
+  ',Masala Tea,मसाला चहा,Beverages,15,5,0,yes,yes,,,',
+].join('\n')
+
+function downloadSample() {
+  const url = URL.createObjectURL(new Blob(['\uFEFF' + SAMPLE_CSV + '\n'], { type: 'text/csv;charset=utf-8' }))
+  const a = Object.assign(document.createElement('a'), { href: url, download: 'menu-sample.csv' })
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
 
 export default function MenuManager() {
   const toast = useToast()
@@ -27,11 +42,15 @@ export default function MenuManager() {
   const [catModal, setCatModal] = useState(false)
   const [newCat, setNewCat] = useState('')
   const [busy, setBusy] = useState(false)
+  const [csvOpen, setCsvOpen] = useState(false)
+  const [csvFile, setCsvFile] = useState(null)
+  const [csvBusy, setCsvBusy] = useState(false)
+  const [csvRes, setCsvRes] = useState(null)
 
   const rows = (items || []).filter((i) => cat === 'all' || i.category_id === +cat)
   // New dishes are pre-filled with the next free product number (the owner can change it)
   const nextCode = Math.max(0, ...(items || []).map((i) => Number(i.code) || 0)) + 1
-  const open = (i) => { setImage(null); setEdit(i ? { ...i, code: i.code ?? '', stock: i.stock ?? '', variants: i.variants.map((v) => ({ name: v.name, price: v.price })) } : { ...BLANK, code: nextCode, category_id: cats?.[0]?.id || '' }) }
+  const open = (i) => { setImage(null); setEdit(i ? { ...i, code: i.code ?? '', name_mr: i.name_mr ?? '', stock: i.stock ?? '', variants: i.variants.map((v) => ({ name: v.name, price: v.price })) } : { ...BLANK, code: nextCode, category_id: cats?.[0]?.id || '' }) }
 
   const save = async (e) => {
     e.preventDefault(); setBusy(true)
@@ -45,6 +64,14 @@ export default function MenuManager() {
       toast.success(t('Saved')); setEdit(null); reload(); reloadCats()
     } catch (x) { toast.error(x) } finally { setBusy(false) }
   }
+  const uploadCsv = async () => {
+    setCsvBusy(true)
+    try {
+      const body = new FormData(); body.append('file', csvFile)
+      const { data } = await api.post('/menu/import', body)
+      setCsvRes(data); setCsvFile(null); reload(); reloadCats()
+    } catch (x) { toast.error(x) } finally { setCsvBusy(false) }
+  }
   const del = async (i) => { if (await ask({ title: t('Delete {name}?', { name: i.name }), message: t('This dish will be removed from your menu and the QR menu.'), confirmText: t('Delete dish') })) { try { await api.delete(`/menu/items/${i.id}`); reload() } catch (e) { toast.error(e) } } }
   const toggle = async (i) => { try { await api.post(`/menu/items/${i.id}`, toFormData({ is_available: !i.is_available })); reload() } catch (e) { toast.error(e) } }
   const addCat = async () => { try { await api.post('/menu/categories', { name: newCat }); setNewCat(''); reloadCats() } catch (e) { toast.error(e) } }
@@ -54,7 +81,7 @@ export default function MenuManager() {
   if (loading) return <Spinner />
   return (
     <>
-      <PageHeader title={t('Menu')} sub={t('Categories, dishes, variants and prices')} actions={<><Button variant="secondary" onClick={() => setCatModal(true)}>{t('Categories')}</Button><Button onClick={() => open()}><Plus className="h-4 w-4" /> {t('Add dish')}</Button></>} />
+      <PageHeader title={t('Menu')} sub={t('Categories, dishes, variants and prices')} actions={<><Button variant="secondary" onClick={() => { setCsvRes(null); setCsvFile(null); setCsvOpen(true) }}><Upload className="h-4 w-4" /> {t('Import CSV')}</Button><Button variant="secondary" onClick={() => setCatModal(true)}>{t('Categories')}</Button><Button onClick={() => open()}><Plus className="h-4 w-4" /> {t('Add dish')}</Button></>} />
       <Chips value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), c.name])]} />
 
       {!rows.length ? <Empty title={t('No dishes yet')} action={<Button onClick={() => open()}>{t('Add your first dish')}</Button>} /> : (
@@ -64,6 +91,7 @@ export default function MenuManager() {
               {i.image_url ? <Img src={i.image_url} thumb className="h-20 w-20 shrink-0 rounded-xl object-cover" /> : <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-brand-soft"><UtensilsCrossed className="h-7 w-7 text-brand/40" strokeWidth={1.6} /></div>}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">{i.code != null && <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-md bg-brand px-1.5 text-[11px] font-extrabold leading-none text-white">{i.code}</span>}<i className={`h-2.5 w-2.5 shrink-0 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} /><span className="truncate font-medium">{i.name}</span></div>
+                {i.name_mr && <div className="truncate text-xs text-muted">{i.name_mr}</div>}
                 <div className="text-xs text-muted">{i.category?.name}{gstOn ? ` · ${t('GST {n}%', { n: i.gst_percent })}` : ''}</div>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5"><b className="text-brand">{money(i.price)}</b>{Number(i.discount_percent) > 0 && <Badge tone="green">{t('{n}% off', { n: i.discount_percent })}</Badge>}{i.variants.length > 0 && <Badge tone="violet">{t('{n} variants', { n: i.variants.length })}</Badge>}{i.stock !== null && <Badge tone={i.stock < 5 ? 'red' : 'slate'}>{t('stock {n}', { n: i.stock })}</Badge>}</div>
                 <div className="mt-2 flex gap-1.5">
@@ -82,6 +110,7 @@ export default function MenuManager() {
           <form onSubmit={save} className="grid gap-3 sm:grid-cols-2">
             <Input label={t('Product number')} type="number" inputMode="numeric" min="1" max="99999" value={edit.code} onChange={s('code')} placeholder={t('Auto')} hint={t('Short number for fast ordering, e.g. 1 = Roti. Leave blank to auto-number.')} />
             <Input label={t('Name')} required value={edit.name} onChange={s('name')} />
+            <Input label={t('Marathi name (optional)')} lang="mr" value={edit.name_mr || ''} onChange={s('name_mr')} placeholder="उदा. भाकरी" />
             <Select label={t('Category')} required value={edit.category_id} onChange={s('category_id')}>{cats?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select>
             <Input label={t('Price (₹)')} type="number" min="0" step="0.01" required value={edit.price} onChange={s('price')} />
             <Input label={t('GST %')} type="number" min="0" max="28" step="0.01" value={gstOn ? edit.gst_percent : ''} onChange={s('gst_percent')} disabled={!gstOn} placeholder={gstOn ? '' : t('GST is off')} />
@@ -107,6 +136,34 @@ export default function MenuManager() {
             <Button type="submit" loading={busy} className="sm:col-span-2">{t('Save dish')}</Button>
           </form>
         )}
+      </Modal>
+
+      <Modal open={csvOpen} onClose={() => setCsvOpen(false)} title={t('Upload menu from CSV')} wide>
+        <div className="space-y-4">
+          <ol className="space-y-1.5 text-sm text-muted">
+            <li><b className="text-ink">1.</b> {t('Download the sample file and open it in Excel or Google Sheets.')}</li>
+            <li><b className="text-ink">2.</b> {t('Replace the sample rows with your dishes (one dish per row) and save as CSV.')}</li>
+            <li><b className="text-ink">3.</b> {t('Upload it here. A row with an existing product number updates that dish; other rows add new dishes. Blank product number = auto-number.')}</li>
+          </ol>
+          <Button variant="secondary" className="w-full" onClick={downloadSample}><Download className="h-4 w-4" /> {t('Download sample CSV')}</Button>
+          <div className="rounded-2xl bg-canvas p-3 text-xs text-muted ring-1 ring-line">
+            <b className="text-ink">{t('Columns')}:</b> product_number, name*, marathi_name, category*, price*, gst_percent, discount_percent, veg (yes/no), available (yes/no), stock, description, offer_text
+            <div className="mt-1">* {t('required. New categories are created automatically.')}</div>
+          </div>
+          <Input label={t('Choose CSV file')} type="file" accept=".csv,text/csv" onChange={(e) => { setCsvFile(e.target.files[0] || null); setCsvRes(null) }} />
+          <Button className="w-full" disabled={!csvFile} loading={csvBusy} onClick={uploadCsv}><Upload className="h-4 w-4" /> {t('Upload dishes')}</Button>
+          {csvRes && (
+            <div className="space-y-2">
+              <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{t('{c} added, {u} updated, {s} skipped', { c: csvRes.created, u: csvRes.updated, s: csvRes.skipped })}</div>
+              {csvRes.errors.length > 0 && (
+                <div className="max-h-48 space-y-1 overflow-y-auto rounded-2xl bg-rose-50 p-3 text-xs text-rose-800">
+                  <div className="font-bold">{t('These rows were not imported:')}</div>
+                  {csvRes.errors.map((e) => <div key={e.row}>{t('Line {n}', { n: e.row })}: {e.message}</div>)}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </Modal>
 
       <Modal open={catModal} onClose={() => setCatModal(false)} title={t('Categories')}>

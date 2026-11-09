@@ -108,6 +108,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
             Route::post('menu/categories', [MenuController::class, 'storeCategory']);
             Route::put('menu/categories/{id}', [MenuController::class, 'updateCategory']);
             Route::delete('menu/categories/{id}', [MenuController::class, 'destroyCategory']);
+            Route::post('menu/import', [MenuController::class, 'import']);
             Route::get('menu/next-code', [MenuController::class, 'nextCode']);
             Route::post('menu/items', [MenuController::class, 'storeItem']);
             Route::post('menu/items/{id}', [MenuController::class, 'updateItem']); // POST for multipart

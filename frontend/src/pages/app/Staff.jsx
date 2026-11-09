@@ -58,7 +58,7 @@ export default function Staff() {
             <Input label="Full name" required value={edit.name} onChange={s('name')} />
             <Input label="Login email" type="email" required value={edit.email} onChange={s('email')} />
             <Input label="Mobile" value={edit.phone || ''} onChange={s('phone')} />
-            <Input label={edit.id ? 'New password (leave blank to keep)' : 'Password'} type="password" required={!edit.id} value={edit.password} onChange={s('password')} hint="Min 8 characters with letters and numbers" autoComplete="new-password" />
+            <Input label={edit.id ? 'New password (leave blank to keep)' : 'Password'} type="password" required={!edit.id} value={edit.password} onChange={s('password')} hint="At least 6 characters (a 6-digit PIN is fine)" autoComplete="new-password" />
             <Select label="Role" value={edit.role} onChange={s('role')}>{ROLES.map((r) => <option key={r} value={r}>{t(r)}</option>)}</Select>
             <Button type="submit" className="w-full">Save</Button>
           </form>

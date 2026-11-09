@@ -1,6 +1,7 @@
 // Super-admin (platform operator) screens
 export default {
   hi: {
+    'Monthly plan set automatically - this company had not purchased a plan yet': 'मासिक प्लान अपने-आप सेट हो गया - इस कंपनी ने अभी तक प्लान नहीं खरीदा था',
     'Default language': 'डिफ़ॉल्ट भाषा',
     "The language this company's app opens in. Each user can still switch it themselves.": 'इस कंपनी का ऐप इसी भाषा में खुलेगा। हर यूज़र अपनी भाषा खुद बदल सकता है।',
     'Platform overview': 'प्लेटफ़ॉर्म का सारांश',
@@ -87,7 +88,7 @@ export default {
     'Owner name': 'मालिक का नाम',
     'Owner email': 'मालिक का ईमेल',
     'Initial password': 'शुरुआती पासवर्ड',
-    'Min 8 chars, letters + numbers': 'कम से कम 8 अक्षर, अक्षर + अंक',
+    'At least 6 characters (a 6-digit PIN is fine)': 'कम से कम 6 अक्षर (6 अंकों का PIN भी चलेगा)',
     'Customer purchases the plan on first login': 'ग्राहक पहले लॉगिन पर खुद प्लान खरीदेगा',
     'I grant 1 month now': 'मैं अभी 1 महीना देता/देती हूँ',
     'I grant 1 year now': 'मैं अभी 1 साल देता/देती हूँ',
@@ -99,6 +100,7 @@ export default {
     'Support': 'सहायता',
   },
   mr: {
+    'Monthly plan set automatically - this company had not purchased a plan yet': 'मासिक प्लॅन आपोआप सेट झाला - या कंपनीने अजून प्लॅन खरेदी केला नव्हता',
     'Default language': 'डीफॉल्ट भाषा',
     "The language this company's app opens in. Each user can still switch it themselves.": 'या कंपनीचे अॅप याच भाषेत उघडेल. प्रत्येक वापरकर्ता स्वतःची भाषा बदलू शकतो.',
     'Platform overview': 'प्लॅटफॉर्मचा आढावा',
@@ -185,7 +187,7 @@ export default {
     'Owner name': 'मालकाचे नाव',
     'Owner email': 'मालकाचा ईमेल',
     'Initial password': 'सुरुवातीचा पासवर्ड',
-    'Min 8 chars, letters + numbers': 'किमान 8 अक्षरे, अक्षरे + अंक',
+    'At least 6 characters (a 6-digit PIN is fine)': 'किमान 6 अक्षरे (6 अंकी PIN चालेल)',
     'Customer purchases the plan on first login': 'ग्राहक पहिल्या लॉगिनवर स्वतः प्लॅन खरेदी करेल',
     'I grant 1 month now': 'मी आता 1 महिना देतो/देते',
     'I grant 1 year now': 'मी आता 1 वर्ष देतो/देते',

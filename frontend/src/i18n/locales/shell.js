@@ -208,7 +208,7 @@ const ROWS = [
   ['Login email', 'लॉगिन ईमेल', 'लॉगिन ईमेल'],
   ['Mobile', 'मोबाइल', 'मोबाइल'],
   ['New password (leave blank to keep)', 'नया पासवर्ड (वही रखने के लिए खाली छोड़ें)', 'नवीन पासवर्ड (तोच ठेवण्यासाठी रिकामे सोडा)'],
-  ['Min 8 characters with letters and numbers', 'कम से कम 8 अक्षर, अक्षरों और अंकों के साथ', 'किमान 8 अक्षरे, अक्षरे आणि अंकांसह'],
+  ['At least 6 characters (a 6-digit PIN is fine)', 'कम से कम 6 अक्षर (6 अंकों का PIN भी चलेगा)', 'किमान 6 अक्षरे (6 अंकी PIN चालेल)'],
   ['Delete {name}?', '{name} को हटाएँ?', '{name} हटवायचे?'],
   ['They will no longer be able to sign in.', 'वे अब साइन इन नहीं कर पाएँगे।', 'ते यापुढे साइन इन करू शकणार नाहीत.'],
   ['Delete staff', 'स्टाफ हटाएँ', 'कर्मचारी हटवा'],
@@ -259,7 +259,7 @@ const ROWS = [
   ['The email field is required.', 'ईमेल भरना ज़रूरी है।', 'ईमेल भरणे आवश्यक आहे.'],
   ['The password field is required.', 'पासवर्ड भरना ज़रूरी है।', 'पासवर्ड भरणे आवश्यक आहे.'],
   ['The name field is required.', 'नाम भरना ज़रूरी है।', 'नाव भरणे आवश्यक आहे.'],
-  ['The password field must be at least 8 characters.', 'पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।', 'पासवर्ड किमान 8 अक्षरांचा असावा.'],
+  ['The password field must be at least 6 characters.', 'पासवर्ड कम से कम 6 अक्षरों का होना चाहिए।', 'पासवर्ड किमान 6 अक्षरांचा असावा.'],
   ['The password field must contain at least one letter.', 'पासवर्ड में कम से कम एक अक्षर होना चाहिए।', 'पासवर्डमध्ये किमान एक अक्षर असावे.'],
   ['The password field must contain at least one number.', 'पासवर्ड में कम से कम एक अंक होना चाहिए।', 'पासवर्डमध्ये किमान एक अंक असावा.'],
 ]

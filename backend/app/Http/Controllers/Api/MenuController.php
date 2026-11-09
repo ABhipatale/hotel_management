@@ -49,10 +49,18 @@ class MenuController extends Controller
             $q->where('category_id', $c);
         }
         if ($s = $r->query('search')) {
-            $q->where(fn ($w) => $w->where('name', 'like', "%$s%")->orWhere('code', ctype_digit($s) ? (int) $s : -1));
+            $q->where(fn ($w) => $w->where('name', 'like', "%$s%")->orWhere('name_mr', 'like', "%$s%")->orWhere('code', ctype_digit($s) ? (int) $s : -1));
         }
 
         return $q->orderByRaw('code is null')->orderBy('code')->orderBy('name')->get();
+    }
+
+    /** Bulk upload: a CSV with one dish per row (see the sample CSV in the Menu screen). */
+    public function import(Request $r, \App\Services\MenuImporter $importer)
+    {
+        $r->validate(['file' => 'required|file|max:2048']);
+
+        return $importer->import($r->file('file'));
     }
 
     /** Next free product number for this company (shown pre-filled in the Add dish form). */
@@ -111,6 +119,7 @@ class MenuController extends Controller
             'branch_id' => ['nullable', Tenant::exists('branches')],
             'code' => ['nullable', 'integer', 'min:1', 'max:99999', Rule::unique('food_items', 'code')->where('company_id', Tenant::id())->ignore($ignoreId)],
             'name' => "$req|string|max:120",
+            'name_mr' => 'nullable|string|max:120',
             'description' => 'nullable|string|max:500',
             'price' => "$req|numeric|min:0",
             'gst_percent' => 'numeric|min:0|max:28',
