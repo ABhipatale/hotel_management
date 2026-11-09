@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Banknote, Smartphone } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
@@ -60,51 +60,54 @@ export default function Billing() {
   )
 }
 
-const METHODS = ['cash', 'upi', 'card', 'wallet']
 const cents = (v) => Math.round((Number(v) || 0) * 100)
+const fix = (paise) => (Math.max(paise, 0) / 100).toFixed(2)
 
 /**
- * Collect payment. The FULL bill amount is filled in automatically; the user can change the amount
- * or split it across several payment methods (e.g. part cash, part UPI). Paid must equal the bill.
+ * Collect payment: only Cash and UPI. One customer may pay part in cash and part online —
+ * type either amount and the other fills in with what is left, so the two always add up to the bill.
  */
 function PayModal({ bill, onClose, onPaid }) {
   const toast = useToast()
   const t = useT()
-  const methodLabel = (m) => t(m === 'upi' ? 'UPI' : m[0].toUpperCase() + m.slice(1))
   const total = bill ? Number(bill.grand_total) : 0
-  const [lines, setLines] = useState([])
+  const [cash, setCash] = useState('')
+  const [upi, setUpi] = useState('')
+  const [ref, setRef] = useState('')
   const [tendered, setTendered] = useState('')
   const [busy, setBusy] = useState(false)
 
-  // Every time a bill is opened: one cash line holding the whole amount
+  // Every time a bill is opened: the whole amount in cash (change it with one tap)
   useEffect(() => {
-    if (bill) {
-      setLines([{ method: 'cash', amount: total.toFixed(2), ref: '' }])
-      setTendered('')
-    }
+    if (bill) { setCash(Number(bill.grand_total).toFixed(2)); setUpi(''); setRef(''); setTendered('') }
   }, [bill?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!bill) return null
 
-  const paid = lines.reduce((a, l) => a + cents(l.amount), 0)
-  const remaining = cents(total) - paid // in paise
-  const balanced = remaining === 0 && lines.length > 0 && lines.every((l) => cents(l.amount) > 0)
-  const set = (i, patch) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)))
-  const split = () => {
-    const used = new Set(lines.map((l) => l.method))
-    setLines((ls) => [...ls, { method: METHODS.find((m) => !used.has(m)) || 'upi', amount: (Math.max(remaining, 0) / 100).toFixed(2), ref: '' }])
-  }
-  const single = lines.length === 1 && lines[0].method === 'cash'
-  const change = single && tendered ? Math.max(0, Number(tendered) - Number(lines[0].amount || 0)) : 0
+  const due = cents(total)
+  const paid = cents(cash) + cents(upi)
+  const remaining = due - paid // paise
+  const balanced = remaining === 0 && paid > 0
+  const onCash = (v) => { setCash(v); setUpi(due - cents(v) > 0 ? fix(due - cents(v)) : '') }
+  const onUpi = (v) => { setUpi(v); setCash(due - cents(v) > 0 ? fix(due - cents(v)) : '') }
+  const preset = (c, u) => { setCash(c ? fix(c) : ''); setUpi(u ? fix(u) : ''); setTendered('') }
+  const change = cents(cash) > 0 && tendered ? Math.max(0, Number(tendered) - Number(cash || 0)) : 0
 
   const pay = async () => {
     setBusy(true)
     try {
-      const r = await api.post(`/bills/${bill.id}/pay`, { payments: lines.map((l) => ({ method: l.method, amount: Number(l.amount), reference: l.ref || undefined })) })
+      const payments = []
+      if (cents(cash) > 0) payments.push({ method: 'cash', amount: Number(cash) })
+      if (cents(upi) > 0) payments.push({ method: 'upi', amount: Number(upi), reference: ref || undefined })
+      const r = await api.post(`/bills/${bill.id}/pay`, { payments })
       toast.success(t('Payment received'))
       onPaid(r.data)
     } catch (e) { toast.error(e) } finally { setBusy(false) }
   }
+
+  const chip = (label, on, active) => (
+    <button type="button" onClick={on} className={`min-h-11 flex-1 rounded-xl border px-2 text-sm font-bold transition active:scale-95 ${active ? 'border-brand bg-brand-soft text-brand' : 'border-line bg-white text-slate-600'}`}>{label}</button>
+  )
 
   return (
     <Modal open onClose={onClose} title={t('Collect {amount}', { amount: money(total) })}>
@@ -115,29 +118,31 @@ function PayModal({ bill, onClose, onPaid }) {
           ))}
         </div>
 
-        {lines.map((l, i) => (
-          <div key={i} className="space-y-3 rounded-2xl border border-line p-3">
-            <div className="grid grid-cols-4 gap-2">
-              {METHODS.map((m) => (
-                <button key={m} type="button" onClick={() => set(i, { method: m })} className={`min-h-11 rounded-xl border text-sm font-bold transition ${l.method === m ? 'border-brand bg-brand-soft text-brand' : 'border-line text-slate-600'}`}>{methodLabel(m)}</button>
-              ))}
-            </div>
-            <div className="flex items-end gap-2">
-              <div className="flex-1"><Input label={lines.length > 1 ? t('Amount · {method}', { method: methodLabel(l.method) }) : t('Amount')} type="number" min="0" step="0.01" inputMode="decimal" value={l.amount} onChange={(e) => set(i, { amount: e.target.value })} /></div>
-              {lines.length > 1 && <button type="button" aria-label={t('Remove this payment')} onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))} className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-rose-50 text-rose-600 active:bg-rose-100"><Trash2 className="h-5 w-5" /></button>}
-            </div>
-            {l.method !== 'cash' && <Input label={t('Reference / transaction ID (optional)')} value={l.ref} onChange={(e) => set(i, { ref: e.target.value })} />}
-          </div>
-        ))}
+        <div className="flex gap-2">
+          {chip(t('Full cash'), () => preset(due, 0), cents(cash) === due)}
+          {chip(t('Full UPI'), () => preset(0, due), cents(upi) === due)}
+          {chip(t('Half & half'), () => preset(Math.floor(due / 2), due - Math.floor(due / 2)), cents(cash) > 0 && cents(upi) > 0)}
+        </div>
 
-        {single && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className={`rounded-2xl border p-3 transition ${cents(cash) > 0 ? 'border-emerald-300 bg-emerald-50/60' : 'border-line'}`}>
+            <div className="mb-1 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-emerald-700"><Banknote className="h-4 w-4" />{t('Cash')}</div>
+            <input aria-label={t('Cash')} type="number" min="0" step="0.01" inputMode="decimal" value={cash} placeholder="0" onChange={(e) => onCash(e.target.value)} onFocus={(e) => e.target.select()} className="tabular min-h-12 w-full rounded-xl border border-line bg-white px-3 text-xl font-extrabold outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" />
+          </div>
+          <div className={`rounded-2xl border p-3 transition ${cents(upi) > 0 ? 'border-violet-300 bg-violet-50/60' : 'border-line'}`}>
+            <div className="mb-1 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-violet-700"><Smartphone className="h-4 w-4" />{t('UPI / Online')}</div>
+            <input aria-label={t('UPI / Online')} type="number" min="0" step="0.01" inputMode="decimal" value={upi} placeholder="0" onChange={(e) => onUpi(e.target.value)} onFocus={(e) => e.target.select()} className="tabular min-h-12 w-full rounded-xl border border-line bg-white px-3 text-xl font-extrabold outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" />
+          </div>
+        </div>
+
+        {cents(upi) > 0 && <Input label={t('UPI reference / transaction ID (optional)')} value={ref} onChange={(e) => setRef(e.target.value)} />}
+        {cents(cash) > 0 && (
           <>
             <Input label={t('Cash received (optional)')} type="number" min="0" inputMode="decimal" value={tendered} onChange={(e) => setTendered(e.target.value)} hint={t('Enter what the customer handed over to see the change.')} />
             {change > 0 && <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{t('Return change:')} <b>{money(change)}</b></div>}
           </>
         )}
 
-        {remaining > 0 && lines.length < 4 && <Button variant="secondary" className="w-full" onClick={split}><Plus className="h-4 w-4" /> {t('Split — add another payment ({amount} left)', { amount: money(remaining / 100) })}</Button>}
         {remaining !== 0 && <p className="text-center text-xs font-medium text-accent-dark">{remaining > 0 ? t('{amount} still to be collected', { amount: money(remaining / 100) }) : t('Amounts exceed the bill by {amount}', { amount: money(Math.abs(remaining) / 100) })}</p>}
 
         <Button variant="accent" className="w-full" size="lg" disabled={!balanced} loading={busy} onClick={pay}>{t('Confirm payment · {amount}', { amount: money(total) })}</Button>

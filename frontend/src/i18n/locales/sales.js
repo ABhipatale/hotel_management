@@ -1,6 +1,11 @@
 // Tables, New order, Billing, Menu manager, Receipt dialog
 export default {
   hi: {
+    'Full cash': 'पूरा नकद',
+    'Full UPI': 'पूरा UPI',
+    'Half & half': 'आधा-आधा',
+    'UPI / Online': 'UPI / ऑनलाइन',
+    'UPI reference / transaction ID (optional)': 'UPI रेफ़रेंस / ट्रांज़ैक्शन ID (वैकल्पिक)',
     'Product number': 'प्रोडक्ट नंबर',
     'Auto': 'ऑटो',
     'Short number for fast ordering, e.g. 1 = Roti. Leave blank to auto-number.': 'तेज़ ऑर्डर के लिए छोटा नंबर, जैसे 1 = रोटी। अपने-आप नंबर के लिए खाली छोड़ें।',
@@ -74,6 +79,11 @@ export default {
     'Network printers use the browser print dialog from this device.': 'नेटवर्क प्रिंटर इस डिवाइस के ब्राउज़र प्रिंट डायलॉग से चलते हैं।',
   },
   mr: {
+    'Full cash': 'पूर्ण रोख',
+    'Full UPI': 'पूर्ण UPI',
+    'Half & half': 'निम्मे-निम्मे',
+    'UPI / Online': 'UPI / ऑनलाइन',
+    'UPI reference / transaction ID (optional)': 'UPI संदर्भ / ट्रान्झॅक्शन ID (ऐच्छिक)',
     'Product number': 'प्रोडक्ट नंबर',
     'Auto': 'ऑटो',
     'Short number for fast ordering, e.g. 1 = Roti. Leave blank to auto-number.': 'जलद ऑर्डरसाठी छोटा नंबर, उदा. 1 = रोटी. आपोआप नंबरसाठी रिकामे सोडा.',

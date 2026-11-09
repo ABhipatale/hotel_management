@@ -145,6 +145,10 @@ class GstToggleTest extends TestCase
         $this->postJson("/api/bills/{$bill['id']}/pay", ['payments' => [['method' => 'cash', 'amount' => $total + 50]]], $w)->assertStatus(422); // over
         $this->postJson("/api/bills/{$bill['id']}/pay", ['payments' => [['method' => 'cash', 'amount' => $total - 1]]], $w)->assertStatus(422); // under
 
+        foreach (['card', 'wallet'] as $m) { // only cash and UPI are accepted
+            $this->postJson("/api/bills/{$bill['id']}/pay", ['payments' => [['method' => $m, 'amount' => $total]]], $w)->assertStatus(422);
+        }
+
         $cash = round($total / 2, 2);
         $this->postJson("/api/bills/{$bill['id']}/pay", ['payments' => [['method' => 'cash', 'amount' => $cash], ['method' => 'upi', 'amount' => round($total - $cash, 2), 'reference' => 'UPI123']]], $w)
             ->assertOk()->assertJsonCount(2, 'bill.payments');

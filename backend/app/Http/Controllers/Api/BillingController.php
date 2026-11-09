@@ -54,7 +54,7 @@ class BillingController extends Controller
         $bill = Bill::findOrFail($id);
         $d = $r->validate([
             'payments' => 'required|array|min:1|max:5',
-            'payments.*.method' => 'required|in:cash,card,upi,wallet',
+            'payments.*.method' => 'required|in:cash,upi',
             'payments.*.amount' => 'required|numeric|min:0.01',
             'payments.*.reference' => 'nullable|string|max:80',
         ]);
