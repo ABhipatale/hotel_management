@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import Img from '../../components/Img'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { LayoutGrid, List, Minus, Plus, Search, ShoppingCart, Trash2, UtensilsCrossed } from 'lucide-react'
+import { Hash, LayoutGrid, List, Minus, Plus, Search, ShoppingCart, Trash2, UtensilsCrossed } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { money } from '../../lib/format'
@@ -33,10 +33,13 @@ export default function NewOrder() {
   const [busy, setBusy] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
 
+  const qs = q.trim().toLowerCase()
   const list = useMemo(
-    () => (items || []).filter((i) => i.is_available && (cat === 'all' || i.category_id === +cat) && i.name.toLowerCase().includes(q.toLowerCase())),
-    [items, cat, q],
+    () => (items || []).filter((i) => i.is_available && (cat === 'all' || i.category_id === +cat) && (!qs || i.name.toLowerCase().includes(qs) || String(i.code) === qs)),
+    [items, cat, qs],
   )
+  // Typing a product number (e.g. "3") finds that dish at once; Enter or the highlighted bar adds it
+  const exact = /^\d+$/.test(qs) ? (items || []).find((i) => i.is_available && String(i.code) === qs) : null
   const lines = Object.values(cart)
   const count = lines.reduce((a, l) => a + l.quantity, 0)
   const total = lines.reduce((a, l) => a + l.price * l.quantity * (1 - l.discount / 100) * (1 + (gstOn ? l.gst : 0) / 100), 0)
@@ -45,7 +48,7 @@ export default function NewOrder() {
     const key = `${item.id}:${variant?.id || 0}`
     setCart((c) => ({
       ...c,
-      [key]: { key, food_item_id: item.id, variant_id: variant?.id, name: item.name + (variant ? ` (${variant.name})` : ''), price: +(variant?.price ?? item.price), discount: +item.discount_percent, gst: +item.gst_percent, quantity: (c[key]?.quantity || 0) + 1 },
+      [key]: { key, food_item_id: item.id, code: item.code, variant_id: variant?.id, name: item.name + (variant ? ` (${variant.name})` : ''), price: +(variant?.price ?? item.price), discount: +item.discount_percent, gst: +item.gst_percent, quantity: (c[key]?.quantity || 0) + 1 },
     }))
   }
   const dec = (key) => setCart((c) => {
@@ -63,9 +66,12 @@ export default function NewOrder() {
   const viewKey = `hms.dishview.${user?.id}`
   const [view, setViewState] = useState(() => { try { return localStorage.getItem(viewKey) } catch { return null } })
   const setView = (v) => { setViewState(v); try { localStorage.setItem(viewKey, v) } catch { /* private mode */ } }
-  const asGrid = (view || (hasPhotos ? 'grid' : 'list')) === 'grid'
+  const mode = view || (hasPhotos ? 'grid' : 'list') // 'grid' | 'list' | 'numbers'
+  const asGrid = mode === 'grid'
 
   const tapItem = (i) => (i.variants?.length ? setPick(i) : add(i))
+  const quickAdd = (i) => { tapItem(i); setQ(''); if (!i.variants?.length) toast.success(`#${i.code} ${i.name}`) }
+  const onSearchKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); const hit = exact || (list.length === 1 ? list[0] : null); if (hit) quickAdd(hit) } }
 
   // withBill = counter sale: create the order and generate its bill in one step, then go straight to payment.
   const submit = async (withBill = false) => {
@@ -108,7 +114,7 @@ export default function NewOrder() {
         {!lines.length && <p className="py-10 text-center text-sm text-muted">{t('Cart is empty')}</p>}
         {lines.map((l) => (
           <div key={l.key} className="flex items-center gap-2 rounded-xl border border-line p-2.5">
-            <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{l.name}</div><div className="text-xs text-muted">{t('{price} each', { price: money(l.price) })}</div></div>
+            <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{l.code != null && <b className="mr-1.5 rounded-md bg-brand-soft px-1.5 py-0.5 text-[11px] text-brand">{l.code}</b>}{l.name}</div><div className="text-xs text-muted">{t('{price} each', { price: money(l.price) })}</div></div>
             <div className="flex items-center gap-1.5">
               <button onClick={() => dec(l.key)} className="grid h-7 w-7 place-items-center rounded-lg bg-slate-100">{l.quantity === 1 ? <Trash2 className="h-3.5 w-3.5 text-rose-600" /> : <Minus className="h-3.5 w-3.5" />}</button>
               <span className="w-5 text-center text-sm font-semibold">{l.quantity}</span>
@@ -146,14 +152,47 @@ export default function NewOrder() {
       </div>
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0">
-          <div className="mb-3 flex items-center gap-2"><div className="relative min-w-0 flex-1"><Search className="absolute left-3.5 top-3.5 h-5 w-5 text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Search dishes')} className="min-h-12 w-full rounded-2xl border border-line bg-white py-3 pl-10 pr-3 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>
+          <div className="mb-3 flex items-center gap-2"><div className="relative min-w-0 flex-1"><Search className="absolute left-3.5 top-3.5 h-5 w-5 text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} enterKeyHint="go" placeholder={t('Name or number')} className="min-h-12 w-full rounded-2xl border border-line bg-white py-3 pl-10 pr-3 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>
             <div role="group" aria-label={t('View')} className="flex shrink-0 gap-1 rounded-2xl bg-white p-1 ring-1 ring-line">
-              {[['grid', LayoutGrid, t('Picture cards')], ['list', List, t('Compact list')]].map(([v, Icon, label]) => (
-                <button key={v} type="button" aria-label={label} title={label} aria-pressed={(v === 'grid') === asGrid} onClick={() => setView(v)} className={`grid h-10 w-10 place-items-center rounded-xl transition active:scale-90 ${(v === 'grid') === asGrid ? 'bg-brand text-white' : 'text-muted'}`}><Icon className="h-5 w-5" /></button>
+              {[['grid', LayoutGrid, t('Picture cards')], ['list', List, t('Compact list')], ['numbers', Hash, t('Number grid')]].map(([v, Icon, label]) => (
+                <button key={v} type="button" aria-label={label} title={label} aria-pressed={v === mode} onClick={() => setView(v)} className={`grid h-10 w-10 place-items-center rounded-xl transition active:scale-90 ${v === mode ? 'bg-brand text-white' : 'text-muted'}`}><Icon className="h-5 w-5" /></button>
               ))}
             </div>
           </div>
           <Chips value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), c.name])]} />
+          {exact && (
+            <button type="button" onClick={() => quickAdd(exact)} className="animate-pop mb-3 flex w-full items-center gap-3 rounded-2xl bg-brand p-3 text-left text-white shadow-float active:scale-[.98]">
+              <span className="grid h-12 min-w-12 place-items-center rounded-xl bg-white/20 px-2 text-2xl font-extrabold">{exact.code}</span>
+              <span className="min-w-0 flex-1"><span className="block truncate text-base font-bold">{exact.name}</span><span className="text-sm opacity-90">{money(exact.price)}{exact.variants?.length ? ` ${t('+ variants')}` : ''}</span></span>
+              <span className="flex items-center gap-1 rounded-xl bg-white px-3 py-2 text-sm font-extrabold text-brand"><Plus className="h-4 w-4" />{t('Add')}</span>
+            </button>
+          )}
+          {mode === 'numbers' ? (
+            <div className="space-y-5">
+              {(cats || []).filter((c) => list.some((i) => i.category_id === c.id)).map((c) => {
+                const inCat = list.filter((i) => i.category_id === c.id)
+                return (
+                  <section key={c.id}>
+                    <h3 className="mb-2 flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-muted"><span>{c.name}</span><span className="h-px flex-1 bg-line" /><span className="rounded-full bg-white px-2 py-0.5 ring-1 ring-line">{inCat.length}</span></h3>
+                    <div className="grid grid-cols-3 gap-2.5 min-[400px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-5 xl:grid-cols-6">
+                      {inCat.map((i) => {
+                        const n = qtyOf(i.id)
+                        return (
+                          <div key={i.id} role="button" tabIndex={0} onClick={() => tapItem(i)} className={`relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-2xl border bg-white p-1.5 text-center shadow-card transition active:scale-90 ${n ? 'border-brand bg-brand-soft ring-2 ring-brand/30' : 'border-line/70'}`}>
+                            <i className={`absolute left-2 top-2 h-2 w-2 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} />
+                            <span className={`text-[1.75rem] font-extrabold leading-none tracking-tight ${n ? 'text-brand' : ''}`}>{i.code ?? '·'}</span>
+                            <span className="mt-1 line-clamp-2 w-full break-words text-[11px] font-semibold leading-tight text-muted">{i.name}</span>
+                            {n > 0 && <b className="animate-pop absolute right-1.5 top-1.5 grid h-6 min-w-6 place-items-center rounded-full bg-accent px-1 text-xs text-white shadow">{n}</b>}
+                            {n > 0 && <span role="button" tabIndex={0} aria-label={t('Remove one')} onClick={(e) => { e.stopPropagation(); dec(lastKeyOf(i.id)) }} className="absolute bottom-1 right-1 grid h-7 w-7 place-items-center rounded-lg bg-white/90 text-slate-700 shadow active:scale-90"><Minus className="h-4 w-4" /></span>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </section>
+                )
+              })}
+            </div>
+          ) : (
           <div className={asGrid ? 'grid grid-cols-2 gap-3 md:grid-cols-3' : 'grid gap-2.5 md:grid-cols-2'}>
             {list.map((i) => {
               const n = qtyOf(i.id)
@@ -168,6 +207,7 @@ export default function NewOrder() {
               const price = <>{money(i.price)}{i.variants?.length ? <span className="ml-1 text-[11px] font-normal text-muted">{t('+ variants')}</span> : null}</>
               return asGrid ? (
                 <div key={i.id} role="button" tabIndex={0} onClick={() => tapItem(i)} className={`relative overflow-hidden rounded-[1.25rem] border bg-white text-left shadow-card transition active:scale-[.97] ${n ? 'border-brand ring-2 ring-brand/20' : 'border-line/70'}`}>
+                  {i.code != null && <span className="absolute left-2 top-2 z-10 grid h-7 min-w-7 place-items-center rounded-lg bg-brand px-1.5 text-xs font-extrabold leading-none text-white shadow">{i.code}</span>}
                   {i.image_url ? <Img src={i.image_url} thumb className="h-28 w-full object-cover" /> : <div className="grid h-28 place-items-center bg-brand-soft"><UtensilsCrossed className="h-10 w-10 text-brand/40" strokeWidth={1.6} /></div>}
                   <div className="p-3">
                     <div className="flex items-center gap-1.5">{dot}<span className="truncate text-sm font-medium">{i.name}</span></div>
@@ -177,12 +217,13 @@ export default function NewOrder() {
               ) : (
                 <div key={i.id} role="button" tabIndex={0} onClick={() => tapItem(i)} className={`flex items-center gap-3 overflow-hidden rounded-2xl border bg-white text-left shadow-card transition active:scale-[.98] ${i.image_url ? 'min-h-[4.75rem] py-0 pl-0 pr-4' : 'min-h-16 px-4 py-2.5'} ${n ? 'border-brand ring-2 ring-brand/20' : 'border-line/70'}`}>
                   {i.image_url ? <Img src={i.image_url} thumb className="w-24 shrink-0 self-stretch object-cover" /> : dot}
-                  <div className="min-w-0 flex-1"><div className="flex items-center gap-1.5">{i.image_url && dot}<span className="truncate text-[15px] font-semibold">{i.name}</span></div><div className="text-sm font-semibold text-brand">{price}</div></div>
+                  <div className="min-w-0 flex-1"><div className="flex items-center gap-1.5">{i.code != null && <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-md bg-brand px-1.5 text-[11px] font-extrabold leading-none text-white">{i.code}</span>}{i.image_url && dot}<span className="truncate text-[15px] font-semibold">{i.name}</span></div><div className="text-sm font-semibold text-brand">{price}</div></div>
                   {stepper || <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><Plus className="h-5 w-5" /></span>}
                 </div>
               )
             })}
           </div>
+          )}
           {!list.length && <p className="py-10 text-center text-sm text-muted">{t('No dishes found')}</p>}
         </div>
         <div className="hidden lg:block"><div className="sticky top-20 h-[calc(100vh-8rem)] rounded-2xl border border-line bg-white p-4">{Cart}</div></div>

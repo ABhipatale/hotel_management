@@ -9,6 +9,7 @@ use App\Models\FoodItemVariant;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class MenuController extends Controller
 {
@@ -48,10 +49,21 @@ class MenuController extends Controller
             $q->where('category_id', $c);
         }
         if ($s = $r->query('search')) {
-            $q->where('name', 'like', "%$s%");
+            $q->where(fn ($w) => $w->where('name', 'like', "%$s%")->orWhere('code', ctype_digit($s) ? (int) $s : -1));
         }
 
-        return $q->orderBy('name')->get();
+        return $q->orderByRaw('code is null')->orderBy('code')->orderBy('name')->get();
+    }
+
+    /** Next free product number for this company (shown pre-filled in the Add dish form). */
+    public function nextCode()
+    {
+        return ['code' => $this->nextFreeCode()];
+    }
+
+    private function nextFreeCode(): int
+    {
+        return ((int) FoodItem::max('code')) + 1;
     }
 
     public function storeItem(Request $r)
@@ -59,7 +71,9 @@ class MenuController extends Controller
         $d = $this->validated($r);
 
         return response()->json(DB::transaction(function () use ($r, $d) {
-            $item = FoodItem::create($this->fields($r, $d));
+            $fields = $this->fields($r, $d);
+            $fields['code'] ??= $this->nextFreeCode();
+            $item = FoodItem::create($fields);
             $this->syncVariants($item, $d['variants'] ?? []);
 
             return $item->load('variants');
@@ -69,7 +83,7 @@ class MenuController extends Controller
     public function updateItem(Request $r, int $id)
     {
         $item = FoodItem::findOrFail($id);
-        $d = $this->validated($r, true);
+        $d = $this->validated($r, true, $id);
 
         return DB::transaction(function () use ($r, $item, $d) {
             $item->update($this->fields($r, $d, $item));
@@ -88,13 +102,14 @@ class MenuController extends Controller
         return response()->noContent();
     }
 
-    private function validated(Request $r, bool $partial = false): array
+    private function validated(Request $r, bool $partial = false, ?int $ignoreId = null): array
     {
         $req = $partial ? 'sometimes' : 'required';
 
         return $r->validate([
             'category_id' => [$req, Tenant::exists('food_categories')],
             'branch_id' => ['nullable', Tenant::exists('branches')],
+            'code' => ['nullable', 'integer', 'min:1', 'max:99999', Rule::unique('food_items', 'code')->where('company_id', Tenant::id())->ignore($ignoreId)],
             'name' => "$req|string|max:120",
             'description' => 'nullable|string|max:500',
             'price' => "$req|numeric|min:0",
@@ -114,6 +129,9 @@ class MenuController extends Controller
     private function fields(Request $r, array $d, ?FoodItem $existing = null): array
     {
         unset($d['variants'], $d['image']);
+        if (array_key_exists('code', $d) && $d['code'] === null) {
+            unset($d['code']); // blank = keep the current number (or auto-number on create)
+        }
         if (! Tenant::company()->gst_enabled) {
             unset($d['gst_percent']);
         }

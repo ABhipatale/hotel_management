@@ -1,6 +1,12 @@
 // Tables, New order, Billing, Menu manager, Receipt dialog
 export default {
   hi: {
+    'Product number': 'प्रोडक्ट नंबर',
+    'Auto': 'ऑटो',
+    'Short number for fast ordering, e.g. 1 = Roti. Leave blank to auto-number.': 'तेज़ ऑर्डर के लिए छोटा नंबर, जैसे 1 = रोटी। अपने-आप नंबर के लिए खाली छोड़ें।',
+    'Number grid': 'नंबर ग्रिड',
+    'Name or number': 'नाम या नंबर',
+    'The code has already been taken.': 'यह प्रोडक्ट नंबर पहले से किसी और डिश में है।',
     'Printer saved. Printing will now connect automatically.': 'प्रिंटर सेव हो गया। अब प्रिंट अपने-आप जुड़ेगा।',
     'Saved on this device. Print connects automatically.': 'इस डिवाइस पर सेव है। प्रिंट अपने-आप जुड़ता है।',
     'Choose printer (one time)': 'प्रिंटर चुनें (सिर्फ़ एक बार)',
@@ -68,6 +74,12 @@ export default {
     'Network printers use the browser print dialog from this device.': 'नेटवर्क प्रिंटर इस डिवाइस के ब्राउज़र प्रिंट डायलॉग से चलते हैं।',
   },
   mr: {
+    'Product number': 'प्रोडक्ट नंबर',
+    'Auto': 'ऑटो',
+    'Short number for fast ordering, e.g. 1 = Roti. Leave blank to auto-number.': 'जलद ऑर्डरसाठी छोटा नंबर, उदा. 1 = रोटी. आपोआप नंबरसाठी रिकामे सोडा.',
+    'Number grid': 'नंबर ग्रिड',
+    'Name or number': 'नाव किंवा नंबर',
+    'The code has already been taken.': 'हा प्रोडक्ट नंबर आधीच दुसऱ्या पदार्थाला दिला आहे.',
     'Printer saved. Printing will now connect automatically.': 'प्रिंटर जतन झाला. आता प्रिंट आपोआप जोडले जाईल.',
     'Saved on this device. Print connects automatically.': 'या डिव्हाइसवर जतन केला आहे. प्रिंट आपोआप जोडले जाते.',
     'Choose printer (one time)': 'प्रिंटर निवडा (फक्त एकदा)',
