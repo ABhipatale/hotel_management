@@ -7,53 +7,92 @@ const GS = 0x1d
 const enc = new TextEncoder()
 
 export function buildReceipt({ bill, company, table, order_no, waiter, printer }) {
-  const cols = printer?.paper_width === '58mm' ? 32 : 48
+  const wide = printer?.paper_width !== '58mm'
+  const cols = wide ? 48 : 32
   const out = []
   const push = (...b) => out.push(...b)
-  const text = (s) => out.push(...enc.encode(s.replace(/[^\x20-\x7E\n]/g, '?')))
+  const text = (s) => out.push(...enc.encode(String(s).replace(/[^\x20-\x7E\n]/g, '?')))
   const line = (s = '') => text(s + '\n')
-  const rule = () => line('-'.repeat(cols))
-  const two = (l, r) => line(l.slice(0, cols - r.length - 1).padEnd(cols - r.length) + r)
+  const rule = (ch = '-') => line(ch.repeat(cols))
+  const two = (l, r) => line(String(l).slice(0, cols - String(r).length - 1).padEnd(cols - String(r).length) + r)
   const money = (n) => Number(n).toFixed(2)
+  const center = (s) => { push(ESC, 0x61, 1); line(s); push(ESC, 0x61, 0) }
+  const wrap = (s, w) => { const o = []; let cur = ''; String(s).split(/\s+/).forEach((word) => { while (word.length > w) { if (cur) { o.push(cur); cur = '' } o.push(word.slice(0, w)); word = word.slice(w) } if (!cur) cur = word; else if ((cur + ' ' + word).length <= w) cur += ' ' + word; else { o.push(cur); cur = word } }); if (cur) o.push(cur); return o }
+  const bold = (on) => push(ESC, 0x45, on ? 1 : 0)
+  const size = (n) => push(GS, 0x21, n) // 0x00 normal, 0x01 tall, 0x11 tall + wide
 
   push(ESC, 0x40) // init
-  push(ESC, 0x61, 1) // center
-  push(ESC, 0x45, 1)
-  line(company.name)
-  push(ESC, 0x45, 0)
-  if (company.bill_header) line(company.bill_header)
-  if (company.address) line(company.address)
+  push(ESC, 0x33, 22) // tight line spacing (the printer default leaves a visible gap between lines)
+
+  // ── Header ──
+  push(ESC, 0x61, 1)
+  bold(true)
+  const name = String(company.name || '')
+  const big = name.length <= (wide ? 24 : 16)
+  size(big ? 0x11 : 0x01)
+  wrap(name, big ? (wide ? 24 : 16) : cols).forEach(line)
+  size(0)
+  bold(false)
+  if (company.bill_header) wrap(company.bill_header, cols).forEach(line)
+  if (company.address) wrap(company.address, cols).forEach(line)
   if (company.phone) line(`Ph: ${company.phone}`)
   const gstOn = company.gst_enabled !== false
   if (gstOn && company.gst_number) line(`GSTIN: ${company.gst_number}`)
   push(ESC, 0x61, 0)
+  rule('=')
+
+  // ── Bill details ──
+  const d = new Date(bill.created_at)
+  const when = `${d.toLocaleDateString('en-IN')} ${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+  if (wide) two(`Bill: ${bill.bill_no}`, when)
+  else { line(`Bill: ${bill.bill_no}`); line(when) }
+  if (table || waiter) two(table ? `Table: ${table}` : '', waiter ? `Staff: ${waiter}` : '')
+
   rule()
-  two(`Bill: ${bill.bill_no}`, new Date(bill.created_at).toLocaleDateString('en-IN'))
-  two(`Order: ${order_no || ''}`, table ? `Table ${table}` : '')
-  if (waiter) line(`Waiter: ${waiter}`)
+
+  // ── Items: ITEM  QTY  [RATE]  AMOUNT ──
+  const wQ = 4, wR = wide ? 9 : 0, wA = 9
+  const wN = cols - wQ - wR - wA - 1
+  const num = (v, w) => String(v).padStart(w)
+  bold(true)
+  line('ITEM'.padEnd(wN + 1) + num('QTY', wQ) + (wide ? num('RATE', wR) : '') + num('AMT', wA))
+  bold(false)
   rule()
+  let qty = 0
   bill.items.forEach((i) => {
-    line(`${i.quantity} x ${i.name}`.slice(0, cols))
-    two('', money(i.price * i.quantity - i.discount + Number(i.tax)))
+    qty += Number(i.quantity)
+    const rows = wrap(i.name, wN)
+    const amt = money(i.price * i.quantity - i.discount + Number(i.tax))
+    line(rows[0].padEnd(wN + 1) + num(i.quantity, wQ) + (wide ? num(money(i.price), wR) : '') + num(amt, wA))
+    rows.slice(1).forEach((r) => line('  ' + r))
   })
   rule()
+  line(`Items: ${bill.items.length}   Qty: ${qty}`)
+  rule()
+
+  // ── Totals ──
   two('Subtotal', money(bill.subtotal))
   if (Number(bill.discount)) two('Discount', `-${money(bill.discount)}`)
-  if (gstOn) two('Tax (GST)', money(bill.tax))
-  push(ESC, 0x45, 1)
-  push(GS, 0x21, 0x01)
-  two('TOTAL', money(bill.grand_total))
-  push(GS, 0x21, 0x00)
-  push(ESC, 0x45, 0)
-  if (bill.payments?.length) {
-    rule()
-    bill.payments.forEach((p) => two(`Paid (${p.method})`, money(p.amount)))
-  }
-  rule()
+  if (gstOn && Number(bill.tax)) two('GST', money(bill.tax))
+  rule('=')
+  bold(true)
+  size(0x01)
+  const total = money(bill.grand_total)
+  line('TOTAL'.padEnd(Math.max(1, cols - total.length)) + total)
+  size(0)
+  bold(false)
+  rule('=')
+  if (bill.payments?.length) bill.payments.forEach((p) => two(`Paid (${p.method})`, money(p.amount)))
+
+  // ── Footer ──
+  line()
   push(ESC, 0x61, 1)
-  line(company.bill_footer || 'Thank you! Visit again.')
-  line('\n\n\n')
-  push(GS, 0x56, 0x42, 0x00) // partial cut
+  bold(true)
+  wrap(company.bill_footer || 'Thank you! Visit again.', cols).forEach(line)
+  bold(false)
+  push(ESC, 0x61, 0)
+  push(ESC, 0x64, 3) // feed 3 lines
+  push(GS, 0x56, 0x42, 0x00) // partial cut (ignored by printers without a cutter)
   return new Uint8Array(out)
 }
 
