@@ -9,7 +9,8 @@ import { money } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { useConfirm } from '../../context/ConfirmContext'
-import { useT } from '../../i18n'
+import { useI18n } from '../../i18n'
+import { dishNames } from '../../lib/dishName'
 import { Badge, Button, Card, Chips, Empty, Input, Modal, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
 
 const BLANK = { code: '', category_id: '', name: '', name_mr: '', description: '', price: '', gst_percent: 5, discount_percent: 0, is_veg: true, is_available: true, stock: '', offer_text: '', variants: [] }
@@ -24,7 +25,7 @@ const SAMPLE_CSV = [
 
 /** Dish photo: own upload, a platform library photo, or none. The platform photo that matches the dish name is the automatic default. */
 function DishPhoto({ edit, setEdit, file, setFile, library }) {
-  const t = useT()
+  const { t } = useI18n()
   const [picking, setPicking] = useState(false)
   const own = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
   useEffect(() => () => { if (own) URL.revokeObjectURL(own) }, [own])
@@ -68,7 +69,7 @@ function downloadSample() {
 
 export default function MenuManager() {
   const toast = useToast()
-  const t = useT()
+  const { t, lang } = useI18n()
   const { company } = useAuth()
   const gstOn = company?.gst_enabled !== false
   const libraryOn = company?.use_library_images !== false
@@ -129,8 +130,8 @@ export default function MenuManager() {
             <Card key={i.id} className={`flex gap-3 ${i.is_available ? '' : 'opacity-60'}`}>
               {i.image_url ? <Img src={i.image_url} thumb className="h-20 w-20 shrink-0 rounded-xl object-cover" /> : <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-brand-soft"><UtensilsCrossed className="h-7 w-7 text-brand/40" strokeWidth={1.6} /></div>}
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">{i.code != null && <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-md bg-brand px-1.5 text-[11px] font-extrabold leading-none text-white">{i.code}</span>}<i className={`h-2.5 w-2.5 shrink-0 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} /><span className="truncate font-medium">{i.name}</span></div>
-                {i.name_mr && <div className="truncate text-xs text-muted">{i.name_mr}</div>}
+                <div className="flex items-center gap-1.5">{i.code != null && <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-md bg-brand px-1.5 text-[11px] font-extrabold leading-none text-white">{i.code}</span>}<i className={`h-2.5 w-2.5 shrink-0 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} /><span className="truncate font-medium">{dishNames(i, lang).main}</span></div>
+                {dishNames(i, lang).sub && <div className="truncate text-xs text-muted">{dishNames(i, lang).sub}</div>}
                 <div className="text-xs text-muted">{i.category?.name}{gstOn ? ` · ${t('GST {n}%', { n: i.gst_percent })}` : ''}</div>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5"><b className="text-brand">{money(i.price)}</b>{Number(i.discount_percent) > 0 && <Badge tone="green">{t('{n}% off', { n: i.discount_percent })}</Badge>}{i.variants.length > 0 && <Badge tone="violet">{t('{n} variants', { n: i.variants.length })}</Badge>}{i.stock !== null && <Badge tone={i.stock < 5 ? 'red' : 'slate'}>{t('stock {n}', { n: i.stock })}</Badge>}</div>
                 <div className="mt-2 flex gap-1.5">

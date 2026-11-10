@@ -1,6 +1,9 @@
 // Super-admin (platform operator) screens
 export default {
   hi: {
+    'This company already has a plan. Choose Monthly or Yearly to renew it.': 'इस कंपनी का प्लान पहले से है। नवीनीकरण के लिए मासिक या वार्षिक चुनें।',
+    'No plan is set. The owner sees the plan page after signing in and buys the plan.': 'कोई प्लान सेट नहीं है। मालिक लॉगिन के बाद प्लान पेज देखेगा और खुद प्लान खरीदेगा।',
+    'Activate plan': 'प्लान चालू करें',
     'Image library': 'इमेज लाइब्रेरी',
     "Dish photos shared with every hotel. A hotel's own photo always wins.": 'सभी होटलों के लिए साझा डिश फ़ोटो। होटल की अपनी फ़ोटो हमेशा पहले दिखती है।',
     'Upload photos': 'फ़ोटो अपलोड करें',
@@ -119,6 +122,9 @@ export default {
     'Support': 'सहायता',
   },
   mr: {
+    'This company already has a plan. Choose Monthly or Yearly to renew it.': 'या कंपनीचा प्लॅन आधीपासून आहे. नूतनीकरणासाठी मासिक किंवा वार्षिक निवडा.',
+    'No plan is set. The owner sees the plan page after signing in and buys the plan.': 'कोणताही प्लॅन सेट नाही. मालक लॉगिननंतर प्लॅन पेज पाहील आणि स्वतः प्लॅन खरेदी करेल.',
+    'Activate plan': 'प्लॅन सुरू करा',
     'Image library': 'इमेज लायब्ररी',
     "Dish photos shared with every hotel. A hotel's own photo always wins.": 'सर्व हॉटेल्ससाठी शेअर केलेले पदार्थांचे फोटो. हॉटेलचा स्वतःचा फोटो नेहमी प्रथम दिसतो.',
     'Upload photos': 'फोटो अपलोड करा',

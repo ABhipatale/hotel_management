@@ -7,7 +7,8 @@ import { useApi } from '../../lib/useApi'
 import { money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
-import { useT } from '../../i18n'
+import { useI18n } from '../../i18n'
+import { dishNames } from '../../lib/dishName'
 import { Button, Chips, Input, Modal, PageHeader, Select, Spinner } from '../../components/ui'
 
 /** Waiter POS: pick table → add items → place order. Totals here are an estimate; the server prices the order. */
@@ -15,7 +16,8 @@ export default function NewOrder() {
   const [params] = useSearchParams()
   const nav = useNavigate()
   const toast = useToast()
-  const t = useT()
+  const { t, lang } = useI18n()
+  const nm = (i) => dishNames(i, lang)
   const { can, company, user } = useAuth()
   const gstOn = company?.gst_enabled !== false
   const { data: items, loading } = useApi('/menu/items')
@@ -163,7 +165,7 @@ export default function NewOrder() {
           {exact && (
             <button type="button" onClick={() => quickAdd(exact)} className="animate-pop mb-3 flex w-full items-center gap-3 rounded-2xl bg-brand p-3 text-left text-white shadow-float active:scale-[.98]">
               <span className="grid h-12 min-w-12 place-items-center rounded-xl bg-white/20 px-2 text-2xl font-extrabold">{exact.code}</span>
-              <span className="min-w-0 flex-1"><span className="block truncate text-base font-bold">{exact.name}</span>{exact.name_mr && <span className="block truncate text-sm opacity-90">{exact.name_mr}</span>}<span className="text-sm opacity-90">{money(exact.price)}{exact.variants?.length ? ` ${t('+ variants')}` : ''}</span></span>
+              <span className="min-w-0 flex-1"><span className="block truncate text-base font-bold">{nm(exact).main}</span>{nm(exact).sub && <span className="block truncate text-sm opacity-90">{nm(exact).sub}</span>}<span className="text-sm opacity-90">{money(exact.price)}{exact.variants?.length ? ` ${t('+ variants')}` : ''}</span></span>
               <span className="flex items-center gap-1 rounded-xl bg-white px-3 py-2 text-sm font-extrabold text-brand"><Plus className="h-4 w-4" />{t('Add')}</span>
             </button>
           )}
@@ -181,8 +183,8 @@ export default function NewOrder() {
                           <div key={i.id} role="button" tabIndex={0} onClick={() => tapItem(i)} className={`relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-2xl border bg-white p-1.5 text-center shadow-card transition active:scale-90 ${n ? 'border-brand bg-brand-soft ring-2 ring-brand/30' : 'border-line/70'}`}>
                             <i className={`absolute left-2 top-2 h-2 w-2 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} />
                             <span className={`text-[1.75rem] font-extrabold leading-none tracking-tight ${n ? 'text-brand' : ''}`}>{i.code ?? '·'}</span>
-                            <span className="mt-1 line-clamp-2 w-full break-words text-[11px] font-semibold leading-tight text-muted">{i.name}</span>
-                            {i.name_mr && <span className="w-full truncate text-[10px] leading-tight text-muted/80">{i.name_mr}</span>}
+                            <span className="mt-1 line-clamp-2 w-full break-words text-[11px] font-semibold leading-tight text-muted">{nm(i).main}</span>
+                            {nm(i).sub && <span className="w-full truncate text-[10px] leading-tight text-muted/80">{nm(i).sub}</span>}
                             {n > 0 && <b className="animate-pop absolute right-1.5 top-1.5 grid h-6 min-w-6 place-items-center rounded-full bg-accent px-1 text-xs text-white shadow">{n}</b>}
                             {n > 0 && <span role="button" tabIndex={0} aria-label={t('Remove one')} onClick={(e) => { e.stopPropagation(); dec(lastKeyOf(i.id)) }} className="absolute bottom-1 right-1 grid h-7 w-7 place-items-center rounded-lg bg-white/90 text-slate-700 shadow active:scale-90"><Minus className="h-4 w-4" /></span>}
                           </div>
@@ -211,15 +213,15 @@ export default function NewOrder() {
                   {i.code != null && <span className="absolute left-2 top-2 z-10 grid h-7 min-w-7 place-items-center rounded-lg bg-brand px-1.5 text-xs font-extrabold leading-none text-white shadow">{i.code}</span>}
                   {i.image_url ? <Img src={i.image_url} thumb className="h-28 w-full object-cover" /> : <div className="grid h-28 place-items-center bg-brand-soft"><UtensilsCrossed className="h-10 w-10 text-brand/40" strokeWidth={1.6} /></div>}
                   <div className="p-3">
-                    <div className="flex items-center gap-1.5">{dot}<span className="truncate text-sm font-medium">{i.name}</span></div>
-                    {i.name_mr && <div className="truncate text-xs text-muted">{i.name_mr}</div>}
+                    <div className="flex items-center gap-1.5">{dot}<span className="truncate text-sm font-medium">{nm(i).main}</span></div>
+                    {nm(i).sub && <div className="truncate text-xs text-muted">{nm(i).sub}</div>}
                     <div className="mt-1 flex min-h-9 items-center justify-between gap-2 text-sm font-semibold text-brand"><span>{price}</span>{stepper}</div>
                   </div>
                 </div>
               ) : (
                 <div key={i.id} role="button" tabIndex={0} onClick={() => tapItem(i)} className={`flex items-center gap-3 overflow-hidden rounded-2xl border bg-white text-left shadow-card transition active:scale-[.98] ${i.image_url ? 'min-h-[4.75rem] py-0 pl-0 pr-4' : 'min-h-16 px-4 py-2.5'} ${n ? 'border-brand ring-2 ring-brand/20' : 'border-line/70'}`}>
                   {i.image_url ? <Img src={i.image_url} thumb className="w-24 shrink-0 self-stretch object-cover" /> : dot}
-                  <div className="min-w-0 flex-1"><div className="flex items-center gap-1.5">{i.code != null && <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-md bg-brand px-1.5 text-[11px] font-extrabold leading-none text-white">{i.code}</span>}{i.image_url && dot}<span className="truncate text-[15px] font-semibold">{i.name}</span></div>{i.name_mr && <div className="truncate text-xs text-muted">{i.name_mr}</div>}<div className="text-sm font-semibold text-brand">{price}</div></div>
+                  <div className="min-w-0 flex-1"><div className="flex items-center gap-1.5">{i.code != null && <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-md bg-brand px-1.5 text-[11px] font-extrabold leading-none text-white">{i.code}</span>}{i.image_url && dot}<span className="truncate text-[15px] font-semibold">{nm(i).main}</span></div>{i.name_mr && <div className="truncate text-xs text-muted">{i.name_mr}</div>}<div className="text-sm font-semibold text-brand">{price}</div></div>
                   {stepper || <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><Plus className="h-5 w-5" /></span>}
                 </div>
               )

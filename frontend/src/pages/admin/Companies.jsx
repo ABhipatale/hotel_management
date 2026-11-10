@@ -19,18 +19,6 @@ export default function Companies() {
   const [adding, setAdding] = useState(false)
   const [detail, setDetail] = useState(null)
 
-  // Opening Manage on a company that has not bought a plan yet sets the Monthly plan for it automatically
-  const manage = async (c) => {
-    setDetail(c)
-    if (c.current_subscription || c.deleted_at) return
-    try {
-      const { data: sub } = await api.post(`/admin/companies/${c.id}/subscription`, { billing_cycle: 'monthly' })
-      toast.success(tr('Monthly plan set automatically - this company had not purchased a plan yet'))
-      setDetail((d) => (d && d.id === c.id ? { ...d, current_subscription: sub } : d))
-      reload()
-    } catch (e) { toast.error(e) }
-  }
-
   const act = async (fn, msg) => {
     try { await fn(); toast.success(msg); reload(); setDetail(null) } catch (e) { toast.error(e) }
   }
@@ -62,7 +50,7 @@ export default function Companies() {
             { header: 'Subscription', render: (c) => (c.current_subscription ? <span className="capitalize">{tr(c.current_subscription.billing_cycle)}</span> : <Badge tone="amber">Awaiting purchase</Badge>) },
             { header: 'Status', render: (c) => <Badge tone={c.deleted_at ? 'red' : statusTone(c.status)}>{c.deleted_at ? 'deleted' : c.status}</Badge> },
             { header: 'Expires', render: (c) => dateOnly(c.current_subscription?.ends_at) },
-            { header: '', className: 'text-right', render: (c) => <Button size="sm" variant="secondary" onClick={() => manage(c)}>Manage</Button> },
+            { header: '', className: 'text-right', render: (c) => <Button size="sm" variant="secondary" onClick={() => setDetail(c)}>Manage</Button> },
           ]}
         />
       )}
@@ -182,18 +170,27 @@ function BrandingEditor({ company, onDone }) {
 function RenewSubscription({ company, onDone }) {
   const toast = useToast()
   const tr = useT()
-  const [cycle, setCycle] = useState('monthly')
+  const has = !!company.current_subscription
+  // A company that has not bought a plan keeps "Customer purchases the plan on first login" until the admin picks a period
+  const [cycle, setCycle] = useState(has ? 'monthly' : '')
   const [busy, setBusy] = useState(false)
   const go = async () => {
+    if (!cycle) return
     setBusy(true)
     try { await api.post(`/admin/companies/${company.id}/subscription`, { billing_cycle: cycle }); onDone() } catch (e) { toast.error(e) } finally { setBusy(false) }
   }
   return (
     <div className="space-y-3 rounded-2xl bg-canvas p-4 ring-1 ring-line">
-      <div className="text-sm font-semibold">{tr('Renew subscription')}</div>
-      <Select aria-label={tr('Billing period')} value={cycle} onChange={(e) => setCycle(e.target.value)}><option value="monthly">{tr('Monthly')}</option><option value="yearly">{tr('Yearly')}</option></Select>
-      <p className="text-xs text-muted">{tr("Extends from the current end date and records the payment at today's price.")}</p>
-      <Button className="w-full" loading={busy} onClick={go}>Renew</Button>
+      <div className="text-sm font-semibold">{tr(has ? 'Renew subscription' : 'Subscription')}</div>
+      <Select aria-label={tr('Billing period')} value={cycle} onChange={(e) => setCycle(e.target.value)}>
+        <option value="monthly">{tr('Monthly')}</option><option value="yearly">{tr('Yearly')}</option>
+        <option value="">{tr('Customer purchases the plan on first login')}</option>
+      </Select>
+      <p className="text-xs text-muted">
+        {cycle ? tr(has ? "Extends from the current end date and records the payment at today's price." : 'The company is active immediately for the chosen period. Renew it later from Manage.')
+          : tr(has ? 'This company already has a plan. Choose Monthly or Yearly to renew it.' : 'No plan is set. The owner sees the plan page after signing in and buys the plan.')}
+      </p>
+      <Button className="w-full" disabled={!cycle} loading={busy} onClick={go}>{tr(has ? 'Renew' : 'Activate plan')}</Button>
     </div>
   )
 }

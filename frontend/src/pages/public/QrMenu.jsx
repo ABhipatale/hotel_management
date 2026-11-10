@@ -8,12 +8,13 @@ import { money } from '../../lib/format'
 import { Button, Chips, Input, Modal, Spinner } from '../../components/ui'
 import LangSwitch from '../../components/LangSwitch'
 import { useI18n } from '../../i18n'
+import { dishNames } from '../../lib/dishName'
 
 const STEPS = [['pending', 'Received'], ['accepted', 'Accepted'], ['preparing', 'Cooking'], ['ready', 'Ready'], ['served', 'Served']]
 
 /** Public, unauthenticated customer menu. Tenant comes from the URL slug + secret table token (validated server-side). */
 export default function QrMenu() {
-  const { t, setDefault } = useI18n()
+  const { t, lang, setDefault } = useI18n()
   const { slug, token } = useParams()
   const base = `/public/menu/${slug}/table/${token}`
   const [menu, setMenu] = useState(null)
@@ -95,8 +96,8 @@ export default function QrMenu() {
           return (
             <div key={i.id} className="flex gap-3 rounded-2xl border border-line bg-white p-3 shadow-sm">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5"><i className={`h-3 w-3 shrink-0 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} /><span className="font-medium">{i.name}</span></div>
-                {i.name_mr && <div className="text-sm text-muted">{i.name_mr}</div>}
+                <div className="flex items-center gap-1.5"><i className={`h-3 w-3 shrink-0 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} /><span className="font-medium">{dishNames(i, lang).main}</span></div>
+                {dishNames(i, lang).sub && <div className="text-sm text-muted">{dishNames(i, lang).sub}</div>}
                 {i.offer_text && <div className="mt-0.5 text-xs font-medium text-emerald-600">{i.offer_text}</div>}
                 {i.description && <p className="mt-1 line-clamp-2 text-xs text-muted">{i.description}</p>}
                 <div className="mt-2 flex items-center gap-2"><b>{money(unit(i))}</b>{+i.discount_percent > 0 && <s className="text-xs text-muted">{money(i.price)}</s>}{i.variants.length > 0 && <span className="text-[11px] text-muted">· {t('{n} sizes', { n: i.variants.length + 1 })}</span>}</div>
