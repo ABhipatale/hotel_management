@@ -15,14 +15,28 @@ class MenuController extends Controller
 {
     public function categories()
     {
-        return FoodCategory::withCount('items')->orderBy('sort_order')->get();
+        return FoodCategory::withCount('items')->orderBy('sort_order')->orderBy('id')->get();
     }
 
     public function storeCategory(Request $r)
     {
         $d = $r->validate(['name' => 'required|string|max:80', 'sort_order' => 'integer|min:0', 'is_active' => 'boolean']);
+        $d['sort_order'] ??= ((int) FoodCategory::max('sort_order')) + 1; // new categories go to the end
 
         return response()->json(FoodCategory::create($d), 201);
+    }
+
+    /** Saves the order the owner arranged: ids in the new sequence (first = shown first everywhere). */
+    public function reorderCategories(Request $r)
+    {
+        $d = $r->validate(['ids' => 'required|array|min:1|max:200', 'ids.*' => ['integer', Tenant::exists('food_categories')]]);
+        DB::transaction(function () use ($d) {
+            foreach (array_values(array_unique($d['ids'])) as $i => $id) {
+                FoodCategory::where('id', $id)->update(['sort_order' => $i + 1]);
+            }
+        });
+
+        return $this->categories();
     }
 
     public function updateCategory(Request $r, int $id)

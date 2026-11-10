@@ -110,6 +110,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
             Route::get('menu/items', [MenuController::class, 'items']);
         });
         Route::middleware('perm:menu.manage')->group(function () {
+            Route::post('menu/categories/reorder', [MenuController::class, 'reorderCategories']);
             Route::post('menu/categories', [MenuController::class, 'storeCategory']);
             Route::put('menu/categories/{id}', [MenuController::class, 'updateCategory']);
             Route::delete('menu/categories/{id}', [MenuController::class, 'destroyCategory']);

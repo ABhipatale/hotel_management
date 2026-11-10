@@ -1,6 +1,12 @@
 // Tables, New order, Billing, Menu manager, Receipt dialog
 export default {
   hi: {
+    'Hide pictures': 'फ़ोटो छिपाएँ',
+    'Show pictures': 'फ़ोटो दिखाएँ',
+    'Use the arrows to arrange the order. It is used on New order, the Menu and the QR menu.': 'तीरों से क्रम बदलें। यही क्रम नया ऑर्डर, मेन्यू और QR मेन्यू में दिखेगा।',
+    'Move to top': 'सबसे ऊपर ले जाएँ',
+    'Move up': 'ऊपर',
+    'Move down': 'नीचे',
     'Dish photo': 'डिश फ़ोटो',
     'Your own photo': 'आपकी अपनी फ़ोटो',
     'Platform photo': 'प्लेटफ़ॉर्म फ़ोटो',
@@ -105,6 +111,12 @@ export default {
     'Network printers use the browser print dialog from this device.': 'नेटवर्क प्रिंटर इस डिवाइस के ब्राउज़र प्रिंट डायलॉग से चलते हैं।',
   },
   mr: {
+    'Hide pictures': 'फोटो लपवा',
+    'Show pictures': 'फोटो दाखवा',
+    'Use the arrows to arrange the order. It is used on New order, the Menu and the QR menu.': 'बाणांनी क्रम बदला. हाच क्रम नवीन ऑर्डर, मेनू आणि QR मेनूमध्ये दिसेल.',
+    'Move to top': 'सर्वात वर न्या',
+    'Move up': 'वर',
+    'Move down': 'खाली',
     'Dish photo': 'पदार्थ फोटो',
     'Your own photo': 'तुमचा स्वतःचा फोटो',
     'Platform photo': 'प्लॅटफॉर्म फोटो',

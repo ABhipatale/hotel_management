@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Img from '../../components/Img'
 import LibraryPicker from '../../components/LibraryPicker'
 import { compressImage } from '../../lib/image'
-import { Download, ImageIcon, Pencil, Plus, Trash2, Upload, UtensilsCrossed } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronsUp, Download, ImageIcon, Pencil, Plus, Trash2, Upload, UtensilsCrossed } from 'lucide-react'
 import { api, toFormData } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { money } from '../../lib/format'
@@ -115,6 +115,12 @@ export default function MenuManager() {
   const del = async (i) => { if (await ask({ title: t('Delete {name}?', { name: i.name }), message: t('This dish will be removed from your menu and the QR menu.'), confirmText: t('Delete dish') })) { try { await api.delete(`/menu/items/${i.id}`); reload() } catch (e) { toast.error(e) } } }
   const toggle = async (i) => { try { await api.post(`/menu/items/${i.id}`, toFormData({ is_available: !i.is_available })); reload() } catch (e) { toast.error(e) } }
   const addCat = async () => { try { await api.post('/menu/categories', { name: newCat }); setNewCat(''); reloadCats() } catch (e) { toast.error(e) } }
+  // Arrange categories: the new order is saved at once and used on New order, Menu and the customer QR menu
+  const moveCat = async (from, to) => {
+    const ids = cats.map((c) => c.id)
+    ids.splice(to, 0, ids.splice(from, 1)[0])
+    try { await api.post('/menu/categories/reorder', { ids }); reloadCats() } catch (e) { toast.error(e) }
+  }
   const delCat = async (c) => { try { await api.delete(`/menu/categories/${c.id}`); reloadCats() } catch (e) { toast.error(e) } }
   const s = (k) => (e) => setEdit({ ...edit, [k]: e.target.value })
 
@@ -208,7 +214,16 @@ export default function MenuManager() {
 
       <Modal open={catModal} onClose={() => setCatModal(false)} title={t('Categories')}>
         <div className="space-y-2">
-          {cats?.map((c) => <div key={c.id} className="flex items-center justify-between rounded-xl border border-line px-3 py-2 text-sm"><span>{c.name} <span className="text-muted">({c.items_count})</span></span><button onClick={() => delCat(c)}><Trash2 className="h-4 w-4 text-rose-600" /></button></div>)}
+          <p className="text-xs text-muted">{t('Use the arrows to arrange the order. It is used on New order, the Menu and the QR menu.')}</p>
+          {cats?.map((c, i) => (
+            <div key={c.id} className="flex items-center gap-1 rounded-xl border border-line py-1 pl-3 pr-1 text-sm">
+              <span className="min-w-0 flex-1 truncate">{c.name} <span className="text-muted">({c.items_count})</span></span>
+              <button type="button" disabled={i === 0} aria-label={t('Move to top')} title={t('Move to top')} onClick={() => moveCat(i, 0)} className="grid h-10 w-10 place-items-center rounded-lg text-brand active:bg-brand-soft disabled:opacity-25"><ChevronsUp className="h-5 w-5" /></button>
+              <button type="button" disabled={i === 0} aria-label={t('Move up')} title={t('Move up')} onClick={() => moveCat(i, i - 1)} className="grid h-10 w-10 place-items-center rounded-lg active:bg-brand-soft disabled:opacity-25"><ArrowUp className="h-5 w-5" /></button>
+              <button type="button" disabled={i === cats.length - 1} aria-label={t('Move down')} title={t('Move down')} onClick={() => moveCat(i, i + 1)} className="grid h-10 w-10 place-items-center rounded-lg active:bg-brand-soft disabled:opacity-25"><ArrowDown className="h-5 w-5" /></button>
+              <button type="button" aria-label={t('Delete')} onClick={() => delCat(c)} className="grid h-10 w-10 place-items-center rounded-lg active:bg-rose-50"><Trash2 className="h-4 w-4 text-rose-600" /></button>
+            </div>
+          ))}
           <div className="flex gap-2 pt-2"><input className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm flex-1" placeholder={t('New category')} value={newCat} onChange={(e) => setNewCat(e.target.value)} /><Button onClick={addCat} disabled={!newCat}>{t('Add')}</Button></div>
         </div>
       </Modal>

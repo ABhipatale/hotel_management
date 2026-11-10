@@ -294,16 +294,17 @@ export const ErrorNote = ({ children }) => {
 
 /* ───────────────────────── Navigation helpers ───────────────────────── */
 /** Pill filter row — horizontally scrollable on phones. */
-export function Chips({ items, value, onChange }) {
+export function Chips({ items, value, onChange, rows = 1 }) {
   const t = useT()
+  // rows > 1: the chips are laid out in that many lines and scroll sideways together, so twice as many are visible at once
   return (
-    <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1">
+    <div className={cx('no-scrollbar -mx-4 mb-3 overflow-x-auto px-4 pb-1', rows > 1 ? 'grid auto-cols-max grid-flow-col gap-1' : 'flex gap-1.5')} style={rows > 1 ? { gridTemplateRows: `repeat(${rows}, auto)` } : undefined}>
       {items.map(([k, label]) => (
         <button
           key={k}
           onClick={() => onChange(k)}
           aria-pressed={value === k}
-          className={cx('min-h-11 shrink-0 whitespace-nowrap rounded-full px-5 text-sm font-semibold transition duration-200 active:scale-95', value === k ? 'bg-brand text-white shadow-[0_6px_14px_-6px_rgb(23_100_95/.55)]' : 'bg-white text-slate-600 shadow-sm ring-1 ring-line hover:ring-slate-300')}
+          className={cx(cx('shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13px] font-semibold transition duration-200 active:scale-95', rows > 1 ? 'min-h-9' : 'min-h-10'), value === k ? 'bg-brand text-white shadow-[0_6px_14px_-6px_rgb(23_100_95/.55)]' : 'bg-white text-slate-600 shadow-sm ring-1 ring-line hover:ring-slate-300')}
         >
           {tx(t, label)}
         </button>

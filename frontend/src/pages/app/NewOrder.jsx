@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import Img from '../../components/Img'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Hash, LayoutGrid, List, Minus, Plus, Search, ShoppingCart, Trash2, UtensilsCrossed } from 'lucide-react'
+import { Hash, ImageOff, Image as ImageIcon, LayoutGrid, List, Minus, Plus, Search, ShoppingCart, Trash2, UtensilsCrossed } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { money } from '../../lib/format'
@@ -70,6 +70,11 @@ export default function NewOrder() {
   const setView = (v) => { setViewState(v); try { localStorage.setItem(viewKey, v) } catch { /* private mode */ } }
   const mode = view || (hasPhotos ? 'grid' : 'list') // 'grid' | 'list' | 'numbers'
   const asGrid = mode === 'grid'
+  // List view only: show or hide the small dish pictures (remembered per login)
+  const imgKey = `hms.dishimg.${user?.id}`
+  const [imgPref, setImgPrefState] = useState(() => { try { return localStorage.getItem(imgKey) } catch { return null } })
+  const showImg = imgPref !== '0'
+  const toggleImg = () => { const v = showImg ? '0' : '1'; setImgPrefState(v); try { localStorage.setItem(imgKey, v) } catch { /* private mode */ } }
 
   const tapItem = (i) => (i.variants?.length ? setPick(i) : add(i))
   const quickAdd = (i) => { tapItem(i); setQ(''); if (!i.variants?.length) toast.success(`#${i.code} ${i.name}`) }
@@ -136,32 +141,53 @@ export default function NewOrder() {
     </div>
   )
 
+  const viewControls = (
+    <>
+      {/* icon button that opens the native chooser: Picture cards / Compact list / Number grid */}
+      <label className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-line bg-white text-brand">
+        {mode === 'grid' ? <LayoutGrid className="h-5 w-5" /> : mode === 'list' ? <List className="h-5 w-5" /> : <Hash className="h-5 w-5" />}
+        <select aria-label={t('View')} title={t('View')} value={mode} onChange={(e) => setView(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0">
+          <option value="grid">{t('Picture cards')}</option>
+          <option value="list">{t('Compact list')}</option>
+          <option value="numbers">{t('Number grid')}</option>
+        </select>
+      </label>
+      {mode === 'list' && (
+        <button type="button" aria-pressed={showImg} aria-label={showImg ? t('Hide pictures') : t('Show pictures')} title={showImg ? t('Hide pictures') : t('Show pictures')} onClick={toggleImg} className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border transition active:scale-90 ${showImg ? 'border-brand bg-brand text-white' : 'border-line bg-white text-muted'}`}>
+          {showImg ? <ImageIcon className="h-5 w-5" /> : <ImageOff className="h-5 w-5" />}
+        </button>
+      )}
+    </>
+  )
+  const orderSelect = (
+    <Select aria-label={t('Order for')} className="!min-h-10 !rounded-xl !px-2 !py-1 !pr-6 !text-[13px]" value={target} onChange={(e) => setTarget(e.target.value)}>
+              <optgroup label={t('No table')}>
+                <option value="takeaway">{t('Walk-in / Takeaway')}</option>
+                <option value="delivery">{t('Delivery')}</option>
+              </optgroup>
+              {tables?.length > 0 && (
+                <optgroup label={t('Dine-in tables')}>
+                  {tables.map((tb) => <option key={tb.id} value={`t:${tb.id}`}>{t('Table {n} · {status}', { n: tb.number, status: t(tb.status === 'available' ? 'Free' : tb.status[0].toUpperCase() + tb.status.slice(1)) })}</option>)}
+                </optgroup>
+              )}
+            </Select>
+  )
+
   return (
     <>
-      <PageHeader title={t('New order')} />
-      <div className="mb-3 lg:hidden">
-        <Select label={t('Order for')} value={target} onChange={(e) => setTarget(e.target.value)}>
-          <optgroup label={t('No table')}>
-            <option value="takeaway">{t('Walk-in / Takeaway')}</option>
-            <option value="delivery">{t('Delivery')}</option>
-          </optgroup>
-          {tables?.length > 0 && (
-            <optgroup label={t('Dine-in tables')}>
-              {tables.map((tb) => <option key={tb.id} value={`t:${tb.id}`}>{t('Table {n} · {status}', { n: tb.number, status: t(tb.status === 'available' ? 'Free' : tb.status[0].toUpperCase() + tb.status.slice(1)) })}</option>)}
-            </optgroup>
-          )}
-        </Select>
+      <div className="hidden lg:block"><PageHeader title={t('New order')} /></div>
+      {/* phones: title, "Order for" and the view controls all share the title line; the search box gets its own line */}
+      <div className="mb-2 flex items-center gap-1.5 lg:hidden">
+        <h1 className="shrink-0 text-[15px] font-extrabold tracking-tight">{t('New order')}</h1>
+        <div className="min-w-0 flex-1">{orderSelect}</div>
+        {viewControls}
       </div>
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0">
-          <div className="mb-3 flex items-center gap-2"><div className="relative min-w-0 flex-1"><Search className="absolute left-3.5 top-3.5 h-5 w-5 text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} enterKeyHint="go" placeholder={t('Name or number')} className="min-h-12 w-full rounded-2xl border border-line bg-white py-3 pl-10 pr-3 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>
-            <div role="group" aria-label={t('View')} className="flex shrink-0 gap-1 rounded-2xl bg-white p-1 ring-1 ring-line">
-              {[['grid', LayoutGrid, t('Picture cards')], ['list', List, t('Compact list')], ['numbers', Hash, t('Number grid')]].map(([v, Icon, label]) => (
-                <button key={v} type="button" aria-label={label} title={label} aria-pressed={v === mode} onClick={() => setView(v)} className={`grid h-10 w-10 place-items-center rounded-xl transition active:scale-90 ${v === mode ? 'bg-brand text-white' : 'text-muted'}`}><Icon className="h-5 w-5" /></button>
-              ))}
-            </div>
+          <div className="mb-2 flex items-center gap-1.5"><div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} enterKeyHint="go" placeholder={t('Name or number')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>
+            <div className="hidden items-center gap-1.5 lg:flex">{viewControls}</div>
           </div>
-          <Chips value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), c.name])]} />
+          <Chips rows={2} value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), c.name])]} />
           {exact && (
             <button type="button" onClick={() => quickAdd(exact)} className="animate-pop mb-3 flex w-full items-center gap-3 rounded-2xl bg-brand p-3 text-left text-white shadow-float active:scale-[.98]">
               <span className="grid h-12 min-w-12 place-items-center rounded-xl bg-white/20 px-2 text-2xl font-extrabold">{exact.code}</span>
@@ -219,9 +245,9 @@ export default function NewOrder() {
                   </div>
                 </div>
               ) : (
-                <div key={i.id} role="button" tabIndex={0} onClick={() => tapItem(i)} className={`flex items-center gap-3 overflow-hidden rounded-2xl border bg-white text-left shadow-card transition active:scale-[.98] ${i.image_url ? 'min-h-[4.75rem] py-0 pl-0 pr-4' : 'min-h-16 px-4 py-2.5'} ${n ? 'border-brand ring-2 ring-brand/20' : 'border-line/70'}`}>
-                  {i.image_url ? <Img src={i.image_url} thumb className="w-24 shrink-0 self-stretch object-cover" /> : dot}
-                  <div className="min-w-0 flex-1"><div className="flex items-center gap-1.5">{i.code != null && <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-md bg-brand px-1.5 text-[11px] font-extrabold leading-none text-white">{i.code}</span>}{i.image_url && dot}<span className="truncate text-[15px] font-semibold">{nm(i).main}</span></div>{i.name_mr && <div className="truncate text-xs text-muted">{i.name_mr}</div>}<div className="text-sm font-semibold text-brand">{price}</div></div>
+                <div key={i.id} role="button" tabIndex={0} onClick={() => tapItem(i)} className={`flex h-[4.5rem] items-center gap-3 overflow-hidden rounded-2xl border bg-white text-left shadow-card transition active:scale-[.98] ${i.image_url && showImg ? 'pl-0 pr-4' : 'px-4'} ${n ? 'border-brand ring-2 ring-brand/20' : 'border-line/70'}`}>
+                  {i.image_url && showImg ? <Img src={i.image_url} thumb className="h-full w-[4.5rem] shrink-0 object-cover" /> : dot}
+                  <div className="min-w-0 flex-1"><div className="flex items-center gap-1.5">{i.code != null && <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-md bg-brand px-1.5 text-[11px] font-extrabold leading-none text-white">{i.code}</span>}{i.image_url && showImg && dot}<span className="truncate text-[15px] font-semibold">{nm(i).main}</span></div>{i.name_mr && <div className="truncate text-xs text-muted">{i.name_mr}</div>}<div className="text-sm font-semibold text-brand">{price}</div></div>
                   {stepper || <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><Plus className="h-5 w-5" /></span>}
                 </div>
               )
