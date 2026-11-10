@@ -10,17 +10,17 @@ import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import { useI18n } from '../../i18n'
-import { dishNames } from '../../lib/dishName'
+import { catName, dishNames } from '../../lib/dishName'
 import { Badge, Button, Card, Chips, Empty, Input, Modal, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
 
 const BLANK = { code: '', category_id: '', name: '', name_mr: '', description: '', price: '', gst_percent: 5, discount_percent: 0, is_veg: true, is_available: true, stock: '', offer_text: '', variants: [] }
 
 const SAMPLE_CSV = [
-  'product_number,name,marathi_name,category,price,gst_percent,discount_percent,veg,available,stock,description,offer_text',
-  '101,Roti,चपाती,Breads,20,5,0,yes,yes,,Fresh tandoor roti,',
-  '102,Bhaji,भाजी,Main Course,60,5,0,yes,yes,50,"Seasonal vegetable, home style",',
-  '103,Chicken Biryani,चिकन बिर्याणी,Rice,220,5,10,no,yes,,Served with raita,Lunch special',
-  ',Masala Tea,मसाला चहा,Beverages,15,5,0,yes,yes,,,',
+  'product_number,name,marathi_name,category,category_marathi,price,gst_percent,discount_percent,veg,available,stock,description,offer_text',
+  '101,Roti,चपाती,Breads,रोटी,20,5,0,yes,yes,,Fresh tandoor roti,',
+  '102,Bhaji,भाजी,Main Course,मेन कोर्स,60,5,0,yes,yes,50,"Seasonal vegetable, home style",',
+  '103,Chicken Biryani,चिकन बिर्याणी,Rice,भात,220,5,10,no,yes,,Served with raita,Lunch special',
+  ',Masala Tea,मसाला चहा,Beverages,पेये,15,5,0,yes,yes,,,',
 ].join('\n')
 
 /** Dish photo: own upload, a platform library photo, or none. The platform photo that matches the dish name is the automatic default. */
@@ -81,6 +81,8 @@ export default function MenuManager() {
   const [image, setImage] = useState(null)
   const [catModal, setCatModal] = useState(false)
   const [newCat, setNewCat] = useState('')
+  const [newCatMr, setNewCatMr] = useState('')
+  const [editCat, setEditCat] = useState(null)
   const [busy, setBusy] = useState(false)
   const [csvOpen, setCsvOpen] = useState(false)
   const [csvFile, setCsvFile] = useState(null)
@@ -114,7 +116,8 @@ export default function MenuManager() {
   }
   const del = async (i) => { if (await ask({ title: t('Delete {name}?', { name: i.name }), message: t('This dish will be removed from your menu and the QR menu.'), confirmText: t('Delete dish') })) { try { await api.delete(`/menu/items/${i.id}`); reload() } catch (e) { toast.error(e) } } }
   const toggle = async (i) => { try { await api.post(`/menu/items/${i.id}`, toFormData({ is_available: !i.is_available })); reload() } catch (e) { toast.error(e) } }
-  const addCat = async () => { try { await api.post('/menu/categories', { name: newCat }); setNewCat(''); reloadCats() } catch (e) { toast.error(e) } }
+  const addCat = async () => { try { await api.post('/menu/categories', { name: newCat, name_mr: newCatMr || null }); setNewCat(''); setNewCatMr(''); reloadCats() } catch (e) { toast.error(e) } }
+  const saveCat = async () => { try { await api.put(`/menu/categories/${editCat.id}`, { name: editCat.name, name_mr: editCat.name_mr || null }); setEditCat(null); reloadCats(); reload() } catch (e) { toast.error(e) } }
   // Arrange categories: the new order is saved at once and used on New order, Menu and the customer QR menu
   const moveCat = async (from, to) => {
     const ids = cats.map((c) => c.id)
@@ -128,7 +131,7 @@ export default function MenuManager() {
   return (
     <>
       <PageHeader title={t('Menu')} sub={t('Categories, dishes, variants and prices')} actions={<><Button variant="secondary" onClick={() => { setCsvRes(null); setCsvFile(null); setCsvOpen(true) }}><Upload className="h-4 w-4" /> {t('Import CSV')}</Button><Button variant="secondary" onClick={() => setCatModal(true)}>{t('Categories')}</Button><Button onClick={() => open()}><Plus className="h-4 w-4" /> {t('Add dish')}</Button></>} />
-      <Chips value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), c.name])]} />
+      <Chips value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), catName(c, lang)])]} />
 
       {!rows.length ? <Empty title={t('No dishes yet')} action={<Button onClick={() => open()}>{t('Add your first dish')}</Button>} /> : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -138,7 +141,7 @@ export default function MenuManager() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">{i.code != null && <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-md bg-brand px-1.5 text-[11px] font-extrabold leading-none text-white">{i.code}</span>}<i className={`h-2.5 w-2.5 shrink-0 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} /><span className="truncate font-medium">{dishNames(i, lang).main}</span></div>
                 {dishNames(i, lang).sub && <div className="truncate text-xs text-muted">{dishNames(i, lang).sub}</div>}
-                <div className="text-xs text-muted">{i.category?.name}{gstOn ? ` · ${t('GST {n}%', { n: i.gst_percent })}` : ''}</div>
+                <div className="text-xs text-muted">{catName(i.category, lang)}{gstOn ? ` · ${t('GST {n}%', { n: i.gst_percent })}` : ''}</div>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5"><b className="text-brand">{money(i.price)}</b>{Number(i.discount_percent) > 0 && <Badge tone="green">{t('{n}% off', { n: i.discount_percent })}</Badge>}{i.variants.length > 0 && <Badge tone="violet">{t('{n} variants', { n: i.variants.length })}</Badge>}{i.stock !== null && <Badge tone={i.stock < 5 ? 'red' : 'slate'}>{t('stock {n}', { n: i.stock })}</Badge>}</div>
                 <div className="mt-2 flex gap-1.5">
                   <Button size="sm" variant="secondary" onClick={() => toggle(i)}>{i.is_available ? t('Hide') : t('Show')}</Button>
@@ -157,7 +160,7 @@ export default function MenuManager() {
             <Input label={t('Product number')} type="number" inputMode="numeric" min="1" max="99999" value={edit.code} onChange={s('code')} placeholder={t('Auto')} hint={t('Short number for fast ordering, e.g. 1 = Roti. Leave blank to auto-number.')} />
             <Input label={t('Name')} required value={edit.name} onChange={s('name')} />
             <Input label={t('Marathi name (optional)')} lang="mr" value={edit.name_mr || ''} onChange={s('name_mr')} placeholder="उदा. भाकरी" />
-            <Select label={t('Category')} required value={edit.category_id} onChange={s('category_id')}>{cats?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select>
+            <Select label={t('Category')} required value={edit.category_id} onChange={s('category_id')}>{cats?.map((c) => <option key={c.id} value={c.id}>{catName(c, lang)}</option>)}</Select>
             <Input label={t('Price (₹)')} type="number" min="0" step="0.01" required value={edit.price} onChange={s('price')} />
             <Input label={t('GST %')} type="number" min="0" max="28" step="0.01" value={gstOn ? edit.gst_percent : ''} onChange={s('gst_percent')} disabled={!gstOn} placeholder={gstOn ? '' : t('GST is off')} />
             <Input label={t('Discount %')} type="number" min="0" max="100" value={edit.discount_percent} onChange={s('discount_percent')} />
@@ -193,7 +196,7 @@ export default function MenuManager() {
           </ol>
           <Button variant="secondary" className="w-full" onClick={downloadSample}><Download className="h-4 w-4" /> {t('Download sample CSV')}</Button>
           <div className="rounded-2xl bg-canvas p-3 text-xs text-muted ring-1 ring-line">
-            <b className="text-ink">{t('Columns')}:</b> product_number, name*, marathi_name, category*, price*, gst_percent, discount_percent, veg (yes/no), available (yes/no), stock, description, offer_text
+            <b className="text-ink">{t('Columns')}:</b> product_number, name*, marathi_name, category*, category_marathi, price*, gst_percent, discount_percent, veg (yes/no), available (yes/no), stock, description, offer_text
             <div className="mt-1">* {t('required. New categories are created automatically.')}</div>
           </div>
           <Input label={t('Choose CSV file')} type="file" accept=".csv,text/csv" onChange={(e) => { setCsvFile(e.target.files[0] || null); setCsvRes(null) }} />
@@ -216,15 +219,27 @@ export default function MenuManager() {
         <div className="space-y-2">
           <p className="text-xs text-muted">{t('Use the arrows to arrange the order. It is used on New order, the Menu and the QR menu.')}</p>
           {cats?.map((c, i) => (
+            editCat?.id === c.id ? (
+              <div key={c.id} className="space-y-2 rounded-xl border border-brand bg-brand-soft/40 p-2">
+                <input className="min-h-11 w-full rounded-xl border border-line bg-white px-3 text-[16px] outline-none focus:border-brand sm:text-sm" placeholder={t('Category name (English)')} value={editCat.name} onChange={(e) => setEditCat({ ...editCat, name: e.target.value })} />
+                <input lang="mr" className="min-h-11 w-full rounded-xl border border-line bg-white px-3 text-[16px] outline-none focus:border-brand sm:text-sm" placeholder={t('Marathi name (optional)')} value={editCat.name_mr || ''} onChange={(e) => setEditCat({ ...editCat, name_mr: e.target.value })} />
+                <div className="grid grid-cols-2 gap-2"><Button variant="secondary" onClick={() => setEditCat(null)}>{t('Cancel')}</Button><Button onClick={saveCat} disabled={!editCat.name}>{t('Save')}</Button></div>
+              </div>
+            ) : (
             <div key={c.id} className="flex items-center gap-1 rounded-xl border border-line py-1 pl-3 pr-1 text-sm">
-              <span className="min-w-0 flex-1 truncate">{c.name} <span className="text-muted">({c.items_count})</span></span>
+              <span className="min-w-0 flex-1"><span className="block truncate">{c.name} <span className="text-muted">({c.items_count})</span></span>{c.name_mr && <span className="block truncate text-xs text-muted">{c.name_mr}</span>}</span>
+              <button type="button" aria-label={t('Edit')} title={t('Edit')} onClick={() => setEditCat({ id: c.id, name: c.name, name_mr: c.name_mr || '' })} className="grid h-10 w-10 place-items-center rounded-lg active:bg-brand-soft"><Pencil className="h-4 w-4" /></button>
               <button type="button" disabled={i === 0} aria-label={t('Move to top')} title={t('Move to top')} onClick={() => moveCat(i, 0)} className="grid h-10 w-10 place-items-center rounded-lg text-brand active:bg-brand-soft disabled:opacity-25"><ChevronsUp className="h-5 w-5" /></button>
               <button type="button" disabled={i === 0} aria-label={t('Move up')} title={t('Move up')} onClick={() => moveCat(i, i - 1)} className="grid h-10 w-10 place-items-center rounded-lg active:bg-brand-soft disabled:opacity-25"><ArrowUp className="h-5 w-5" /></button>
               <button type="button" disabled={i === cats.length - 1} aria-label={t('Move down')} title={t('Move down')} onClick={() => moveCat(i, i + 1)} className="grid h-10 w-10 place-items-center rounded-lg active:bg-brand-soft disabled:opacity-25"><ArrowDown className="h-5 w-5" /></button>
               <button type="button" aria-label={t('Delete')} onClick={() => delCat(c)} className="grid h-10 w-10 place-items-center rounded-lg active:bg-rose-50"><Trash2 className="h-4 w-4 text-rose-600" /></button>
             </div>
+            )
           ))}
-          <div className="flex gap-2 pt-2"><input className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm flex-1" placeholder={t('New category')} value={newCat} onChange={(e) => setNewCat(e.target.value)} /><Button onClick={addCat} disabled={!newCat}>{t('Add')}</Button></div>
+          <div className="space-y-2 pt-2">
+            <input className="min-h-12 w-full rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm" placeholder={t('New category')} value={newCat} onChange={(e) => setNewCat(e.target.value)} />
+            <div className="flex gap-2"><input lang="mr" className="min-h-12 min-w-0 flex-1 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm" placeholder={t('Marathi name (optional)')} value={newCatMr} onChange={(e) => setNewCatMr(e.target.value)} /><Button onClick={addCat} disabled={!newCat}>{t('Add')}</Button></div>
+          </div>
         </div>
       </Modal>
     </>

@@ -8,7 +8,7 @@ import { money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useI18n } from '../../i18n'
-import { dishNames } from '../../lib/dishName'
+import { catName, dishNames } from '../../lib/dishName'
 import { Button, Chips, Input, Modal, PageHeader, Select, Spinner } from '../../components/ui'
 
 /** Waiter POS: pick table → add items → place order. Totals here are an estimate; the server prices the order. */
@@ -18,6 +18,7 @@ export default function NewOrder() {
   const toast = useToast()
   const { t, lang } = useI18n()
   const nm = (i) => dishNames(i, lang)
+  const cn = (c) => catName(c, lang)
   const { can, company, user } = useAuth()
   const gstOn = company?.gst_enabled !== false
   const { data: items, loading } = useApi('/menu/items')
@@ -189,17 +190,17 @@ export default function NewOrder() {
             <div className="mb-1.5 flex items-center gap-1">
               <div className="relative min-w-[7rem] flex-1"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} enterKeyHint="go" placeholder={t('Name or number')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>
               {(cats || []).slice(0, 2).map((c) => (
-                <button key={c.id} type="button" aria-pressed={cat === String(c.id)} onClick={() => setCat(String(c.id))} className={`min-h-10 max-w-[6.4rem] shrink-0 truncate rounded-full px-3 text-[13px] font-semibold transition active:scale-95 ${cat === String(c.id) ? 'bg-brand text-white shadow-[0_6px_14px_-6px_rgb(23_100_95/.55)]' : 'bg-white text-slate-600 shadow-sm ring-1 ring-line'}`}>{c.name}</button>
+                <button key={c.id} type="button" aria-pressed={cat === String(c.id)} onClick={() => setCat(String(c.id))} className={`min-h-10 max-w-[6.4rem] shrink-0 truncate rounded-full px-3 text-[13px] font-semibold transition active:scale-95 ${cat === String(c.id) ? 'bg-brand text-white shadow-[0_6px_14px_-6px_rgb(23_100_95/.55)]' : 'bg-white text-slate-600 shadow-sm ring-1 ring-line'}`}>{cn(c)}</button>
               ))}
             </div>
             {/* the other categories: two lines that scroll sideways */}
-            <Chips rows={2} value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).slice(2).map((c) => [String(c.id), c.name])]} />
+            <Chips rows={2} value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).slice(2).map((c) => [String(c.id), cn(c)])]} />
           </div>
           <div className="hidden lg:block">
           <div className="mb-2 flex items-center gap-1.5"><div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} enterKeyHint="go" placeholder={t('Name or number')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>
               <div className="hidden items-center gap-1.5 lg:flex">{viewControls}</div>
             </div>
-            <Chips rows={2} value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), c.name])]} />
+            <Chips rows={2} value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), cn(c)])]} />
           </div>
           {exact && (
             <button type="button" onClick={() => quickAdd(exact)} className="animate-pop mb-3 flex w-full items-center gap-3 rounded-2xl bg-brand p-3 text-left text-white shadow-float active:scale-[.98]">
@@ -214,7 +215,7 @@ export default function NewOrder() {
                 const inCat = list.filter((i) => i.category_id === c.id)
                 return (
                   <section key={c.id}>
-                    <h3 className="mb-2 flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-muted"><span>{c.name}</span><span className="h-px flex-1 bg-line" /><span className="rounded-full bg-white px-2 py-0.5 ring-1 ring-line">{inCat.length}</span></h3>
+                    <h3 className="mb-2 flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-muted"><span>{cn(c)}</span><span className="h-px flex-1 bg-line" /><span className="rounded-full bg-white px-2 py-0.5 ring-1 ring-line">{inCat.length}</span></h3>
                     <div className="grid grid-cols-3 gap-2.5 min-[400px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-5 xl:grid-cols-6">
                       {inCat.map((i) => {
                         const n = qtyOf(i.id)

@@ -8,7 +8,7 @@ import { money } from '../../lib/format'
 import { Button, Chips, Input, Modal, Spinner } from '../../components/ui'
 import LangSwitch from '../../components/LangSwitch'
 import { useI18n } from '../../i18n'
-import { dishNames } from '../../lib/dishName'
+import { catName, dishNames } from '../../lib/dishName'
 
 const STEPS = [['pending', 'Received'], ['accepted', 'Accepted'], ['preparing', 'Cooking'], ['ready', 'Ready'], ['served', 'Served']]
 
@@ -87,7 +87,7 @@ export default function QrMenu() {
         </div>
         <div className="mt-3"><LangSwitch className="w-full justify-between" /></div>
         <div className="relative mt-3"><Search className="absolute left-3 top-3 h-4 w-4 text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Search dishes')} className="w-full rounded-xl border border-line bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand" /></div>
-        <div className="-mb-3 mt-3"><Chips value={cat} onChange={setCat} items={[['all', t('All')], ...menu.categories.map((c) => [String(c.id), c.name])]} /></div>
+        <div className="-mb-3 mt-3"><Chips value={cat} onChange={setCat} items={[['all', t('All')], ...menu.categories.map((c) => [String(c.id), catName(c, lang)])]} /></div>
       </header>
 
       <div className="space-y-3 p-4">

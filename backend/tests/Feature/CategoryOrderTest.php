@@ -59,4 +59,27 @@ class CategoryOrderTest extends TestCase
         $mine = $this->getJson('/api/menu/categories', $a)->json('0.id');
         $this->postJson('/api/menu/categories/reorder', ['ids' => [$mine]], $waiter)->assertForbidden();
     }
+
+    public function test_categories_have_a_marathi_name_and_csv_import_splits_bracketed_names(): void
+    {
+        $h = $this->h('atithi@demo.test');
+        $cat = $this->postJson('/api/menu/categories', ['name' => 'Roti', 'name_mr' => "\u{0930}\u{094B}\u{091F}\u{0940}"], $h)->assertCreated();
+        $this->assertSame("\u{0930}\u{094B}\u{091F}\u{0940}", $cat->json('name_mr'));
+        $this->putJson('/api/menu/categories/'.$cat->json('id'), ['name_mr' => "\u{092D}\u{093E}\u{0915}\u{0930}\u{0940}"], $h)->assertOk()->assertJsonPath('name_mr', "\u{092D}\u{093E}\u{0915}\u{0930}\u{0940}");
+
+        // CSV: "Soup (सूप)" in the category cell -> English "Soup" + Marathi; an explicit category_marathi column also works
+        $csv = "name,category,category_marathi,price\nTomato Soup,Soup (\u{0938}\u{0942}\u{092A}),,100\nPaneer Tikka,Starter,\u{0938}\u{094D}\u{091F}\u{093E}\u{0930}\u{094D}\u{091F}\u{0930},200\nCorn Soup,Soup,,90\n";
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('m.csv', $csv);
+        $this->post('/api/menu/import', ['file' => $file], $h)->assertOk()->assertJsonPath('created', 3);
+
+        $cats = collect($this->getJson('/api/menu/categories', $h)->json());
+        $soup = $cats->firstWhere('name', 'Soup');
+        $this->assertSame("\u{0938}\u{0942}\u{092A}", $soup['name_mr']);
+        $this->assertSame(2, $soup['items_count']); // both soups landed in ONE category
+        $this->assertSame("\u{0938}\u{094D}\u{091F}\u{093E}\u{0930}\u{094D}\u{091F}\u{0930}", $cats->firstWhere('name', 'Starter')['name_mr']);
+
+        // dishes and the public menu carry the Marathi category name too
+        $dish = collect($this->getJson('/api/menu/items?search=Tomato', $h)->json())->first();
+        $this->assertSame("\u{0938}\u{0942}\u{092A}", $dish['category']['name_mr']);
+    }
 }

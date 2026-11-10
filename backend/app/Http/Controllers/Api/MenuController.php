@@ -20,7 +20,7 @@ class MenuController extends Controller
 
     public function storeCategory(Request $r)
     {
-        $d = $r->validate(['name' => 'required|string|max:80', 'sort_order' => 'integer|min:0', 'is_active' => 'boolean']);
+        $d = $r->validate(['name' => 'required|string|max:80', 'name_mr' => 'nullable|string|max:80', 'sort_order' => 'integer|min:0', 'is_active' => 'boolean']);
         $d['sort_order'] ??= ((int) FoodCategory::max('sort_order')) + 1; // new categories go to the end
 
         return response()->json(FoodCategory::create($d), 201);
@@ -42,7 +42,7 @@ class MenuController extends Controller
     public function updateCategory(Request $r, int $id)
     {
         $c = FoodCategory::findOrFail($id);
-        $c->update($r->validate(['name' => 'sometimes|string|max:80', 'sort_order' => 'integer|min:0', 'is_active' => 'boolean']));
+        $c->update($r->validate(['name' => 'sometimes|string|max:80', 'name_mr' => 'nullable|string|max:80', 'sort_order' => 'integer|min:0', 'is_active' => 'boolean']));
 
         return $c;
     }
@@ -58,7 +58,7 @@ class MenuController extends Controller
 
     public function items(Request $r)
     {
-        $q = FoodItem::with('variants', 'category:id,name');
+        $q = FoodItem::with('variants', 'category:id,name,name_mr');
         if ($c = $r->query('category_id')) {
             $q->where('category_id', $c);
         }

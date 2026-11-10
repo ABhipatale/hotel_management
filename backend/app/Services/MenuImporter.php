@@ -22,6 +22,7 @@ class MenuImporter
         'name' => ['name', 'product_name', 'dish', 'dish_name', 'item', 'item_name', 'english_name'],
         'name_mr' => ['marathi_name', 'name_mr', 'marathi', 'name_marathi'],
         'category' => ['category', 'category_name'],
+        'category_mr' => ['category_marathi', 'category_mr', 'marathi_category'],
         'price' => ['price', 'rate', 'amount', 'mrp'],
         'gst_percent' => ['gst_percent', 'gst', 'gst_%', 'tax'],
         'discount_percent' => ['discount_percent', 'discount', 'discount_%'],
@@ -100,7 +101,11 @@ class MenuImporter
             throw new \InvalidArgumentException('Price and stock cannot be negative.');
         }
 
-        $category = $this->category($catName);
+        $catMr = $this->text($r['category_mr'] ?? null, 80);
+        if (! $catMr && preg_match('/^(.+?)\s*\(([^)]*[^\x00-\x7F][^)]*)\)\s*$/u', $catName, $m)) {
+            [$catName, $catMr] = [trim($m[1]), trim($m[2])]; // "Soup (सूप)" -> English "Soup" + Marathi "सूप"
+        }
+        $category = $this->category($catName, $catMr);
         $data = array_filter([
             'category_id' => $category->id,
             'name' => $name,
@@ -135,16 +140,19 @@ class MenuImporter
 
     private array $categories = [];
 
-    private function category(string $name): FoodCategory
+    private function category(string $name, ?string $nameMr = null): FoodCategory
     {
         $key = mb_strtolower($name);
-        if (isset($this->categories[$key])) {
-            return $this->categories[$key];
+        if (! isset($this->categories[$key])) {
+            $this->categories[$key] = FoodCategory::whereRaw('LOWER(name) = ?', [$key])->first()
+                ?? FoodCategory::create(['name' => mb_substr($name, 0, 80), 'name_mr' => $nameMr, 'sort_order' => ((int) FoodCategory::max('sort_order')) + 1, 'is_active' => true]);
         }
-        $cat = FoodCategory::whereRaw('LOWER(name) = ?', [$key])->first()
-            ?? FoodCategory::create(['name' => mb_substr($name, 0, 80), 'sort_order' => ((int) FoodCategory::max('sort_order')) + 1, 'is_active' => true]);
+        $cat = $this->categories[$key];
+        if ($nameMr && ! $cat->name_mr) {
+            $cat->update(['name_mr' => $nameMr]); // fill the Marathi name of an existing category, never overwrite one
+        }
 
-        return $this->categories[$key] = $cat;
+        return $cat;
     }
 
     private function number($v, string $label): ?float

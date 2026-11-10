@@ -1,6 +1,7 @@
 // Tables, New order, Billing, Menu manager, Receipt dialog
 export default {
   hi: {
+    'Category name (English)': 'कैटेगरी का नाम (English)',
     'Hide pictures': 'फ़ोटो छिपाएँ',
     'Show pictures': 'फ़ोटो दिखाएँ',
     'Use the arrows to arrange the order. It is used on New order, the Menu and the QR menu.': 'तीरों से क्रम बदलें। यही क्रम नया ऑर्डर, मेन्यू और QR मेन्यू में दिखेगा।',
@@ -111,6 +112,7 @@ export default {
     'Network printers use the browser print dialog from this device.': 'नेटवर्क प्रिंटर इस डिवाइस के ब्राउज़र प्रिंट डायलॉग से चलते हैं।',
   },
   mr: {
+    'Category name (English)': 'कॅटेगरीचे नाव (English)',
     'Hide pictures': 'फोटो लपवा',
     'Show pictures': 'फोटो दाखवा',
     'Use the arrows to arrange the order. It is used on New order, the Menu and the QR menu.': 'बाणांनी क्रम बदला. हाच क्रम नवीन ऑर्डर, मेनू आणि QR मेनूमध्ये दिसेल.',
