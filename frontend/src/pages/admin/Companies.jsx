@@ -121,7 +121,7 @@ function CompanyDetailsEditor({ company, onDone }) {
   const tr = useT()
   const [f, setF] = useState({
     name: company.name || '', phone: company.phone || '', email: company.email || '', address: company.address || '', city: company.city || '',
-    gst_enabled: company.gst_enabled !== false, gst_number: company.gst_number || '', qr_enabled: company.qr_enabled !== false, default_language: company.default_language || 'en',
+    gst_enabled: company.gst_enabled !== false, gst_number: company.gst_number || '', qr_enabled: company.qr_enabled !== false, use_library_images: company.use_library_images !== false, default_language: company.default_language || 'en',
   })
   const [busy, setBusy] = useState(false)
   const s = (k) => (e) => setF({ ...f, [k]: e.target.value })
@@ -142,6 +142,7 @@ function CompanyDetailsEditor({ company, onDone }) {
       <Input label="Address" value={f.address} onChange={s('address')} />
       <GstFields enabled={f.gst_enabled} number={f.gst_number} onEnabled={(v) => setF({ ...f, gst_enabled: v })} onNumber={(v) => setF({ ...f, gst_number: v })} />
       <QrSwitch checked={f.qr_enabled} onChange={(v) => setF({ ...f, qr_enabled: v })} />
+      <Switch label="Platform dish photos" checked={f.use_library_images} onChange={(v) => setF({ ...f, use_library_images: v })} hint={f.use_library_images ? 'Dishes without their own photo show matching photos from the platform image library.' : 'Only this company\'s own photos are shown. The platform library is hidden for it.'} />
       <LangSelect value={f.default_language} onChange={(v) => setF({ ...f, default_language: v })} />
       <Button className="w-full" loading={busy} onClick={save}>Save details</Button>
     </div>

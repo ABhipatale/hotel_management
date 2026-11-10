@@ -11,6 +11,7 @@ const QrMenu = lazy(() => import('./pages/public/QrMenu'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
 const Companies = lazy(() => import('./pages/admin/Companies'))
 const Pricing = lazy(() => import('./pages/admin/Pricing'))
+const ImageLibrary = lazy(() => import('./pages/admin/ImageLibrary'))
 const AdminPayments = lazy(() => import('./pages/admin/Misc').then((m) => ({ default: m.AdminPayments })))
 const AdminSettings = lazy(() => import('./pages/admin/Misc').then((m) => ({ default: m.AdminSettings })))
 const AdminTickets = lazy(() => import('./pages/admin/Misc').then((m) => ({ default: m.AdminTickets })))
@@ -79,6 +80,7 @@ export default function App() {
               <Route index element={<AdminDashboard />} />
               <Route path="companies" element={<Companies />} />
               <Route path="pricing" element={<Pricing />} />
+              <Route path="library" element={<ImageLibrary />} />
               <Route path="payments" element={<AdminPayments />} />
               <Route path="tickets" element={<AdminTickets />} />
               <Route path="settings" element={<AdminSettings />} />

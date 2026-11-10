@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Armchair, BarChart3, Bell, Building2, Clock, CreditCard, Download, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
+  Armchair, BarChart3, Bell, Building2, Clock, CreditCard, Download, Images, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
   Settings, ShoppingBag, Store, Tag, Users, UtensilsCrossed, Wallet,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -17,6 +17,7 @@ const ADMIN_NAV = [
   { to: '/admin', icon: LayoutDashboard, label: 'Overview', end: true },
   { to: '/admin/companies', icon: Building2, label: 'Companies' },
   { to: '/admin/pricing', icon: Tag, label: 'Pricing' },
+  { to: '/admin/library', icon: Images, label: 'Image library' },
   { to: '/admin/payments', icon: Wallet, label: 'Payments' },
   { to: '/admin/tickets', icon: LifeBuoy, label: 'Support' },
   { to: '/admin/settings', icon: Settings, label: 'Settings' },

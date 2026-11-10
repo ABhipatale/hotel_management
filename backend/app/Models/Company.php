@@ -10,7 +10,7 @@ class Company extends Model
     use SoftDeletes;
 
     protected $guarded = ['id', 'uid', 'status'];
-    protected $casts = ['settings' => 'array', 'gst_enabled' => 'boolean', 'qr_enabled' => 'boolean'];
+    protected $casts = ['settings' => 'array', 'gst_enabled' => 'boolean', 'qr_enabled' => 'boolean', 'use_library_images' => 'boolean'];
     protected $appends = ['logo_url', 'icon_url'];
 
     public function getIconUrlAttribute(): ?string

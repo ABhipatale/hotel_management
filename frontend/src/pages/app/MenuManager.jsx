@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Img from '../../components/Img'
+import LibraryPicker from '../../components/LibraryPicker'
 import { compressImage } from '../../lib/image'
-import { Download, Pencil, Plus, Trash2, Upload, UtensilsCrossed } from 'lucide-react'
+import { Download, ImageIcon, Pencil, Plus, Trash2, Upload, UtensilsCrossed } from 'lucide-react'
 import { api, toFormData } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { money } from '../../lib/format'
@@ -21,6 +22,43 @@ const SAMPLE_CSV = [
   ',Masala Tea,मसाला चहा,Beverages,15,5,0,yes,yes,,,',
 ].join('\n')
 
+/** Dish photo: own upload, a platform library photo, or none. The platform photo that matches the dish name is the automatic default. */
+function DishPhoto({ edit, setEdit, file, setFile, library }) {
+  const t = useT()
+  const [picking, setPicking] = useState(false)
+  const own = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
+  useEffect(() => () => { if (own) URL.revokeObjectURL(own) }, [own])
+  const shown = own || edit.image_url
+  const source = own ? 'own' : edit.image_source
+  const auto = !own && edit.image_action === 'auto'
+  const label = source === 'own' ? t('Your own photo') : source === 'library' ? t('Platform photo') : auto ? t('Automatic: a platform photo is used when one matches the dish name.') : t('No photo')
+
+  const pick = (img) => { setFile(null); setEdit({ ...edit, library_image_id: img.id, image_url: img.image_url, image_source: 'library', image_action: undefined }); setPicking(false) }
+  const clear = (action) => { setFile(null); setEdit({ ...edit, library_image_id: null, image_url: null, image_source: null, image_action: action }) }
+
+  return (
+    <div className="space-y-2 sm:col-span-2">
+      <div className="text-sm font-medium">{t('Dish photo')}</div>
+      <div className="flex gap-3 rounded-2xl border border-line bg-white p-3">
+        {shown ? <Img src={shown} thumb={!own} className="h-24 w-24 shrink-0 rounded-xl object-cover" /> : <div className="grid h-24 w-24 shrink-0 place-items-center rounded-xl bg-brand-soft"><UtensilsCrossed className="h-8 w-8 text-brand/40" strokeWidth={1.6} /></div>}
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="text-xs font-semibold text-muted">{label}</div>
+          <div className="flex flex-wrap gap-2">
+            {library && <Button type="button" size="sm" variant="secondary" onClick={() => setPicking(true)}><ImageIcon className="h-4 w-4" /> {t('Choose from library')}</Button>}
+            <label className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-white px-3 text-xs font-bold active:scale-95">
+              <Upload className="h-4 w-4" /> {t('Upload own photo')}
+              <input type="file" accept="image/*" hidden onChange={async (e) => { if (e.target.files[0]) { setFile(await compressImage(e.target.files[0])); setEdit({ ...edit, library_image_id: null, image_action: undefined }) } e.target.value = '' }} />
+            </label>
+            {(shown || source) && <Button type="button" size="sm" variant="ghost" onClick={() => clear('remove')}><Trash2 className="h-4 w-4 text-rose-600" /> {t('Remove photo')}</Button>}
+            {library && (source === 'own' || edit.image_action === 'remove') && edit.id && <Button type="button" size="sm" variant="ghost" onClick={() => clear('auto')}>{t('Use platform photo automatically')}</Button>}
+          </div>
+        </div>
+      </div>
+      {picking && <LibraryPicker initialQuery="" onClose={() => setPicking(false)} onPick={pick} />}
+    </div>
+  )
+}
+
 function downloadSample() {
   const url = URL.createObjectURL(new Blob(['\uFEFF' + SAMPLE_CSV + '\n'], { type: 'text/csv;charset=utf-8' }))
   const a = Object.assign(document.createElement('a'), { href: url, download: 'menu-sample.csv' })
@@ -33,6 +71,7 @@ export default function MenuManager() {
   const t = useT()
   const { company } = useAuth()
   const gstOn = company?.gst_enabled !== false
+  const libraryOn = company?.use_library_images !== false
   const ask = useConfirm()
   const { data: cats, reload: reloadCats } = useApi('/menu/categories')
   const { data: items, loading, reload } = useApi('/menu/items')
@@ -117,7 +156,7 @@ export default function MenuManager() {
             <Input label={t('Discount %')} type="number" min="0" max="100" value={edit.discount_percent} onChange={s('discount_percent')} />
             <Input label={t('Stock (blank = unlimited)')} type="number" min="0" value={edit.stock} onChange={s('stock')} />
             <Input label={t('Special offer text')} value={edit.offer_text || ''} onChange={s('offer_text')} />
-            <Input label={t('Image')} type="file" accept="image/*" onChange={async (e) => setImage(await compressImage(e.target.files[0]))} />
+            <DishPhoto edit={edit} setEdit={setEdit} file={image} setFile={setImage} library={libraryOn} />
             <div className="sm:col-span-2"><Textarea label={t('Description')} value={edit.description || ''} onChange={s('description')} /></div>
             <div className="flex gap-5 text-sm sm:col-span-2">
               <label className="flex items-center gap-2"><input type="checkbox" checked={edit.is_veg} onChange={(e) => setEdit({ ...edit, is_veg: e.target.checked })} /> {t('Vegetarian')}</label>

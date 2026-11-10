@@ -129,6 +129,8 @@ class MenuController extends Controller
             'stock' => 'nullable|integer|min:0',
             'offer_text' => 'nullable|string|max:120',
             'image' => 'nullable|image|max:3072',
+            'library_image_id' => ['nullable', 'integer', 'exists:library_images,id'],
+            'image_action' => 'nullable|in:remove,auto',
             'variants' => 'nullable|array|max:10',
             'variants.*.name' => 'required|string|max:40',
             'variants.*.price' => 'required|numeric|min:0',
@@ -137,7 +139,7 @@ class MenuController extends Controller
 
     private function fields(Request $r, array $d, ?FoodItem $existing = null): array
     {
-        unset($d['variants'], $d['image']);
+        unset($d['variants'], $d['image'], $d['image_action']);
         if (array_key_exists('code', $d) && $d['code'] === null) {
             unset($d['code']); // blank = keep the current number (or auto-number on create)
         }
@@ -150,6 +152,25 @@ class MenuController extends Controller
                 $images->delete($old);
             }
             $d['image_path'] = $images->store($r->file('image'), 'food/'.Tenant::id());
+            $d['library_image_id'] = null;
+            $d['hide_library_image'] = false;
+        } elseif (! empty($d['library_image_id'])) {
+            // picked a platform library photo: it replaces the hotel's own upload
+            if ($old = $existing?->image_path) {
+                app(\App\Services\ImageService::class)->delete($old);
+            }
+            $d['image_path'] = null;
+            $d['hide_library_image'] = false;
+        } else {
+            unset($d['library_image_id']);
+            if (in_array($r->input('image_action'), ['remove', 'auto'], true)) {
+                if ($old = $existing?->image_path) {
+                    app(\App\Services\ImageService::class)->delete($old);
+                }
+                $d['image_path'] = null;
+                $d['library_image_id'] = null;
+                $d['hide_library_image'] = $r->input('image_action') === 'remove';
+            }
         }
 
         return $d;

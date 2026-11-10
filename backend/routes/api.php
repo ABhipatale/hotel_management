@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BillingController;
+use App\Http\Controllers\Api\LibraryController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OperationsController;
 use App\Http\Controllers\Api\OrderController;
@@ -48,6 +49,10 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('companies/{id}/branding', [SuperAdminController::class, 'branding']);
         Route::post('companies/{id}/subscription', [SuperAdminController::class, 'assignSubscription']);
         Route::delete('companies/{id}', [SuperAdminController::class, 'destroyCompany']);
+        Route::get('library', [LibraryController::class, 'adminIndex']);
+        Route::post('library', [LibraryController::class, 'store']);
+        Route::post('library/{id}', [LibraryController::class, 'update']); // POST for multipart
+        Route::delete('library/{id}', [LibraryController::class, 'destroy']);
         Route::get('pricing', [SuperAdminController::class, 'pricing']);
         Route::put('pricing', [SuperAdminController::class, 'savePricing']);
         Route::get('payments', [SuperAdminController::class, 'payments']);
@@ -109,6 +114,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
             Route::put('menu/categories/{id}', [MenuController::class, 'updateCategory']);
             Route::delete('menu/categories/{id}', [MenuController::class, 'destroyCategory']);
             Route::post('menu/import', [MenuController::class, 'import']);
+            Route::get('library', [LibraryController::class, 'index']);
             Route::get('menu/next-code', [MenuController::class, 'nextCode']);
             Route::post('menu/items', [MenuController::class, 'storeItem']);
             Route::post('menu/items/{id}', [MenuController::class, 'updateItem']); // POST for multipart
