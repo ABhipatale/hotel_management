@@ -55,4 +55,29 @@ class ImageOptimizeTest extends TestCase
         Storage::disk('public')->assertMissing($path);
         Storage::disk('public')->assertMissing($thumb);
     }
+
+    /** Regression: a live server returned 500 because imagescale() gave false. Odd pictures must still store, resized. */
+    public function test_palette_and_transparent_pictures_are_stored_resized(): void
+    {
+        $svc = app(\App\Services\ImageService::class);
+
+        $pal = imagecreate(2400, 1600); // 8-bit palette image
+        imagecolorallocate($pal, 200, 80, 40);
+        $tmp = tempnam(sys_get_temp_dir(), 'pal').'.png';
+        imagepng($pal, $tmp);
+        $path = $svc->store(new UploadedFile($tmp, 'pal.png', 'image/png', null, true), 'library');
+        [$w, $h] = getimagesizefromstring(Storage::disk('public')->get($path));
+        $this->assertLessThanOrEqual(900, max($w, $h));
+        $this->assertTrue(Storage::disk('public')->exists($svc->thumbPath($path)));
+
+        $rgba = imagecreatetruecolor(1500, 3000); // tall + alpha
+        imagesavealpha($rgba, true);
+        imagefill($rgba, 0, 0, imagecolorallocatealpha($rgba, 10, 120, 60, 60));
+        $tmp2 = tempnam(sys_get_temp_dir(), 'rgba').'.png';
+        imagepng($rgba, $tmp2);
+        $path2 = $svc->store(new UploadedFile($tmp2, 'a.png', 'image/png', null, true), 'library');
+        [$w2, $h2] = getimagesizefromstring(Storage::disk('public')->get($path2));
+        $this->assertSame(900, $h2);
+        $this->assertSame(450, $w2);
+    }
 }

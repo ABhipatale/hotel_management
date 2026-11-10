@@ -64,8 +64,23 @@ class LibraryController extends Controller
 
         $files = $r->file('files');
         $out = ['created' => 0, 'replaced' => 0];
+        try {
+            $this->saveAll($r, $files, $out);
+        } catch (\Throwable $e) {
+            report($e);
+
+            // platform-admin only route: show the real reason so a live problem can be fixed quickly
+            return response()->json(['message' => 'Upload failed: '.mb_substr($e->getMessage(), 0, 300)], 500);
+        }
+        AuditLog::record('super.library.upload', 'library_image', null, $out);
+
+        return response()->json($out, 201);
+    }
+
+    private function saveAll(Request $r, array $files, array &$out): void
+    {
         foreach ($files as $file) {
-            $name = count($files) === 1 && $r->filled('name') ? trim($r->input('name')) : $this->nameFromFile($file->getClientOriginalName());
+            $name = mb_substr(count($files) === 1 && $r->filled('name') ? trim($r->input('name')) : $this->nameFromFile($file->getClientOriginalName()), 0, 120);
             $key = LibraryImages::normalize($name);
             $existing = $key === '' ? null : LibraryImage::all(['id', 'name', 'image_path'])->first(fn ($i) => LibraryImages::normalize($i->name) === $key);
             $path = $this->images->store($file, 'library');
@@ -84,9 +99,6 @@ class LibraryController extends Controller
                 $out['created']++;
             }
         }
-        AuditLog::record('super.library.upload', 'library_image', null, $out);
-
-        return response()->json($out, 201);
     }
 
     public function update(Request $r, int $id)

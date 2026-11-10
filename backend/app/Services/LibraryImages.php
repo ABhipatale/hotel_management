@@ -26,22 +26,31 @@ class LibraryImages
     /** @return array{byKey: array<string,int>, paths: array<int,string>} */
     private static function index(): array
     {
-        return Cache::rememberForever(self::KEY, function () {
-            $byKey = [];
-            $paths = [];
-            foreach (LibraryImage::orderBy('id')->get(['id', 'name', 'name_mr', 'aliases', 'image_path']) as $img) {
-                $paths[$img->id] = $img->image_path;
-                $names = array_merge([$img->name, $img->name_mr], explode(',', (string) $img->aliases));
-                foreach ($names as $n) {
-                    $k = self::normalize($n);
-                    if ($k !== '') {
-                        $byKey[$k] = $img->id;
-                    }
+        // The cache only speeds things up: if the cache store is unavailable, read the table directly
+        try {
+            return Cache::rememberForever(self::KEY, fn () => self::build());
+        } catch (\Throwable) {
+            return self::build();
+        }
+    }
+
+    /** @return array{byKey: array<string,int>, paths: array<int,string>} */
+    private static function build(): array
+    {
+        $byKey = [];
+        $paths = [];
+        foreach (LibraryImage::orderBy('id')->get(['id', 'name', 'name_mr', 'aliases', 'image_path']) as $img) {
+            $paths[$img->id] = $img->image_path;
+            $names = array_merge([$img->name, $img->name_mr], explode(',', (string) $img->aliases));
+            foreach ($names as $n) {
+                $k = self::normalize($n);
+                if ($k !== '') {
+                    $byKey[$k] = $img->id;
                 }
             }
+        }
 
-            return ['byKey' => $byKey, 'paths' => $paths];
-        });
+        return ['byKey' => $byKey, 'paths' => $paths];
     }
 
     public static function pathById(?int $id): ?string
@@ -64,6 +73,10 @@ class LibraryImages
 
     public static function flush(): void
     {
-        Cache::forget(self::KEY);
+        try {
+            Cache::forget(self::KEY);
+        } catch (\Throwable) {
+            // a broken cache store must never stop an upload
+        }
     }
 }
