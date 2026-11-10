@@ -298,7 +298,7 @@ export function Chips({ items, value, onChange, rows = 1 }) {
   const t = useT()
   // rows > 1: the chips are laid out in that many lines and scroll sideways together, so twice as many are visible at once
   return (
-    <div className={cx('no-scrollbar -mx-4 mb-3 overflow-x-auto px-4 pb-1', rows > 1 ? 'grid auto-cols-max grid-flow-col gap-1' : 'flex gap-1.5')} style={rows > 1 ? { gridTemplateRows: `repeat(${rows}, auto)` } : undefined}>
+    <div className={cx('no-scrollbar -mx-4 mb-3 overflow-x-auto overscroll-x-contain px-4 pb-1', rows > 1 ? 'grid auto-cols-max grid-flow-col gap-1' : 'flex gap-1.5')} style={rows > 1 ? { gridTemplateRows: `repeat(${rows}, auto)` } : undefined}>
       {items.map(([k, label]) => (
         <button
           key={k}

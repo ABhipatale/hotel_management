@@ -78,7 +78,7 @@
   --color-violet-800: #2E2925; --color-violet-900: #1D1A17;
 }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; background: var(--color-canvas); }
 html, body, #root { min-height: 100%; }
 body {
   background: var(--color-canvas);
@@ -149,6 +149,8 @@ body {
 
 /* ───────────────────────── Mobile safety nets (iOS Safari + Android Chrome) ───────────────────────── */
 body { overflow-x: clip; }
+/* The page itself must never slide sideways (iOS rubber-band / sideways swipes on the category row) and any strip is canvas-coloured, never white */
+html, body { overflow-x: clip; overscroll-behavior-x: none; max-width: 100vw; }
 input[type="date"], input[type="time"], input[type="color"], select {
   -webkit-appearance: none;
   appearance: none;
