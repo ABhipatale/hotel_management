@@ -29,8 +29,10 @@ const Settings = lazy(() => import('./pages/app/Settings'))
 const Subscription = lazy(() => import('./pages/app/Subscription'))
 const Onboarding = lazy(() => import('./pages/app/Onboarding'))
 
+// Where the app opens after launch / sign-in: the Orders tab (the Home tab is still one tap away)
 function homeFor(a) {
   if (a.isSuperAdmin) return '/admin'
+  if (a.can('orders.view')) return '/app/orders'
   if (a.can('dashboard.view')) return '/app'
   if (a.can('orders.create')) return '/app/tables'
   return '/app/orders'
