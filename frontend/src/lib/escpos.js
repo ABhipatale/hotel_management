@@ -96,8 +96,10 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer }
   return new Uint8Array(out)
 }
 
-async function chunked(write, bytes, size) {
-  for (let i = 0; i < bytes.length; i += size) await write(bytes.slice(i, i + size))
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+// `delay` (ms) paces big jobs such as picture receipts so a small printer buffer is never overrun
+async function chunked(write, bytes, size, delay = 0) {
+  for (let i = 0; i < bytes.length; i += size) { await write(bytes.slice(i, i + size)); if (delay) await sleep(delay) }
 }
 
 // ───────── Remembered printer ─────────
@@ -156,7 +158,7 @@ export async function pairPrinter(kind) {
   } catch (e) { throw friendly(e) }
 }
 
-export async function printUsb(bytes) {
+export async function printUsb(bytes, { delay = 0 } = {}) {
   try {
     const device = await usbDevice(false)
     if (!device.opened) await device.open()
@@ -165,12 +167,12 @@ export async function printUsb(bytes) {
     if (!iface) throw new Error('No printer interface found on this device')
     if (!iface.claimed) await device.claimInterface(iface.interfaceNumber)
     const ep = iface.alternates[0].endpoints.find((e) => e.direction === 'out')
-    await chunked((c) => device.transferOut(ep.endpointNumber, c), bytes, 64)
+    await chunked((c) => device.transferOut(ep.endpointNumber, c), bytes, 64, delay)
     await device.close()
   } catch (e) { throw friendly(e) }
 }
 
-export async function printBluetooth(bytes) {
+export async function printBluetooth(bytes, { delay = 0 } = {}) {
   const send = async (device) => {
     const server = device.gatt.connected ? device.gatt : await device.gatt.connect()
     const services = await server.getPrimaryServices()
@@ -178,7 +180,8 @@ export async function printBluetooth(bytes) {
       const chars = await s.getCharacteristics()
       const w = chars.find((c) => c.properties.write || c.properties.writeWithoutResponse)
       if (w) {
-        await chunked((c) => (w.properties.writeWithoutResponse ? w.writeValueWithoutResponse(c) : w.writeValue(c)), bytes, 100)
+        await chunked((c) => (w.properties.writeWithoutResponse ? w.writeValueWithoutResponse(c) : w.writeValue(c)), bytes, 100, delay)
+        if (delay) await sleep(1200) // let the printer finish its buffer before the link is dropped
         server.disconnect()
         return
       }

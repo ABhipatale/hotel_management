@@ -1,6 +1,7 @@
 // Tables, New order, Billing, Menu manager, Receipt dialog
 export default {
   hi: {
+    'Bill language': 'बिल की भाषा',
     'Category name (English)': 'कैटेगरी का नाम (English)',
     'Hide pictures': 'फ़ोटो छिपाएँ',
     'Show pictures': 'फ़ोटो दिखाएँ',
@@ -112,6 +113,7 @@ export default {
     'Network printers use the browser print dialog from this device.': 'नेटवर्क प्रिंटर इस डिवाइस के ब्राउज़र प्रिंट डायलॉग से चलते हैं।',
   },
   mr: {
+    'Bill language': 'बिलाची भाषा',
     'Category name (English)': 'कॅटेगरीचे नाव (English)',
     'Hide pictures': 'फोटो लपवा',
     'Show pictures': 'फोटो दाखवा',

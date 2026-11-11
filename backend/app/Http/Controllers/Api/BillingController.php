@@ -77,10 +77,24 @@ class BillingController extends Controller
         return response()->noContent();
     }
 
+    /** Bill lines only store the English dish name (+ " (variant)"): attach the dish's Marathi name so the bill can be printed in Marathi. */
+    private function addMarathiNames(Bill $bill): void
+    {
+        $bill->loadMissing('items');
+        $base = fn (string $n) => trim(preg_replace('/\s*\([^)]*\)$/u', '', $n));
+        $names = $bill->items->flatMap(fn ($i) => [$i->name, $base($i->name)])->unique()->values()->all();
+        $mr = \App\Models\FoodItem::whereIn('name', $names)->whereNotNull('name_mr')->pluck('name_mr', 'name');
+        foreach ($bill->items as $i) {
+            $variant = preg_match('/\(([^)]*)\)$/u', $i->name, $m) ? $m[1] : null;
+            $i->setAttribute('name_mr', $mr[$i->name] ?? (isset($mr[$base($i->name)]) ? $mr[$base($i->name)].($variant ? " ($variant)" : '') : null));
+        }
+    }
+
     /** Everything the thermal/browser printer & WhatsApp share need — branded per company. */
     private function receiptPayload(Bill $bill): array
     {
         $c = Tenant::company();
+        $this->addMarathiNames($bill);
         $printer = PrinterSetting::where(fn ($q) => $q->where('branch_id', $bill->branch_id)->orWhereNull('branch_id'))->orderByDesc('branch_id')->first();
 
         return [
