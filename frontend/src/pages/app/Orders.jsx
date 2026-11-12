@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, QrCode, StickyNote } from 'lucide-react'
+import { Pencil, Plus, QrCode, StickyNote } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { ago, money } from '../../lib/format'
@@ -56,6 +56,7 @@ export default function Orders() {
                 {o.bill && (can('billing.manage') && o.bill.status !== 'paid'
                   ? <Link to={`/app/billing?pay=${o.bill.id}`} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-accent px-3.5 text-xs font-extrabold text-white shadow-card active:scale-95">{t('Collect {amount}', { amount: money(o.bill.grand_total) })}</Link>
                   : <Badge tone="blue">{t('Bill {no}', { no: o.bill.bill_no })} · {money(o.bill.grand_total)}</Badge>)}
+                {!['paid', 'cancelled'].includes(o.status) && o.bill?.status !== 'paid' && can('orders.create') && <Link to={`/app/order/new?edit=${o.id}`}><Button size="sm" variant="secondary"><Pencil className="h-3.5 w-3.5" /> {t('Edit')}</Button></Link>}
                 {['pending', 'accepted', 'preparing'].includes(o.status) && <Button size="sm" variant="ghost" onClick={async () => (await ask({ title: t('Cancel this order?'), message: t('The order will be cancelled and removed from the open list.'), confirmText: t('Cancel order'), cancelText: t('Keep order') })) && setStatus(o, 'cancelled')}>{t('Cancel')}</Button>}
               </div>
             </Card>

@@ -1,6 +1,11 @@
 // Tables, New order, Billing, Menu manager, Receipt dialog
 export default {
   hi: {
+    'Edit order': 'ऑर्डर बदलें',
+    'Save changes': 'बदलाव सेव करें',
+    'Order updated': 'ऑर्डर अपडेट हो गया',
+    'Editing {no}': 'बदल रहे हैं {no}',
+    'This order already has a bill. It will be updated with your changes (same bill number).': 'इस ऑर्डर का बिल बन चुका है। आपके बदलावों के साथ वही बिल (वही बिल नंबर) अपडेट होगा।',
     'Bill language': 'बिल की भाषा',
     'Category name (English)': 'कैटेगरी का नाम (English)',
     'Hide pictures': 'फ़ोटो छिपाएँ',
@@ -113,6 +118,11 @@ export default {
     'Network printers use the browser print dialog from this device.': 'नेटवर्क प्रिंटर इस डिवाइस के ब्राउज़र प्रिंट डायलॉग से चलते हैं।',
   },
   mr: {
+    'Edit order': 'ऑर्डर बदला',
+    'Save changes': 'बदल जतन करा',
+    'Order updated': 'ऑर्डर अपडेट झाला',
+    'Editing {no}': 'बदल करत आहात {no}',
+    'This order already has a bill. It will be updated with your changes (same bill number).': 'या ऑर्डरचे बिल आधीच तयार आहे. तुमच्या बदलांसह तेच बिल (तोच बिल क्रमांक) अपडेट होईल.',
     'Bill language': 'बिलाची भाषा',
     'Category name (English)': 'कॅटेगरीचे नाव (English)',
     'Hide pictures': 'फोटो लपवा',

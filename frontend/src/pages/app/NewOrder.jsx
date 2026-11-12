@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Img from '../../components/Img'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Hash, ImageOff, Image as ImageIcon, LayoutGrid, List, Minus, Plus, Search, ShoppingCart, Trash2, UtensilsCrossed } from 'lucide-react'
@@ -24,6 +24,9 @@ export default function NewOrder() {
   const { data: items, loading } = useApi('/menu/items')
   const { data: cats } = useApi('/menu/categories')
   const { data: tables } = useApi('/tables')
+  // Edit mode (?edit=<order id>): the order's dishes are loaded into the cart and saved back until the order is paid
+  const editId = params.get('edit')
+  const { data: editing, loading: loadingEdit } = useApi(`/orders/${editId}`, { skip: !editId })
   // "Order for": a table, or no table at all (walk-in takeaway / delivery). A table is never required.
   const [target, setTarget] = useState(params.get('table') ? `t:${params.get('table')}` : 'takeaway')
   const tableId = target.startsWith('t:') ? target.slice(2) : ''
@@ -35,6 +38,21 @@ export default function NewOrder() {
   const [notes, setNotes] = useState('')
   const [busy, setBusy] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
+  const filled = useRef(false)
+  useEffect(() => {
+    if (!editing || !items || filled.current) return
+    filled.current = true
+    const next = {}
+    editing.items.filter((oi) => oi.status !== 'cancelled').forEach((oi) => {
+      const food = items.find((f) => f.id === oi.food_item_id)
+      const variant = oi.variant ? food?.variants?.find((v) => v.name === oi.variant) : null
+      const key = `${oi.food_item_id}:${variant?.id || 0}`
+      next[key] = { key, food_item_id: oi.food_item_id, variant_id: variant?.id, code: food?.code, name: oi.name + (oi.variant ? ` (${oi.variant})` : ''), price: +oi.price, discount: +oi.discount_percent, gst: +oi.gst_percent, quantity: (next[key]?.quantity || 0) + oi.quantity }
+    })
+    setCart(next)
+    setNotes(editing.notes || '')
+    setTarget(editing.table_id ? `t:${editing.table_id}` : editing.type)
+  }, [editing, items])
 
   const qs = q.trim().toLowerCase()
   const list = useMemo(
@@ -85,6 +103,12 @@ export default function NewOrder() {
   const submit = async (withBill = false) => {
     setBusy(withBill ? 'bill' : 'order')
     try {
+      if (editId) {
+        await api.put(`/orders/${editId}/items`, { items: lines.map((l) => ({ food_item_id: l.food_item_id, variant_id: l.variant_id || null, quantity: l.quantity })), notes: notes || null })
+        toast.success(t('Order updated'))
+        nav(editing?.bill && can('billing.manage') ? `/app/billing?pay=${editing.bill.id}` : '/app/orders')
+        return
+      }
       const { data } = await api.post('/orders', {
         table_id: tableId || null,
         type, notes: notes || null,
@@ -101,12 +125,13 @@ export default function NewOrder() {
     } catch (e) { toast.error(e) } finally { setBusy(false) }
   }
 
-  if (loading) return <Spinner />
+  if (loading || (editId && loadingEdit)) return <Spinner />
 
   const Cart = (
     <div className="flex h-full flex-col">
-      <div className="mb-3 hidden lg:block">
-        <Select aria-label={t('Order for')} value={target} onChange={(e) => setTarget(e.target.value)}>
+      {editId && <div className="mb-3 rounded-xl bg-brand-soft px-3 py-2 text-sm font-bold text-brand">{t('Editing {no}', { no: `${editing?.order_no || ''}${editing?.table ? ` · ${t('Table {n}', { n: editing.table.number })}` : ''}` })}</div>}
+      <div className={`mb-3 hidden ${editId ? '' : 'lg:block'}`}>
+        <Select aria-label={t('Order for')} disabled={!!editId} value={target} onChange={(e) => setTarget(e.target.value)}>
           <optgroup label={t('No table')}>
             <option value="takeaway">{t('Walk-in / Takeaway')}</option>
             <option value="delivery">{t('Delivery')}</option>
@@ -134,10 +159,17 @@ export default function NewOrder() {
       <div className="mt-3 space-y-3 border-t border-line pt-3">
         <Input placeholder={t('Notes (optional)')} value={notes} onChange={(e) => setNotes(e.target.value)} />
         <div className="flex justify-between text-sm"><span className="text-muted">{gstOn ? t('Estimated total (incl. GST)') : t('Estimated total')}</span><b className="text-lg">{money(total)}</b></div>
+        {editId ? (
+          <>
+            {editing?.bill && <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">{t('This order already has a bill. It will be updated with your changes (same bill number).')}</p>}
+            <Button variant="accent" size="lg" className="w-full" disabled={!lines.length || !!busy} loading={busy === 'order'} onClick={() => submit(false)}>{t('Save changes')}</Button>
+          </>
+        ) : (
         <div className={`grid gap-2 ${can('billing.manage') ? 'grid-cols-2' : ''}`}>
-          <Button variant="accent" size="lg" disabled={!lines.length || !!busy} loading={busy === 'order'} onClick={() => submit(false)}>{t('Place order')}</Button>
-          {can('billing.manage') && <Button variant="secondary" size="lg" disabled={!lines.length || !!busy} loading={busy === 'bill'} onClick={() => submit(true)}>{t('Place & bill')}</Button>}
-        </div>
+            <Button variant="accent" size="lg" disabled={!lines.length || !!busy} loading={busy === 'order'} onClick={() => submit(false)}>{t('Place order')}</Button>
+            {can('billing.manage') && <Button variant="secondary" size="lg" disabled={!lines.length || !!busy} loading={busy === 'bill'} onClick={() => submit(true)}>{t('Place & bill')}</Button>}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -176,11 +208,11 @@ export default function NewOrder() {
 
   return (
     <>
-      <div className="hidden lg:block"><PageHeader title={t('New order')} /></div>
+      <div className="hidden lg:block"><PageHeader title={editId ? t('Edit order') : t('New order')} /></div>
       {/* phones: title, "Order for" and the view controls all share the title line; the search box gets its own line */}
       <div className="mb-2 flex items-center gap-1.5 lg:hidden">
-        <h1 className="shrink-0 text-[15px] font-extrabold tracking-tight">{t('New order')}</h1>
-        <div className="min-w-0 flex-1">{orderSelect}</div>
+        <h1 className="shrink-0 text-[15px] font-extrabold tracking-tight">{editId ? t('Edit order') : t('New order')}</h1>
+        <div className="min-w-0 flex-1">{editId ? <div className="truncate rounded-xl bg-brand-soft px-3 py-2.5 text-sm font-bold text-brand">{editing?.order_no}{editing?.table ? ` · ${t('Table {n}', { n: editing.table.number })}` : ''}</div> : orderSelect}</div>
         {viewControls}
       </div>
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">

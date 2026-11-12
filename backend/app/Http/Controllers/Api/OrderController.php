@@ -98,6 +98,26 @@ class OrderController extends Controller
         return $order->load('items');
     }
 
+    /** Edit an order until it is paid: send the COMPLETE new item list (quantities, removed and new dishes). */
+    public function updateItems(Request $r, int $id)
+    {
+        $order = Order::findOrFail($id);
+        $d = $r->validate([
+            'items' => 'required|array|min:1|max:60',
+            'items.*.food_item_id' => ['required', Tenant::exists('food_items')],
+            'items.*.variant_id' => ['nullable', Tenant::exists('food_item_variants')],
+            'items.*.quantity' => 'required|integer|min:1|max:99',
+            'notes' => 'nullable|string|max:255',
+        ]);
+        $order = $this->orders->replaceItems($order, $d['items']);
+        if (array_key_exists('notes', $d)) {
+            $order->update(['notes' => $d['notes']]);
+        }
+        \App\Models\AuditLog::record('order.edit', 'order', $order->id);
+
+        return $order;
+    }
+
     public function updateStatus(Request $r, int $id)
     {
         $order = Order::with('table')->findOrFail($id);

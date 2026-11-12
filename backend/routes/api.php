@@ -128,6 +128,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('orders/{id}', [OrderController::class, 'show'])->middleware('perm:orders.view');
         Route::post('orders', [OrderController::class, 'store'])->middleware('perm:orders.create');
         Route::post('orders/{id}/items', [OrderController::class, 'addItems'])->middleware('perm:orders.create');
+        Route::put('orders/{id}/items', [OrderController::class, 'updateItems'])->middleware('perm:orders.create');
         Route::patch('orders/{id}/status', [OrderController::class, 'updateStatus'])->middleware('perm:orders.create,billing.manage');
         Route::patch('order-items/{id}/status', [OrderController::class, 'updateItemStatus'])->middleware('perm:billing.manage');
 

@@ -103,24 +103,7 @@ class OrderService
             if ($order->bill) {
                 return $order->bill->load('items');
             }
-            $items = $order->items()->where('status', '!=', 'cancelled')->get();
-            abort_if($items->isEmpty(), 422, 'Order has no billable items.');
-
-            $subtotal = $discount = $tax = 0.0;
-            $gstOn = Tenant::company()?->gst_enabled !== false;
-            $rows = [];
-            foreach ($items as $i) {
-                $gross = round($i->price * $i->quantity, 2);
-                $disc = round($gross * $i->discount_percent / 100, 2);
-                // GST switched off => no tax, even for items added while it was still on
-                $t = $gstOn ? round(($gross - $disc) * $i->gst_percent / 100, 2) : 0.0;
-                $subtotal += $gross;
-                $discount += $disc;
-                $tax += $t;
-                $rows[] = ['name' => $i->name.($i->variant ? " ({$i->variant})" : ''), 'quantity' => $i->quantity, 'price' => $i->price, 'discount' => $disc, 'tax' => $t, 'total' => $gross - $disc + $t];
-            }
-            $discount += min($extraDiscount, $subtotal - $discount);
-            $grand = round($subtotal - $discount + $tax, 2);
+            [$rows, $subtotal, $discount, $tax, $grand] = $this->billTotals($order, $extraDiscount);
 
             $bill = Bill::create([
                 'branch_id' => $order->branch_id,
@@ -139,6 +122,106 @@ class OrderService
             $order->table?->update(['status' => 'billing']);
 
             return $bill->load('items');
+        });
+    }
+
+    /** @return array{0: array<int, array<string, mixed>>, 1: float, 2: float, 3: float, 4: float} [bill lines, subtotal, discount, tax, grand total] */
+    private function billTotals(Order $order, float $extraDiscount): array
+    {
+        $items = $order->items()->where('status', '!=', 'cancelled')->get();
+        abort_if($items->isEmpty(), 422, 'Order has no billable items.');
+
+        $subtotal = $discount = $tax = 0.0;
+        $gstOn = Tenant::company()?->gst_enabled !== false;
+        $rows = [];
+        foreach ($items as $i) {
+            $gross = round($i->price * $i->quantity, 2);
+            $disc = round($gross * $i->discount_percent / 100, 2);
+            // GST switched off => no tax, even for items added while it was still on
+            $t = $gstOn ? round(($gross - $disc) * $i->gst_percent / 100, 2) : 0.0;
+            $subtotal += $gross;
+            $discount += $disc;
+            $tax += $t;
+            $rows[] = ['name' => $i->name.($i->variant ? " ({$i->variant})" : ''), 'quantity' => $i->quantity, 'price' => $i->price, 'discount' => $disc, 'tax' => $t, 'total' => $gross - $disc + $t];
+        }
+        $discount += min($extraDiscount, $subtotal - $discount);
+
+        return [$rows, $subtotal, $discount, $tax, round($subtotal - $discount + $tax, 2)];
+    }
+
+    /**
+     * Replaces the order's lines with `$desired` (the COMPLETE new list: food_item_id, variant_id?, quantity).
+     * Allowed until the order is paid. Quantities change, missing lines are cancelled, new lines are added, tracked stock is kept
+     * in step, and an unpaid bill is rebuilt in place (same bill number, any extra discount kept).
+     *
+     * @param array<int, array{food_item_id:int, quantity:int, variant_id?:int|null}> $desired
+     */
+    public function replaceItems(Order $order, array $desired): Order
+    {
+        return DB::transaction(function () use ($order, $desired) {
+            $order = Order::with('bill')->lockForUpdate()->findOrFail($order->id);
+            abort_if(in_array($order->status, ['paid', 'cancelled'], true), 422, 'Order is closed.');
+            $bill = $order->bill;
+            abort_if($bill && $bill->status === 'paid', 422, 'This order is already paid.');
+
+            $key = fn ($foodId, $variant) => $foodId.'|'.($variant ?? '');
+            $wanted = [];
+            foreach ($desired as $line) {
+                $food = FoodItem::with('variants')->find($line['food_item_id']);
+                if (! $food) {
+                    throw ValidationException::withMessages(['items' => 'One or more items are unavailable.']);
+                }
+                $variant = null;
+                if (! empty($line['variant_id'])) {
+                    $v = $food->variants->firstWhere('id', $line['variant_id']);
+                    if (! $v) {
+                        throw ValidationException::withMessages(['items' => 'Invalid variant.']);
+                    }
+                    $variant = $v->name;
+                }
+                $k = $key($food->id, $variant);
+                $wanted[$k] = ['food_item_id' => $food->id, 'variant_id' => $line['variant_id'] ?? null, 'quantity' => min(99, ($wanted[$k]['quantity'] ?? 0) + max(1, (int) $line['quantity']))];
+            }
+
+            foreach ($order->items()->where('status', '!=', 'cancelled')->get() as $item) {
+                $food = $item->food_item_id ? FoodItem::find($item->food_item_id) : null;
+                $k = $key($item->food_item_id, $item->variant);
+                if (! isset($wanted[$k])) {
+                    if ($food && $food->stock !== null) {
+                        $food->increment('stock', $item->quantity); // a removed line gives its stock back
+                    }
+                    $item->update(['status' => 'cancelled']);
+
+                    continue;
+                }
+                $delta = $wanted[$k]['quantity'] - $item->quantity;
+                if ($delta !== 0) {
+                    if ($food && $food->stock !== null) {
+                        if ($delta > 0 && $food->stock < $delta) {
+                            throw ValidationException::withMessages(['items' => "Only {$food->stock} more left of {$food->name}."]);
+                        }
+                        $delta > 0 ? $food->decrement('stock', $delta) : $food->increment('stock', -$delta);
+                    }
+                    $item->update(['quantity' => $wanted[$k]['quantity']]);
+                }
+                unset($wanted[$k]);
+            }
+            if ($wanted) {
+                $this->addItems($order, array_values($wanted));
+            }
+            abort_if($order->items()->where('status', '!=', 'cancelled')->doesntExist(), 422, 'An order needs at least one item. Cancel the order instead.');
+
+            if ($bill) {
+                $extra = max(0.0, (float) $bill->discount - (float) $bill->items()->sum('discount'));
+                [$rows, $subtotal, $discount, $tax, $grand] = $this->billTotals($order, $extra);
+                $bill->items()->delete();
+                foreach ($rows as $r) {
+                    BillItem::create($r + ['bill_id' => $bill->id]);
+                }
+                $bill->update(['subtotal' => $subtotal, 'discount' => $discount, 'tax' => $tax, 'grand_total' => $grand]);
+            }
+
+            return $order->load('items', 'bill.items', 'table:id,number');
         });
     }
 
