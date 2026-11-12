@@ -8,6 +8,8 @@ import { useAuth } from '../context/AuthContext'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useT } from '../i18n'
+import { useOrderAlerts } from '../lib/orderAlerts'
+import OrderAlertBanner from './OrderAlertBanner'
 import LangSwitch from './LangSwitch'
 import { usePwaInstall } from '../lib/pwa'
 import { useApi } from '../lib/useApi'
@@ -58,7 +60,11 @@ export default function Layout() {
   // Notification bell: orders waiting to be accepted (e.g. QR orders from customers). Light 30s poll.
   const showBell = !isSuperAdmin && can('orders.view')
   const { data: pending } = useApi('/orders', { params: { status: 'pending' }, poll: 30000, skip: !showBell })
-  const pendingCount = pending?.length || 0
+  // Orders placed by OTHER people (captains, waiters, QR customers): ring + banner + bell count for owner / billing counter
+  const alerts = useOrderAlerts(showBell && can('billing.manage'))
+  const onOrdersPage = loc.pathname.startsWith('/app/orders')
+  useEffect(() => { if (onOrdersPage) alerts.clearUnseen() }, [onOrdersPage, alerts.unseen]) // eslint-disable-line react-hooks/exhaustive-deps
+  const pendingCount = (pending?.length || 0) + alerts.unseen
 
   const doLogout = async () => { await logout(); nav('/login') }
 
@@ -114,7 +120,7 @@ export default function Layout() {
   )
 
   const BellBtn = (
-    <button onClick={() => nav('/app/orders')} aria-label={pendingCount ? t(pendingCount > 1 ? 'Notifications, {n} new orders' : 'Notifications, {n} new order', { n: pendingCount }) : t('Notifications')} className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 text-white ring-1 ring-white/20 transition active:scale-90 lg:bg-ivory lg:text-brand lg:ring-0">
+    <button onClick={() => { alerts.clearUnseen(); nav('/app/orders') }} aria-label={pendingCount ? t(pendingCount > 1 ? 'Notifications, {n} new orders' : 'Notifications, {n} new order', { n: pendingCount }) : t('Notifications')} className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 text-white ring-1 ring-white/20 transition active:scale-90 lg:bg-ivory lg:text-brand lg:ring-0">
       <Bell className="h-5 w-5" />
       {pendingCount > 0 && (
         <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-[10px] font-extrabold text-white ring-2 ring-brand lg:ring-white">
@@ -127,6 +133,7 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-full">
+      <OrderAlertBanner banners={alerts.banners} onDismiss={alerts.dismiss} onOpen={(o) => { alerts.dismiss(o.id); alerts.clearUnseen(); nav('/app/orders') }} />
       {/* Desktop sidebar — Deep Teal */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-brand p-4 text-white lg:flex">
         <div className="flex items-center gap-3 rounded-2xl bg-white/10 p-3 ring-1 ring-white/10">

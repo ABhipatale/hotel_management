@@ -96,7 +96,8 @@ export default function Tables() {
                   <span className="flex items-center gap-1"><Users className="h-3 w-3" />{tx('{n} seater', { n: t.capacity })}</span>
                   {t.open_orders > 0 && <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px]">{tx(t.open_orders > 1 ? '{n} orders' : '{n} order', { n: t.open_orders })}</span>}
                 </div>
-                <div className="my-3 text-4xl font-extrabold tracking-tight">T{t.number}</div>
+                <div className="mt-3 text-4xl font-extrabold tracking-tight">T{t.number}</div>
+                <div className="mb-3 min-h-4 truncate text-[11px] font-bold opacity-70">{t.section || ''}</div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ${l.pill}`}>{stLabel(t.status)}</span>
                   {t.open_since && <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-white/80 px-2 py-1 text-[11px] font-semibold"><Clock className="h-3 w-3" />{elapsed(t.open_since)}</span>}
@@ -117,6 +118,7 @@ export default function Tables() {
               <div className="mb-2 text-xs font-semibold text-slate-600">{tx('Change status')}</div>
               <div className="flex flex-wrap gap-2">{STATUSES.map((s) => <button key={s} onClick={() => setStatus(sel, s)} className={`rounded-full px-3.5 py-2 text-xs font-semibold capitalize ring-1 transition ${sel.status === s ? 'bg-brand text-white ring-brand' : 'bg-white text-slate-600 ring-line'}`}>{stLabel(s) === 'Free' ? tx('Available') : stLabel(s)}</button>)}</div>
             </div>
+            {manage && <SectionField key={sel.id} table={sel} onSaved={(section) => { setSel({ ...sel, section }); reload() }} />}
             {manage && (
               <div className="flex gap-2">
                 {hasFeature('qr') && company?.qr_enabled !== false && <Button variant="secondary" className="flex-1" onClick={() => { const t = sel; setSel(null); showQr(t) }}><QrCode className="h-4 w-4" /> {tx('QR code')}</Button>}
@@ -147,23 +149,40 @@ export default function Tables() {
   )
 }
 
+/** Where this table is (Garden, AC hall ...): shown with the table number on orders and order alerts. */
+function SectionField({ table, onSaved }) {
+  const tx = useT()
+  const toast = useToast()
+  const [v, setV] = useState(table.section || '')
+  const save = async () => {
+    try { await api.put(`/tables/${table.id}`, { section: v || null }); toast.success(tx('Saved')); onSaved(v || null) } catch (e) { toast.error(e) }
+  }
+  return (
+    <div className="flex items-end gap-2">
+      <div className="min-w-0 flex-1"><Input label={tx('Section / area (optional)')} placeholder={tx('e.g. Garden, AC hall, First floor')} value={v} onChange={(e) => setV(e.target.value)} /></div>
+      <Button variant="secondary" disabled={(table.section || '') === v} onClick={save}>{tx('Save')}</Button>
+    </div>
+  )
+}
+
 function AddTable({ open, onClose, onDone }) {
   const tx = useT()
   const toast = useToast()
   const { data: staff } = useApi('/staff', { skip: !open })
-  const [f, setF] = useState({ number: '', capacity: 4, waiter_id: '' })
+  const [f, setF] = useState({ number: '', section: '', capacity: 4, waiter_id: '' })
   const submit = async (e) => {
     e.preventDefault()
-    try { await api.post('/tables', { ...f, waiter_id: f.waiter_id || null }); toast.success(tx('Table added')); setF({ number: '', capacity: 4, waiter_id: '' }); onDone() } catch (x) { toast.error(x) }
+    try { await api.post('/tables', { ...f, section: f.section || null, waiter_id: f.waiter_id || null }); toast.success(tx('Table added')); setF({ number: '', section: '', capacity: 4, waiter_id: '' }); onDone() } catch (x) { toast.error(x) }
   }
   return (
     <Modal open={open} onClose={onClose} title={tx('Add table')}>
       <form onSubmit={submit} className="space-y-3">
         <Input label={tx('Table number')} required inputMode="numeric" value={f.number} onChange={(e) => setF({ ...f, number: e.target.value })} />
+        <Input label={tx('Section / area (optional)')} placeholder={tx('e.g. Garden, AC hall, First floor')} value={f.section} onChange={(e) => setF({ ...f, section: e.target.value })} />
         <Input label={tx('Seats')} type="number" min="1" required value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value })} />
         <Select label={tx('Assigned waiter')} value={f.waiter_id} onChange={(e) => setF({ ...f, waiter_id: e.target.value })}>
           <option value="">{tx('Unassigned')}</option>
-          {staff?.filter((s) => s.role === 'waiter').map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          {staff?.filter((s) => s.role === 'waiter' || s.role === 'captain').map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </Select>
         <Button type="submit" size="lg" className="w-full">{tx('Add table')}</Button>
       </form>

@@ -23,6 +23,8 @@ return [
         'owner' => ['*'],
         // Waiter: take orders and generate bills. No dashboard/reports/expenses (no profit & loss).
         'waiter' => ['tables.view', 'menu.view', 'orders.view', 'orders.create', 'billing.manage'],
+        // Captain: takes and edits orders for tables. No billing, no payments, no reports.
+        'captain' => ['tables.view', 'menu.view', 'orders.view', 'orders.create'],
     ],
 
     'default_categories' => ['Starters', 'Main Course', 'Breads', 'Rice & Biryani', 'Beverages', 'Desserts'],

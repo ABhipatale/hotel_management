@@ -12,7 +12,7 @@ use Illuminate\Validation\Rule;
 
 class StaffController extends Controller
 {
-    private const ASSIGNABLE = ['waiter'];
+    private const ASSIGNABLE = ['waiter', 'captain'];
 
     public function index(Request $r)
     {

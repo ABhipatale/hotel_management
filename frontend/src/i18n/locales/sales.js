@@ -1,6 +1,13 @@
 // Tables, New order, Billing, Menu manager, Receipt dialog
 export default {
   hi: {
+    'Captain': 'कैप्टन',
+    'Waiter': 'वेटर',
+    'Customer (QR)': 'ग्राहक (QR)',
+    'captain': 'कैप्टन',
+    'Close': 'बंद करें',
+    'Section / area (optional)': 'सेक्शन / एरिया (वैकल्पिक)',
+    'e.g. Garden, AC hall, First floor': 'जैसे गार्डन, AC हॉल, पहली मंज़िल',
     'Edit order': 'ऑर्डर बदलें',
     'Save changes': 'बदलाव सेव करें',
     'Order updated': 'ऑर्डर अपडेट हो गया',
@@ -118,6 +125,13 @@ export default {
     'Network printers use the browser print dialog from this device.': 'नेटवर्क प्रिंटर इस डिवाइस के ब्राउज़र प्रिंट डायलॉग से चलते हैं।',
   },
   mr: {
+    'Captain': 'कॅप्टन',
+    'Waiter': 'वेटर',
+    'Customer (QR)': 'ग्राहक (QR)',
+    'captain': 'कॅप्टन',
+    'Close': 'बंद करा',
+    'Section / area (optional)': 'विभाग / एरिया (ऐच्छिक)',
+    'e.g. Garden, AC hall, First floor': 'उदा. गार्डन, AC हॉल, पहिला मजला',
     'Edit order': 'ऑर्डर बदला',
     'Save changes': 'बदल जतन करा',
     'Order updated': 'ऑर्डर अपडेट झाला',

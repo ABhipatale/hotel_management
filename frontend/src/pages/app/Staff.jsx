@@ -8,7 +8,7 @@ import { useConfirm } from '../../context/ConfirmContext'
 import { useT } from '../../i18n'
 import { Badge, Button, Input, Modal, PageHeader, Select, Spinner, Table } from '../../components/ui'
 
-const ROLES = ['waiter']
+const ROLES = ['waiter', 'captain']
 const BLANK = { name: '', email: '', phone: '', password: '', role: 'waiter' }
 
 export default function Staff() {
@@ -39,7 +39,7 @@ export default function Staff() {
       <PageHeader title="Staff" sub="Accounts that can sign in to your company" actions={<Button onClick={() => setEdit(BLANK)}><Plus className="h-4 w-4" /> Add staff</Button>} />
       <Table rows={data} columns={[
         { header: 'Name', render: (u) => <div><div className="font-medium">{u.name}</div><div className="text-xs text-muted">{u.email}</div></div> },
-        { header: 'Role', render: (u) => <Badge tone={u.role === 'owner' ? 'violet' : 'blue'}>{u.role}</Badge> },
+        { header: 'Role', render: (u) => <Badge tone={u.role === 'owner' || u.role === 'captain' ? 'violet' : 'blue'}>{u.role}</Badge> },
         { header: 'Last login', render: (u) => dt(u.last_login_at) },
         { header: 'Status', render: (u) => <Badge tone={u.is_active ? 'green' : 'slate'}>{u.is_active ? 'active' : 'disabled'}</Badge> },
         { header: '', className: 'text-right', render: (u) => u.role === 'owner' ? null : (

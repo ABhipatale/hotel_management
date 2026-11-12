@@ -138,7 +138,7 @@ export default function NewOrder() {
           </optgroup>
           {tables?.length > 0 && (
             <optgroup label={t('Dine-in tables')}>
-              {tables.map((tb) => <option key={tb.id} value={`t:${tb.id}`}>{t('Table {n} · {status}', { n: tb.number, status: t(tb.status === 'available' ? 'Free' : tb.status[0].toUpperCase() + tb.status.slice(1)) })}</option>)}
+              {tables.map((tb) => <option key={tb.id} value={`t:${tb.id}`}>{tb.section ? `${tb.section} · ` : ''}{t('Table {n} · {status}', { n: tb.number, status: t(tb.status === 'available' ? 'Free' : tb.status[0].toUpperCase() + tb.status.slice(1)) })}</option>)}
             </optgroup>
           )}
         </Select>

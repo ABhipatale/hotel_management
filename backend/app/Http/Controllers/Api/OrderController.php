@@ -19,11 +19,11 @@ class OrderController extends Controller
 
     public function index(Request $r)
     {
-        $q = Order::with('items', 'table:id,number', 'waiter:id,name', 'bill:id,order_id,bill_no,grand_total,status')
+        $q = Order::with('items', 'table:id,number,section', 'waiter:id,name,role', 'bill:id,order_id,bill_no,grand_total,status')
             ->where('branch_id', $this->branch($r));
 
-        // Waiters only see their own orders unless they can manage billing.
-        if ($r->user()->role === 'waiter') {
+        // Waiters and captains only see their own orders.
+        if (in_array($r->user()->role, ['waiter', 'captain'], true)) {
             $q->where('waiter_id', $r->user()->id);
         }
         if ($s = $r->query('status')) {
@@ -42,9 +42,48 @@ class OrderController extends Controller
         return $q->latest()->limit(200)->get();
     }
 
+    /**
+     * Live alerts for the owner / billing counter: orders placed by OTHER people (captains, waiters, QR customers) since `after`.
+     * Without `after` it only returns the newest order id so a freshly opened app does not ring for old orders.
+     */
+    public function feed(Request $r)
+    {
+        $branch = $this->branch($r);
+        $latest = (int) Order::where('branch_id', $branch)->max('id');
+        if (! $r->has('after')) {
+            return ['latest_id' => $latest, 'orders' => []];
+        }
+        $me = $r->user()->id;
+        $orders = Order::with('items', 'table:id,number,section', 'waiter:id,name,role')
+            ->where('branch_id', $branch)
+            ->where('id', '>', (int) $r->query('after'))
+            ->where('created_at', '>=', now()->subDay())
+            ->where('status', '!=', 'cancelled')
+            ->where(fn ($q) => $q->whereNull('waiter_id')->orWhere('waiter_id', '!=', $me))
+            ->orderBy('id')->limit(10)->get()
+            ->map(function (Order $o) {
+                $lines = $o->items->where('status', '!=', 'cancelled');
+
+                return [
+                    'id' => $o->id,
+                    'order_no' => $o->order_no,
+                    'type' => $o->type,
+                    'source' => $o->source,
+                    'table' => $o->table?->number,
+                    'section' => $o->table?->section,
+                    'by' => $o->waiter?->name,
+                    'by_role' => $o->waiter?->role,
+                    'items_count' => $lines->sum('quantity'),
+                    'items' => $lines->take(3)->map(fn ($i) => $i->quantity.' x '.$i->name)->values(),
+                ];
+            })->values();
+
+        return ['latest_id' => max($latest, (int) $r->query('after')), 'orders' => $orders];
+    }
+
     public function show(int $id)
     {
-        return Order::with('items', 'table:id,number', 'waiter:id,name', 'bill.items', 'bill.payments')->findOrFail($id);
+        return Order::with('items', 'table:id,number,section', 'waiter:id,name,role', 'bill.items', 'bill.payments')->findOrFail($id);
     }
 
     public function store(Request $r)
@@ -102,6 +141,7 @@ class OrderController extends Controller
     public function updateItems(Request $r, int $id)
     {
         $order = Order::findOrFail($id);
+        abort_if(in_array($r->user()->role, ['waiter', 'captain'], true) && $order->waiter_id !== $r->user()->id, 403, 'You can only edit your own orders.');
         $d = $r->validate([
             'items' => 'required|array|min:1|max:60',
             'items.*.food_item_id' => ['required', Tenant::exists('food_items')],

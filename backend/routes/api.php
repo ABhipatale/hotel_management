@@ -125,6 +125,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         // Orders
         Route::get('orders', [OrderController::class, 'index'])->middleware('perm:orders.view');
         Route::get('orders/kitchen', [OrderController::class, 'kitchen'])->middleware('perm:orders.kitchen');
+        Route::get('orders/feed', [OrderController::class, 'feed'])->middleware('perm:billing.manage');
         Route::get('orders/{id}', [OrderController::class, 'show'])->middleware('perm:orders.view');
         Route::post('orders', [OrderController::class, 'store'])->middleware('perm:orders.create');
         Route::post('orders/{id}/items', [OrderController::class, 'addItems'])->middleware('perm:orders.create');
@@ -133,7 +134,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::patch('order-items/{id}/status', [OrderController::class, 'updateItemStatus'])->middleware('perm:billing.manage');
 
         // Billing
-        Route::middleware('perm:billing.manage,orders.create')->group(function () {
+        // Billing needs the billing permission (a Captain, who only takes orders, has orders.create but not this)
+        Route::middleware('perm:billing.manage')->group(function () {
             Route::get('bills', [BillingController::class, 'index']);
             Route::get('bills/{id}', [BillingController::class, 'show']);
             Route::post('orders/{orderId}/bill', [BillingController::class, 'generate']);

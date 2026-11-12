@@ -34,6 +34,7 @@ class TableController extends Controller
         $data = $r->validate([
             'number' => ['required', 'string', 'max:20', Rule::unique('hotel_tables')->where('company_id', Tenant::id())->where('branch_id', $branch)],
             'capacity' => 'required|integer|min:1|max:50',
+            'section' => 'nullable|string|max:60',
             'waiter_id' => ['nullable', 'integer'],
         ]);
         $this->checkWaiter($data['waiter_id'] ?? null);
@@ -50,6 +51,7 @@ class TableController extends Controller
         $data = $r->validate([
             'number' => ['sometimes', 'string', 'max:20', Rule::unique('hotel_tables')->where('company_id', Tenant::id())->where('branch_id', $t->branch_id)->ignore($t->id)],
             'capacity' => 'sometimes|integer|min:1|max:50',
+            'section' => 'nullable|string|max:60',
             'status' => ['sometimes', Rule::in(self::STATUSES)],
             'waiter_id' => ['nullable', 'integer'],
         ]);

@@ -37,11 +37,12 @@ export default function Orders() {
       {!data?.length ? <Empty title={t('No orders')} hint={t('New orders from waiters and customer QR scans appear here.')} /> : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {data.map((o) => (
-            <Card key={o.id} className="flex flex-col">
+            <Card key={o.id} className={`flex flex-col ${o.waiter?.role === 'captain' ? 'border-l-[6px] border-[#7C3AED]' : ''}`}>
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="flex items-center gap-2 font-semibold">{o.table ? t('Table {n}', { n: o.table.number }) : lbl(t, o.type)} {o.source === 'qr' && <QrCode className="h-3.5 w-3.5 text-brand" />}</div>
-                  <div className="text-xs text-muted">{o.order_no} · {t('{time} ago', { time: ago(o.created_at) })}{o.waiter ? ` · ${o.waiter.name}` : ''}</div>
+                  <div className="flex items-center gap-2 font-semibold">{o.table ? t('Table {n}', { n: o.table.number }) : lbl(t, o.type)}{o.table?.section && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{o.table.section}</span>} {o.source === 'qr' && <QrCode className="h-3.5 w-3.5 text-brand" />}</div>
+                  <div className="text-xs text-muted">{o.order_no} · {t('{time} ago', { time: ago(o.created_at) })}{o.waiter && o.waiter.role !== 'captain' ? ` · ${o.waiter.name}` : ''}</div>
+                  {o.waiter?.role === 'captain' && <div className="mt-1"><span className="inline-flex items-center rounded-full bg-[#EDE9FE] px-2.5 py-1 text-[11px] font-bold text-[#5B21B6]">{t('Captain')}: {o.waiter.name}</span></div>}
                 </div>
                 <Badge tone={statusTone(o.status)}>{lbl(t, o.status)}</Badge>
               </div>
