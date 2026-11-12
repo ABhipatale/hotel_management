@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Pencil, Plus, QrCode, StickyNote } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
@@ -18,6 +18,7 @@ export default function Orders() {
   const toast = useToast()
   const ask = useConfirm()
   const t = useT()
+  const nav = useNavigate()
   const [tab, setTab] = useState('open')
   const { data, loading, reload } = useApi('/orders', { params: tab === 'open' ? { open: 1 } : { date: new Date().toISOString().slice(0, 10) }, poll: 8000 })
 
@@ -36,8 +37,10 @@ export default function Orders() {
 
       {!data?.length ? <Empty title={t('No orders')} hint={t('New orders from waiters and customer QR scans appear here.')} /> : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {data.map((o) => (
-            <Card key={o.id} className={`flex flex-col ${o.waiter?.role === 'captain' ? 'border-l-[6px] border-[#7C3AED]' : ''}`}>
+          {data.map((o) => {
+            const editable = !['paid', 'cancelled'].includes(o.status) && o.bill?.status !== 'paid' && can('orders.create')
+            return (
+            <Card key={o.id} interactive={editable} onClick={editable ? (e) => { if (!e.target.closest('button, a')) nav(`/app/order/new?edit=${o.id}`) } : undefined} className={`flex flex-col ${o.waiter?.role === 'captain' ? 'border-l-[6px] border-[#7C3AED]' : ''}`}>
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2 font-semibold">{o.table ? t('Table {n}', { n: o.table.number }) : lbl(t, o.type)}{o.table?.section && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{o.table.section}</span>} {o.source === 'qr' && <QrCode className="h-3.5 w-3.5 text-brand" />}</div>
@@ -61,7 +64,8 @@ export default function Orders() {
                 {['pending', 'accepted', 'preparing'].includes(o.status) && <Button size="sm" variant="ghost" onClick={async () => (await ask({ title: t('Cancel this order?'), message: t('The order will be cancelled and removed from the open list.'), confirmText: t('Cancel order'), cancelText: t('Keep order') })) && setStatus(o, 'cancelled')}>{t('Cancel')}</Button>}
               </div>
             </Card>
-          ))}
+            )
+          })}
         </div>
       )}
     </>
