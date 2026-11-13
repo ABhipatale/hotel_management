@@ -119,7 +119,7 @@ export default function NewOrder() {
         toast.success(t('Bill {no} generated', { no: data.bill.bill_no }))
         nav(`/app/billing?pay=${data.bill.id}`)
       } else {
-        toast.success(t('Order placed'))
+        toast.success(data.merged ? t('Added to the existing order {no}', { no: data.order_no }) : t('Order placed'))
         nav(can('billing.manage') ? '/app/orders' : '/app/tables')
       }
     } catch (e) { toast.error(e) } finally { setBusy(false) }

@@ -52,9 +52,21 @@ export default function Orders() {
                 </div>
                 <Badge tone={statusTone(o.status)}>{lbl(t, o.status)}</Badge>
               </div>
-              <ul className="my-3 flex-1 space-y-1 text-sm">
-                {o.items.filter((i) => i.status !== 'cancelled').map((i) => <li key={i.id} className="flex justify-between"><span>{i.quantity}× {i.name}{i.variant ? ` (${i.variant})` : ''}</span><b className="tabular text-slate-700">{money(i.price * i.quantity)}</b></li>)}
-              </ul>
+              {(() => {
+                const lines = o.items.filter((i) => i.status !== 'cancelled')
+                // Several people served this table: show who added each dish
+                const many = new Set(lines.map((i) => i.added_by).filter(Boolean)).size > 1
+                return (
+                  <ul className="my-3 flex-1 space-y-1 text-sm">
+                    {lines.map((i) => (
+                      <li key={i.id} className="flex items-baseline justify-between gap-3">
+                        <span>{i.quantity}× {i.name}{i.variant ? ` (${i.variant})` : ''}{many && i.adder?.name && <span className="ml-2 rounded-full bg-canvas px-2 py-0.5 text-[11px] font-bold text-slate-500">{i.adder.name}</span>}</span>
+                        <b className="tabular shrink-0 text-slate-700">{money(i.price * i.quantity)}</b>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              })()}
               {o.notes && <p className="mb-2 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800"><StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0" />{o.notes}</p>}
               <div className="flex flex-wrap gap-2">
                 {o.status === 'pending' && can('orders.create') && <Button size="sm" variant="soft" onClick={() => setStatus(o, 'accepted')}>{t('Accept')}</Button>}

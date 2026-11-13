@@ -19,12 +19,14 @@ class OrderController extends Controller
 
     public function index(Request $r)
     {
-        $q = Order::with('items', 'table:id,number,section', 'waiter:id,name,role', 'bill:id,order_id,bill_no,grand_total,status')
+        $q = Order::with('items.adder:id,name', 'table:id,number,section', 'waiter:id,name,role', 'bill:id,order_id,bill_no,grand_total,status')
             ->when($this->branchScope($r), fn ($q, $b) => $q->where('branch_id', $b));
 
-        // Waiters and captains only see their own orders.
+        // Waiters and captains see their own orders PLUS every open order of a table, so whoever serves a table can see and
+        // add to what a colleague already started there.
         if (in_array($r->user()->role, ['waiter', 'captain'], true)) {
-            $q->where('waiter_id', $r->user()->id);
+            $me = $r->user()->id;
+            $q->where(fn ($w) => $w->where('waiter_id', $me)->orWhere(fn ($t) => $t->whereNotNull('table_id')->whereNotIn('status', ['paid', 'cancelled'])));
         }
         if ($s = $r->query('status')) {
             $q->whereIn('status', explode(',', $s));
@@ -83,7 +85,7 @@ class OrderController extends Controller
 
     public function show(int $id)
     {
-        return Order::with('items', 'table:id,number,section', 'waiter:id,name,role', 'bill.items', 'bill.payments')->findOrFail($id);
+        return Order::with('items.adder:id,name', 'table:id,number,section', 'waiter:id,name,role', 'bill.items', 'bill.payments')->findOrFail($id);
     }
 
     public function store(Request $r)
@@ -131,7 +133,7 @@ class OrderController extends Controller
             'items.*.variant_id' => ['nullable', Tenant::exists('food_item_variants')],
             'items.*.quantity' => 'required|integer|min:1|max:99',
         ]);
-        $this->orders->addItems($order, $d['items']);
+        $this->orders->addItems($order, $d['items'], $r->user());
         $order->update(['status' => in_array($order->status, ['ready', 'served'], true) ? 'preparing' : $order->status]);
 
         return $order->load('items');
@@ -141,7 +143,7 @@ class OrderController extends Controller
     public function updateItems(Request $r, int $id)
     {
         $order = Order::findOrFail($id);
-        abort_if(in_array($r->user()->role, ['waiter', 'captain'], true) && $order->waiter_id !== $r->user()->id, 403, 'You can only edit your own orders.');
+        abort_if(in_array($r->user()->role, ['waiter', 'captain'], true) && $order->waiter_id !== $r->user()->id && ! $order->table_id, 403, 'You can only edit your own orders.');
         $d = $r->validate([
             'items' => 'required|array|min:1|max:60',
             'items.*.food_item_id' => ['required', Tenant::exists('food_items')],
@@ -149,7 +151,7 @@ class OrderController extends Controller
             'items.*.quantity' => 'required|integer|min:1|max:99',
             'notes' => 'nullable|string|max:255',
         ]);
-        $order = $this->orders->replaceItems($order, $d['items']);
+        $order = $this->orders->replaceItems($order, $d['items'], $r->user());
         if (array_key_exists('notes', $d)) {
             $order->update(['notes' => $d['notes']]);
         }

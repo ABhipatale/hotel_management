@@ -24,6 +24,29 @@ class OrderService
     public function place(int $branchId, ?HotelTable $table, array $data, string $source = 'staff', ?User $waiter = null): Order
     {
         return DB::transaction(function () use ($branchId, $table, $data, $source, $waiter) {
+            // One order per table: a waiter / captain ordering for a table that already has an open, not-yet-billed order
+            // adds to THAT order (one order number, one bill). Customer QR orders still arrive separately for approval.
+            if ($table && $source === 'staff') {
+                $open = Order::where('table_id', $table->id)->whereIn('status', ['pending', 'accepted', 'preparing', 'ready', 'served'])
+                    ->whereDoesntHave('bill')->oldest('id')->lockForUpdate()->first();
+                if ($open) {
+                    $this->addItems($open, $data['items'], $waiter);
+                    $updates = [];
+                    if (in_array($open->status, ['ready', 'served'], true)) {
+                        $updates['status'] = 'preparing'; // new dishes are on their way
+                    }
+                    if (! empty($data['notes'])) {
+                        $updates['notes'] = trim(($open->notes ? $open->notes.' | ' : '').$data['notes']);
+                    }
+                    if ($updates) {
+                        $open->update($updates);
+                    }
+                    $table->update(['status' => 'occupied']);
+
+                    return tap($open->load('items.adder:id,name', 'table'), fn (Order $o) => $o->setAttribute('merged', true));
+                }
+            }
+
             $customerId = null;
             if (! empty($data['customer_phone'])) {
                 $customerId = Customer::firstOrCreate(['phone' => $data['customer_phone']], ['name' => $data['customer_name'] ?? null])->id;
@@ -43,7 +66,7 @@ class OrderService
                 'notes' => $data['notes'] ?? null,
             ]);
 
-            $this->addItems($order, $data['items']);
+            $this->addItems($order, $data['items'], $waiter);
 
             if ($table && in_array($table->status, ['available', 'paid', 'reserved'], true)) {
                 $table->update(['status' => 'occupied']);
@@ -53,7 +76,7 @@ class OrderService
         });
     }
 
-    public function addItems(Order $order, array $items): void
+    public function addItems(Order $order, array $items, ?User $by = null): void
     {
         foreach ($items as $line) {
             // Scoped lookup: another tenant's item id simply does not exist here.
@@ -82,6 +105,7 @@ class OrderService
 
             OrderItem::create([
                 'order_id' => $order->id,
+                'added_by' => $by?->id,
                 'food_item_id' => $food->id,
                 'name' => $food->name,
                 'variant' => $variantName,
@@ -156,9 +180,9 @@ class OrderService
      *
      * @param array<int, array{food_item_id:int, quantity:int, variant_id?:int|null}> $desired
      */
-    public function replaceItems(Order $order, array $desired): Order
+    public function replaceItems(Order $order, array $desired, ?User $by = null): Order
     {
-        return DB::transaction(function () use ($order, $desired) {
+        return DB::transaction(function () use ($order, $desired, $by) {
             $order = Order::with('bill')->lockForUpdate()->findOrFail($order->id);
             abort_if(in_array($order->status, ['paid', 'cancelled'], true), 422, 'Order is closed.');
             $bill = $order->bill;
@@ -207,7 +231,7 @@ class OrderService
                 unset($wanted[$k]);
             }
             if ($wanted) {
-                $this->addItems($order, array_values($wanted));
+                $this->addItems($order, array_values($wanted), $by);
             }
             abort_if($order->items()->where('status', '!=', 'cancelled')->doesntExist(), 422, 'An order needs at least one item. Cancel the order instead.');
 
