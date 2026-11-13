@@ -29,6 +29,16 @@ class ResolveTenant
         abort_if(in_array($company->status, ['inactive', 'suspended'], true), 403, "Company account is {$company->status}. Contact support.");
 
         Tenant::set($company);
+
+        // Multi-counter companies: every non-owner is pinned to ONE counter (their own; staff with none stay on the default one),
+        // and a disabled counter cannot be used.
+        if ($company->multi_counter && $user->role !== 'owner') {
+            $counter = $user->branch_id
+                ? \App\Models\Branch::find($user->branch_id)
+                : \App\Models\Branch::orderByDesc('is_default')->orderBy('id')->first();
+            abort_if(! $counter || ! $counter->is_active, 403, 'This counter is disabled. Contact the owner.');
+            Tenant::lockBranch((int) $counter->id);
+        }
         $request->attributes->set('company', $company);
 
         $state = $this->subs->state($company);

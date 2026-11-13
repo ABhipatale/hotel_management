@@ -7,6 +7,7 @@ import { ago, money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
+import { useCounter } from '../../context/CounterContext'
 import { useT } from '../../i18n'
 import { Badge, Button, Card, Chips, Empty, PageHeader, Spinner, statusTone } from '../../components/ui'
 
@@ -19,6 +20,7 @@ export default function Orders() {
   const ask = useConfirm()
   const t = useT()
   const nav = useNavigate()
+  const { allCounters, nameOf, colorOf } = useCounter()
   const [tab, setTab] = useState('open')
   const { data, loading, reload } = useApi('/orders', { params: tab === 'open' ? { open: 1 } : { date: new Date().toISOString().slice(0, 10) }, poll: 8000 })
 
@@ -44,6 +46,7 @@ export default function Orders() {
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2 font-semibold">{o.table ? t('Table {n}', { n: o.table.number }) : lbl(t, o.type)}{o.table?.section && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{o.table.section}</span>} {o.source === 'qr' && <QrCode className="h-3.5 w-3.5 text-brand" />}</div>
+                  {allCounters && nameOf(o.branch_id) && <span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-canvas px-2.5 py-0.5 text-[11px] font-bold text-slate-600"><i className="h-2 w-2 rounded-full" style={{ background: colorOf(o.branch_id) }} />{nameOf(o.branch_id)}</span>}
                   <div className="text-xs text-muted">{o.order_no} · {t('{time} ago', { time: ago(o.created_at) })}{o.waiter && o.waiter.role !== 'captain' ? ` · ${o.waiter.name}` : ''}</div>
                   {o.waiter?.role === 'captain' && <div className="mt-1"><span className="inline-flex items-center rounded-full bg-[#EDE9FE] px-2.5 py-1 text-[11px] font-bold text-[#5B21B6]">{t('Captain')}: {o.waiter.name}</span></div>}
                 </div>

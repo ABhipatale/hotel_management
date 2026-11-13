@@ -43,13 +43,15 @@ export function ring() {
  * Polls a tiny feed every few seconds while the app is open; the first poll only records the newest id, so opening the app
  * never rings for old orders.
  */
-export function useOrderAlerts(enabled) {
+export function useOrderAlerts(enabled, scope = '') {
   const [banners, setBanners] = useState([])
   const [unseen, setUnseen] = useState(0)
   const after = useRef(null)
 
   useEffect(() => {
     if (!enabled) return undefined
+    after.current = null // another counter has its own order ids: start from its newest order
+    setBanners([])
     let stop = false
     let timer
     const tick = async () => {
@@ -66,7 +68,7 @@ export function useOrderAlerts(enabled) {
     }
     tick()
     return () => { stop = true; clearTimeout(timer) }
-  }, [enabled])
+  }, [enabled, scope])
 
   const dismiss = useCallback((id) => setBanners((b) => b.filter((x) => x.id !== id)), [])
   const clearUnseen = useCallback(() => setUnseen(0), [])

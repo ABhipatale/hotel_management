@@ -25,6 +25,9 @@ return [
         'waiter' => ['tables.view', 'menu.view', 'orders.view', 'orders.create', 'billing.manage'],
         // Captain: takes and edits orders for tables. No billing, no payments, no reports.
         'captain' => ['tables.view', 'menu.view', 'orders.view', 'orders.create'],
+        // Counter manager (multi-counter companies): runs ONE counter - its tables, orders, bills, expenses, stock and reports.
+        // Sees nothing of the other counters. No staff / settings / subscription / menu editing (those stay with the owner).
+        'counter' => ['dashboard.view', 'tables.view', 'tables.manage', 'menu.view', 'orders.view', 'orders.create', 'billing.manage', 'expenses.manage', 'inventory.manage', 'reports.view'],
     ],
 
     'default_categories' => ['Starters', 'Main Course', 'Breads', 'Rice & Biryani', 'Beverages', 'Desserts'],

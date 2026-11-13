@@ -267,7 +267,8 @@ class OrderService
     private function nextNumber(string $prefix, string $model, string $column): string
     {
         $date = now()->format('ymd');
-        $count = $model::where($column, 'like', "$prefix-$date-%")->lockForUpdate()->count() + 1;
+        // numbers are unique per company (not per counter), so look across every counter
+        $count = $model::withoutGlobalScope('branch')->where($column, 'like', "$prefix-$date-%")->lockForUpdate()->count() + 1;
 
         return sprintf('%s-%s-%04d', $prefix, $date, $count);
     }

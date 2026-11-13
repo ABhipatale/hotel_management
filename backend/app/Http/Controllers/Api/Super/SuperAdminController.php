@@ -61,6 +61,7 @@ class SuperAdminController extends Controller
 
         return [
             'company' => $c,
+            'counters' => app(\App\Services\CounterService::class)->list($c),
             'stats' => [
                 'users' => User::where('company_id', $id)->count(),
                 'orders' => Order::where('company_id', $id)->count(),
@@ -86,6 +87,9 @@ class SuperAdminController extends Controller
             'qr_enabled' => 'sometimes|boolean',
             'default_language' => 'sometimes|in:en,hi,mr',
             'billing_cycle' => 'nullable|in:monthly,yearly', // empty = customer purchases the plan on first login
+            'multi_counter' => 'sometimes|boolean',          // several counters (each with its own tables, staff and books)
+            'counters' => 'sometimes|array|max:20',
+            'counters.*' => 'nullable|string|max:60',
         ]);
         $plan = SubscriptionPlan::current();
         [$company] = $provisioner->provision($data, null, $plan, $data['billing_cycle'] ?? null);
@@ -94,7 +98,7 @@ class SuperAdminController extends Controller
         return response()->json($company, 201);
     }
 
-    public function updateCompany(Request $request, int $id)
+    public function updateCompany(Request $request, int $id, \App\Services\CounterService $counters)
     {
         $c = Company::withTrashed()->findOrFail($id);
         $data = $request->validate([
@@ -110,7 +114,15 @@ class SuperAdminController extends Controller
             'qr_enabled' => 'sometimes|boolean',
             'use_library_images' => 'sometimes|boolean',
             'default_language' => 'sometimes|in:en,hi,mr',
+            'multi_counter' => 'sometimes|boolean',
         ]);
+        if (array_key_exists('multi_counter', $data)) {
+            if ((bool) $data['multi_counter'] !== (bool) $c->multi_counter) {
+                $counters->setMode($c, (bool) $data['multi_counter']);
+            }
+            unset($data['multi_counter']);
+            $c->refresh();
+        }
         // While GST is off its fields are locked: the stored number is kept (so switching GST back on restores it)
         if (array_key_exists('gst_enabled', $data) ? ! $data['gst_enabled'] : ! $c->gst_enabled) {
             unset($data['gst_number']);
@@ -119,6 +131,32 @@ class SuperAdminController extends Controller
         AuditLog::record('super.company.update', 'company', $id, ['gst_enabled' => $c->gst_enabled]);
 
         return $c->refresh();
+    }
+
+    // ----- Counters of a multi-counter company -----
+    public function counters(int $id, \App\Services\CounterService $counters)
+    {
+        return $counters->list(Company::findOrFail($id));
+    }
+
+    public function storeCounter(Request $request, int $id, \App\Services\CounterService $counters)
+    {
+        $c = Company::findOrFail($id);
+        $d = $request->validate(['name' => 'required|string|max:60', 'address' => 'nullable|string|max:255']);
+        $b = $counters->add($c, trim($d['name']), $d['address'] ?? null);
+        AuditLog::record('super.counter.create', 'branch', $b->id);
+
+        return response()->json($b->only('id', 'name', 'address', 'is_default', 'is_active'), 201);
+    }
+
+    public function updateCounter(Request $request, int $id, int $counterId, \App\Services\CounterService $counters)
+    {
+        $c = Company::findOrFail($id);
+        $d = $request->validate(['name' => 'sometimes|string|max:60', 'address' => 'nullable|string|max:255', 'is_active' => 'sometimes|boolean']);
+        $b = $counters->update($c, $counterId, $d);
+        AuditLog::record('super.counter.update', 'branch', $b->id);
+
+        return $b->only('id', 'name', 'address', 'is_default', 'is_active');
     }
 
     /** Super admin can set any company's logo and app icon. */

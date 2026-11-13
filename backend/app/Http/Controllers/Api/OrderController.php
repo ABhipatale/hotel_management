@@ -20,7 +20,7 @@ class OrderController extends Controller
     public function index(Request $r)
     {
         $q = Order::with('items', 'table:id,number,section', 'waiter:id,name,role', 'bill:id,order_id,bill_no,grand_total,status')
-            ->where('branch_id', $this->branch($r));
+            ->when($this->branchScope($r), fn ($q, $b) => $q->where('branch_id', $b));
 
         // Waiters and captains only see their own orders.
         if (in_array($r->user()->role, ['waiter', 'captain'], true)) {
@@ -48,14 +48,14 @@ class OrderController extends Controller
      */
     public function feed(Request $r)
     {
-        $branch = $this->branch($r);
-        $latest = (int) Order::where('branch_id', $branch)->max('id');
+        $branch = $this->branchScope($r);
+        $latest = (int) Order::when($branch, fn ($q) => $q->where('branch_id', $branch))->max('id');
         if (! $r->has('after')) {
             return ['latest_id' => $latest, 'orders' => []];
         }
         $me = $r->user()->id;
         $orders = Order::with('items', 'table:id,number,section', 'waiter:id,name,role')
-            ->where('branch_id', $branch)
+            ->when($branch, fn ($q) => $q->where('branch_id', $branch))
             ->where('id', '>', (int) $r->query('after'))
             ->where('created_at', '>=', now()->subDay())
             ->where('status', '!=', 'cancelled')

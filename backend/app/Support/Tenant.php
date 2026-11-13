@@ -18,6 +18,7 @@ class Tenant
     private static ?int $id = null;
     private static ?Company $company = null;
     private static bool $unscoped = false;
+    private static ?int $branchLock = null;
 
     public static function set(Company $company): void
     {
@@ -30,6 +31,23 @@ class Tenant
         self::$company = null;
         self::$id = null;
         self::$unscoped = false;
+        self::$branchLock = null;
+    }
+
+    /** Counter users of a multi-counter company are pinned to their counter (see BelongsToBranch). */
+    public static function lockBranch(?int $branchId): void
+    {
+        self::$branchLock = $branchId;
+    }
+
+    public static function branchLock(): ?int
+    {
+        return self::$branchLock;
+    }
+
+    public static function multiCounter(): bool
+    {
+        return (bool) self::$company?->multi_counter;
     }
 
     public static function id(): ?int
@@ -77,12 +95,39 @@ class Tenant
     }
 
     /**
-     * Branches are not exposed in the product: every company has one default branch, which all
-     * orders, bills and tables are attached to. Resolved server-side from the tenant (scoped query).
+     * Branch = "counter". Single-counter companies have exactly one default branch (unchanged behaviour).
+     * Multi-counter companies: counter users use their own counter; the owner works in the counter chosen in the app
+     * (X-Counter-Id header, verified against this tenant's active counters), otherwise the default one.
      */
-    public static function branchId(User $user): int
+    public static function branchId(User $user, mixed $requested = null): int
     {
-        return $user->branch_id ?: (int) Branch::orderByDesc('is_default')->orderBy('id')->value('id');
+        if ($user->branch_id) {
+            return (int) $user->branch_id;
+        }
+        if (self::multiCounter() && $user->role === 'owner' && is_numeric($requested)) {
+            $id = Branch::where('is_active', true)->whereKey((int) $requested)->value('id');
+            if ($id) {
+                return (int) $id;
+            }
+        }
+
+        return (int) Branch::orderByDesc('is_default')->orderBy('id')->value('id');
+    }
+
+    /**
+     * Which counter a LIST (orders, bills, dashboard, reports) covers: null = every counter (owner, "All counters").
+     * Single-counter companies keep the old behaviour (their one branch).
+     */
+    public static function branchScope(User $user, mixed $requested = null): ?int
+    {
+        if (! self::multiCounter()) {
+            return self::branchId($user);
+        }
+        if ($user->role !== 'owner') {
+            return self::branchId($user);
+        }
+
+        return is_numeric($requested) ? self::branchId($user, $requested) : null;
     }
 
     /** Validation helper: foreign id must belong to the current tenant. */

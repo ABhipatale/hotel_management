@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Expense extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, \App\Models\Concerns\BelongsToBranch;
 
     protected $table = 'expenses';
     protected $guarded = ['id', 'company_id'];

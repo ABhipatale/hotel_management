@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class HotelTable extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, \App\Models\Concerns\BelongsToBranch;
 
     protected $table = 'hotel_tables';
     protected $guarded = ['id', 'company_id'];

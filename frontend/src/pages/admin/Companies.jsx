@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Check, LayoutGrid, Plus, Search, Store } from 'lucide-react'
 import { api, toFormData } from '../../lib/api'
 import ImagePicker from '../../components/ImagePicker'
 import { useApi } from '../../lib/useApi'
 import { dateOnly } from '../../lib/format'
 import { useT } from '../../i18n'
+import { counterColor } from '../../lib/counter'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import { Badge, Button, Input, Modal, PageHeader, Select, ListSkeleton, statusTone, Switch, Table } from '../../components/ui'
@@ -70,6 +71,7 @@ export default function Companies() {
             <div className="grid items-start gap-4 lg:grid-cols-2">
               <CompanyDetailsEditor key={detail.id} company={detail} onDone={(c) => { setDetail(c); reload() }} />
               <div className="space-y-4">
+                {detail.multi_counter && <CountersEditor key={detail.id} company={detail} />}
                 <BrandingEditor company={detail} onDone={(c) => { setDetail(c); reload() }} />
                 <RenewSubscription company={detail} onDone={() => { toast.success('Subscription updated'); reload(); setDetail(null) }} />
               </div>
@@ -99,6 +101,74 @@ function LangSelect({ value, onChange }) {
   )
 }
 
+/** One counter (as always) or several counters, each with its own tables, staff and books. */
+function CounterMode({ multi, names, onMulti, onNames, locked }) {
+  const tr = useT()
+  const opt = (on, Icon, title, text, value) => (
+    <button type="button" disabled={locked && !on} onClick={() => onMulti(value)} aria-pressed={on}
+      className={`relative flex flex-1 flex-col items-start gap-1.5 rounded-2xl border-2 p-3.5 text-left transition active:scale-[.99] disabled:opacity-50 ${on ? 'border-brand bg-brand-soft/60' : 'border-line bg-white hover:border-slate-300'}`}>
+      {on && <span className="absolute right-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-brand text-white"><Check className="h-3 w-3" strokeWidth={3} /></span>}
+      <span className={`grid h-9 w-9 place-items-center rounded-xl ${on ? 'bg-brand text-white' : 'bg-canvas text-slate-500'}`}><Icon className="h-[18px] w-[18px]" /></span>
+      <span className="text-sm font-extrabold">{tr(title)}</span>
+      <span className="text-xs leading-snug text-muted">{tr(text)}</span>
+    </button>
+  )
+  return (
+    <div className="space-y-3">
+      <div className="text-sm font-bold">{tr('Counters')}</div>
+      <div className="flex gap-3">
+        {opt(!multi, Store, 'One counter', 'Works exactly as it does today.', false)}
+        {opt(multi, LayoutGrid, 'Multiple counters', 'Each counter has its own tables, login and books. The owner sees every counter and the total.', true)}
+      </div>
+      {onNames && multi && (
+        <div className="space-y-2 rounded-2xl bg-canvas p-3 ring-1 ring-line">
+          <div className="text-xs font-bold text-muted">{tr('Counter names')}</div>
+          {names.map((n, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <i className="h-3 w-3 shrink-0 rounded-full" style={{ background: counterColor(i) }} />
+              <input value={n} onChange={(e) => onNames(names.map((x, j) => (j === i ? e.target.value : x)))} placeholder={`Counter ${i + 1}`} className="min-h-11 w-full rounded-xl border border-line bg-white px-3 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" />
+              {names.length > 1 && <button type="button" onClick={() => onNames(names.filter((_, j) => j !== i))} className="px-2 text-xs font-bold text-rose-600">{tr('Remove')}</button>}
+            </div>
+          ))}
+          <Button type="button" size="sm" variant="secondary" onClick={() => onNames([...names, `Counter ${names.length + 1}`])}><Plus className="h-4 w-4" /> {tr('Add counter')}</Button>
+        </div>
+      )}
+      {locked && multi && <p className="text-xs text-muted">{tr('To go back to one counter, the company must have only one counter left.')}</p>}
+    </div>
+  )
+}
+
+/** Platform admin: add / rename / disable the counters of a multi-counter company. */
+function CountersEditor({ company }) {
+  const toast = useToast()
+  const tr = useT()
+  const { data, reload } = useApi(`/admin/companies/${company.id}/counters`)
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const run = async (fn) => { setBusy(true); try { await fn(); reload() } catch (e) { toast.error(e) } finally { setBusy(false) } }
+  const add = (e) => { e.preventDefault(); if (name.trim()) run(async () => { await api.post(`/admin/companies/${company.id}/counters`, { name: name.trim() }); setName('') }) }
+  return (
+    <div className="space-y-3 rounded-2xl bg-canvas p-4 ring-1 ring-line">
+      <div className="text-sm font-semibold">{tr('Counters')}</div>
+      <div className="space-y-2">
+        {(data || []).map((c, i) => (
+          <div key={c.id} className={`flex items-center gap-3 rounded-xl bg-white px-3 py-2 ring-1 ring-line ${c.is_active ? '' : 'opacity-60'}`}>
+            <i className="h-3 w-3 shrink-0 rounded-full" style={{ background: counterColor(i) }} />
+            <input defaultValue={c.name} onBlur={(e) => e.target.value.trim() && e.target.value !== c.name && run(() => api.put(`/admin/companies/${company.id}/counters/${c.id}`, { name: e.target.value.trim() }))} className="min-w-0 flex-1 bg-transparent text-sm font-bold outline-none" aria-label={tr('Counter name')} />
+            {c.is_default && <Badge tone="blue">default</Badge>}
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => api.put(`/admin/companies/${company.id}/counters/${c.id}`, { is_active: !c.is_active }))}>{c.is_active ? tr('Disable') : tr('Enable')}</Button>
+          </div>
+        ))}
+      </div>
+      <form onSubmit={add} className="flex gap-2">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr('New counter name')} className="min-h-11 min-w-0 flex-1 rounded-xl border border-line bg-white px-3 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" />
+        <Button type="submit" loading={busy} disabled={!name.trim()}><Plus className="h-4 w-4" /> {tr('Add')}</Button>
+      </form>
+      <p className="text-xs text-muted">{tr('Create a login for each counter from the owner\'s Staff screen (role: Counter manager).')}</p>
+    </div>
+  )
+}
+
 function QrSwitch({ checked, onChange }) {
   return <Switch label="QR table ordering" checked={checked} onChange={onChange} hint={checked ? 'Tables get QR codes; customers can scan and order from their phone.' : 'QR codes and the customer QR menu are switched off for this company.'} />
 }
@@ -109,7 +179,7 @@ function CompanyDetailsEditor({ company, onDone }) {
   const tr = useT()
   const [f, setF] = useState({
     name: company.name || '', phone: company.phone || '', email: company.email || '', address: company.address || '', city: company.city || '',
-    gst_enabled: company.gst_enabled !== false, gst_number: company.gst_number || '', qr_enabled: company.qr_enabled !== false, use_library_images: company.use_library_images !== false, default_language: company.default_language || 'en',
+    gst_enabled: company.gst_enabled !== false, gst_number: company.gst_number || '', qr_enabled: company.qr_enabled !== false, use_library_images: company.use_library_images !== false, default_language: company.default_language || 'en', multi_counter: !!company.multi_counter,
   })
   const [busy, setBusy] = useState(false)
   const s = (k) => (e) => setF({ ...f, [k]: e.target.value })
@@ -129,6 +199,7 @@ function CompanyDetailsEditor({ company, onDone }) {
       <Input label="Email" type="email" value={f.email} onChange={s('email')} />
       <Input label="Address" value={f.address} onChange={s('address')} />
       <GstFields enabled={f.gst_enabled} number={f.gst_number} onEnabled={(v) => setF({ ...f, gst_enabled: v })} onNumber={(v) => setF({ ...f, gst_number: v })} />
+      <CounterMode multi={f.multi_counter} onMulti={(v) => setF({ ...f, multi_counter: v })} locked={!!company.multi_counter} />
       <QrSwitch checked={f.qr_enabled} onChange={(v) => setF({ ...f, qr_enabled: v })} />
       <Switch label="Platform dish photos" checked={f.use_library_images} onChange={(v) => setF({ ...f, use_library_images: v })} hint={f.use_library_images ? 'Dishes without their own photo show matching photos from the platform image library.' : 'Only this company\'s own photos are shown. The platform library is hidden for it.'} />
       <LangSelect value={f.default_language} onChange={(v) => setF({ ...f, default_language: v })} />
@@ -198,11 +269,12 @@ function RenewSubscription({ company, onDone }) {
 function AddCompany({ open, onClose, onDone }) {
   const toast = useToast()
   const tr = useT()
-  const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', gst_enabled: true, qr_enabled: true, default_language: 'en', gst_number: '', billing_cycle: '' })
+  const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', gst_enabled: true, qr_enabled: true, default_language: 'en', gst_number: '', billing_cycle: '', multi_counter: false })
+  const [names, setNames] = useState(['Counter 1', 'Counter 2'])
   const [busy, setBusy] = useState(false)
   const submit = async (e) => {
     e.preventDefault(); setBusy(true)
-    try { await api.post('/admin/companies', f); toast.success('Company created'); onDone() } catch (x) { toast.error(x) } finally { setBusy(false) }
+    try { await api.post('/admin/companies', { ...f, counters: f.multi_counter ? names.filter((n) => n.trim()) : undefined }); toast.success('Company created'); onDone() } catch (x) { toast.error(x) } finally { setBusy(false) }
   }
   const s = (k) => (e) => setF({ ...f, [k]: e.target.value })
   return (
@@ -215,6 +287,7 @@ function AddCompany({ open, onClose, onDone }) {
         <Input label="Initial password" type="password" required value={f.password} onChange={s('password')} hint="At least 6 characters (a 6-digit PIN is fine)" />
         <Input label="City" value={f.city} onChange={s('city')} />
         <GstFields enabled={f.gst_enabled} number={f.gst_number} onEnabled={(v) => setF({ ...f, gst_enabled: v })} onNumber={(v) => setF({ ...f, gst_number: v })} />
+      <CounterMode multi={f.multi_counter} onMulti={(v) => setF({ ...f, multi_counter: v })} names={names} onNames={setNames} />
       <QrSwitch checked={f.qr_enabled} onChange={(v) => setF({ ...f, qr_enabled: v })} />
       <LangSelect value={f.default_language} onChange={(v) => setF({ ...f, default_language: v })} />
         <Select label="Subscription" value={f.billing_cycle} onChange={s('billing_cycle')}>

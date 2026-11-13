@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, errMsg } from './api'
+import { counterStore } from './counter'
 
 /** GET helper with loading/error/reload and optional polling (used by kitchen / tables boards). */
 export function useApi(url, { params, poll, skip } = {}) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(!skip)
   const [error, setError] = useState('')
-  const key = JSON.stringify([url, params])
+  const key = JSON.stringify([url, params, counterStore.get()]) // a different counter = a different answer
   const alive = useRef(true)
 
   const load = useCallback(

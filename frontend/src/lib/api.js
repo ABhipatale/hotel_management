@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { tr } from '../i18n'
+import { counterStore } from './counter'
 
 const TOKEN_KEY = 'hms.token'
 
@@ -14,6 +15,8 @@ export const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api
 api.interceptors.request.use((config) => {
   const t = tokenStore.get()
   if (t) config.headers.Authorization = `Bearer ${t}`
+  const c = counterStore.get()
+  if (c) config.headers['X-Counter-Id'] = c
   return config
 })
 

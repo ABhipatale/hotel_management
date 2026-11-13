@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Bill extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, \App\Models\Concerns\BelongsToBranch;
 
     protected $guarded = ['id', 'company_id'];
 

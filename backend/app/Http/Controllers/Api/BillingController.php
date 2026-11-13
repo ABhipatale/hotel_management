@@ -20,7 +20,7 @@ class BillingController extends Controller
     public function index(Request $r)
     {
         $q = Bill::with('order:id,order_no,table_id,type', 'order.table:id,number', 'payments:id,bill_id,method,amount')
-            ->where('branch_id', $this->branch($r));
+            ->when($this->branchScope($r), fn ($q, $b) => $q->where('branch_id', $b));
         if ($r->user()->role === 'waiter') {
             $q->whereHas('order', fn ($o) => $o->where('waiter_id', $r->user()->id));
         }

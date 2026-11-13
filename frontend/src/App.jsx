@@ -4,6 +4,7 @@ import { I18nProvider, useI18n } from './i18n'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import { ConfirmProvider } from './context/ConfirmContext'
+import { CounterProvider, NeedCounter } from './context/CounterContext'
 import Layout from './components/Layout'
 import { PageSkeleton, Spinner } from './components/ui'
 import Login from './pages/auth/Login'
@@ -16,6 +17,7 @@ const AdminPayments = lazy(() => import('./pages/admin/Misc').then((m) => ({ def
 const AdminSettings = lazy(() => import('./pages/admin/Misc').then((m) => ({ default: m.AdminSettings })))
 const AdminTickets = lazy(() => import('./pages/admin/Misc').then((m) => ({ default: m.AdminTickets })))
 const Dashboard = lazy(() => import('./pages/app/Dashboard'))
+const Counters = lazy(() => import('./pages/app/Counters'))
 const Tables = lazy(() => import('./pages/app/Tables'))
 const NewOrder = lazy(() => import('./pages/app/NewOrder'))
 const Orders = lazy(() => import('./pages/app/Orders'))
@@ -32,6 +34,7 @@ const Onboarding = lazy(() => import('./pages/app/Onboarding'))
 // Where the app opens after launch / sign-in: the New order screen for anyone who can take orders (Home stays one tap away)
 function homeFor(a) {
   if (a.isSuperAdmin) return '/admin'
+  if (a.user?.role === 'counter' && a.can('dashboard.view')) return '/app' // a counter manager starts on their counter's home
   if (a.can('orders.create')) return '/app/order/new'
   if (a.can('orders.view')) return '/app/orders'
   if (a.can('dashboard.view')) return '/app'
@@ -52,6 +55,12 @@ function Guard({ children, superAdmin, perm }) {
 
 const P = ({ perm, children }) => <Guard perm={perm}>{children}</Guard>
 
+/** Owner of a multi-counter company only (the Counters overview). */
+function OwnerMulti({ children }) {
+  const a = useAuth()
+  return <Guard>{a.user?.role === 'owner' && a.company?.multi_counter ? children : <Navigate to={homeFor(a)} replace />}</Guard>
+}
+
 function Home() {
   const a = useAuth()
   if (a.loading) return <Spinner />
@@ -71,6 +80,7 @@ export default function App() {
       <ToastProvider>
         <ConfirmProvider>
         <AuthProvider>
+          <CounterProvider>
           <LangKeyed>
           <Suspense fallback={<PageSkeleton />}>
           <Routes>
@@ -90,13 +100,14 @@ export default function App() {
 
             <Route path="/app" element={<Guard><Layout /></Guard>}>
               <Route index element={<P perm="dashboard.view"><Dashboard /></P>} />
-              <Route path="tables" element={<P perm="tables.view"><Tables /></P>} />
-              <Route path="order/new" element={<P perm="orders.create"><NewOrder /></P>} />
+              <Route path="counters" element={<OwnerMulti><Counters /></OwnerMulti>} />
+              <Route path="tables" element={<P perm="tables.view"><NeedCounter><Tables /></NeedCounter></P>} />
+              <Route path="order/new" element={<P perm="orders.create"><NeedCounter><NewOrder /></NeedCounter></P>} />
               <Route path="orders" element={<P perm="orders.view"><Orders /></P>} />
               <Route path="billing" element={<P perm="billing.manage"><Billing /></P>} />
               <Route path="menu" element={<P perm="menu.manage"><MenuManager /></P>} />
-              <Route path="inventory" element={<P perm="inventory.manage"><Inventory /></P>} />
-              <Route path="expenses" element={<P perm="expenses.manage"><Expenses /></P>} />
+              <Route path="inventory" element={<P perm="inventory.manage"><NeedCounter><Inventory /></NeedCounter></P>} />
+              <Route path="expenses" element={<P perm="expenses.manage"><NeedCounter><Expenses /></NeedCounter></P>} />
               <Route path="reports" element={<P perm="reports.view"><Reports /></P>} />
               <Route path="staff" element={<P perm="users.manage"><Staff /></P>} />
               <Route path="subscription" element={<P perm="subscription.manage"><Subscription /></P>} />
@@ -106,6 +117,7 @@ export default function App() {
           </Routes>
           </Suspense>
           </LangKeyed>
+          </CounterProvider>
         </AuthProvider>
         </ConfirmProvider>
       </ToastProvider>

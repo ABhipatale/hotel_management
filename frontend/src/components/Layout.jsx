@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   Armchair, BarChart3, Bell, Building2, Clock, CreditCard, Download, Images, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
-  Settings, ShoppingBag, Store, Tag, Users, UtensilsCrossed, Wallet,
+  Settings, ShoppingBag, Split, Store, Tag, Users, UtensilsCrossed, Wallet,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useCounter } from '../context/CounterContext'
+import CounterSwitch from './CounterSwitch'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useT } from '../i18n'
@@ -27,6 +29,7 @@ const ADMIN_NAV = [
 
 const TENANT_NAV = [
   { to: '/app', icon: LayoutDashboard, label: 'Home', perm: 'dashboard.view', end: true },
+  { to: '/app/counters', icon: Split, label: 'Counters', ownerMulti: true },
   { to: '/app/tables', icon: Armchair, label: 'Tables', perm: 'tables.view' },
   { to: '/app/orders', icon: ShoppingBag, label: 'Orders', perm: 'orders.view' },
   { to: '/app/billing', icon: Receipt, label: 'Bills', perm: 'billing.manage' },
@@ -51,6 +54,7 @@ function Logo({ company, isSuperAdmin, size = 'h-11 w-11' }) {
 export default function Layout() {
   const { user, company, can, isSuperAdmin, logout, subscription_expired, subscription } = useAuth()
   const t = useT()
+  const { multi, isOwner, selected } = useCounter()
   const [more, setMore] = useState(false)
   const nav = useNavigate()
   const loc = useLocation()
@@ -61,7 +65,7 @@ export default function Layout() {
   const showBell = !isSuperAdmin && can('orders.view')
   const { data: pending } = useApi('/orders', { params: { status: 'pending' }, poll: 30000, skip: !showBell })
   // Orders placed by OTHER people (captains, waiters, QR customers): ring + banner + bell count for owner / billing counter
-  const alerts = useOrderAlerts(showBell && can('billing.manage'))
+  const alerts = useOrderAlerts(showBell && can('billing.manage'), selected)
   const onOrdersPage = loc.pathname.startsWith('/app/orders')
   useEffect(() => { if (onOrdersPage) alerts.clearUnseen() }, [onOrdersPage, alerts.unseen]) // eslint-disable-line react-hooks/exhaustive-deps
   const pendingCount = (pending?.length || 0) + alerts.unseen
@@ -95,7 +99,7 @@ export default function Layout() {
     : t('Your subscription ends in {n} days.', { n: daysLeft })
   const roleText = (r) => t(r?.replace('_', ' ') || '')
 
-  const items = isSuperAdmin ? ADMIN_NAV : TENANT_NAV.filter((n) => can(n.perm))
+  const items = isSuperAdmin ? ADMIN_NAV : TENANT_NAV.filter((n) => (n.ownerMulti ? multi && isOwner : can(n.perm)))
   const canNew = !isSuperAdmin && can('orders.create')
 
   // Mobile: up to 4 primary tabs around the centre "new order" button. Everything else lives in the
@@ -174,10 +178,13 @@ export default function Layout() {
               <div className="truncate text-[17px] font-extrabold tracking-tight">{isSuperAdmin ? 'Hotel SaaS' : company?.name}</div>
               <div className="truncate text-xs font-medium text-white/70">{t('Hi, {name}', { name: user?.name?.split(' ')[0] })} · <span className="capitalize">{roleText(user?.role)}</span></div>
             </div>
-            <div className="hidden flex-1 lg:block" />
+            <div className="hidden min-w-0 flex-1 lg:block"><CounterSwitch /></div>
+            {!isSuperAdmin && multi && !isOwner && <CounterSwitch dark className="lg:hidden" />}
             {showBell && BellBtn}
             <button onClick={() => setMore(true)} aria-label={t('Account menu')} className="lg:hidden"><Avatar name={user?.name} className="!bg-ivory !text-brand !ring-0" /></button>
           </div>
+          {/* Phones: the owner's counter pills sit under the app bar */}
+          {!isSuperAdmin && multi && isOwner && <div className="px-4 pb-3 lg:hidden"><CounterSwitch dark /></div>}
         </header>
 
         {!isSuperAdmin && subscription_expired && (
@@ -193,7 +200,7 @@ export default function Layout() {
         )}
 
         <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 py-5 pb-36 sm:px-6 lg:px-8 lg:pb-8">
-          <div key={loc.pathname} className="animate-page"><Outlet /></div>
+          <div key={`${loc.pathname}|${selected}`} className="animate-page"><Outlet /></div>
         </main>
       </div>
 

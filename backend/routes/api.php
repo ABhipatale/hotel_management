@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BillingController;
+use App\Http\Controllers\Api\CounterController;
 use App\Http\Controllers\Api\LibraryController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OperationsController;
@@ -49,6 +50,9 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('companies/{id}/branding', [SuperAdminController::class, 'branding']);
         Route::post('companies/{id}/subscription', [SuperAdminController::class, 'assignSubscription']);
         Route::delete('companies/{id}', [SuperAdminController::class, 'destroyCompany']);
+        Route::get('companies/{id}/counters', [SuperAdminController::class, 'counters']);
+        Route::post('companies/{id}/counters', [SuperAdminController::class, 'storeCounter']);
+        Route::put('companies/{id}/counters/{counterId}', [SuperAdminController::class, 'updateCounter']);
         Route::get('library', [LibraryController::class, 'adminIndex']);
         Route::post('library', [LibraryController::class, 'store']);
         Route::post('library/{id}', [LibraryController::class, 'update']); // POST for multipart
@@ -82,6 +86,11 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::put('printer', [SettingsController::class, 'updatePrinter'])->middleware('perm:settings.manage');
         Route::get('permissions', [SettingsController::class, 'permissions']);
         Route::get('audit-logs', [SettingsController::class, 'auditLogs'])->middleware('perm:settings.manage');
+
+        // Counters (multi-counter companies, owner only - checked in the controller)
+        Route::get('counters/overview', [CounterController::class, 'overview']);
+        Route::post('counters', [CounterController::class, 'store']);
+        Route::put('counters/{id}', [CounterController::class, 'update']);
 
         // Staff
         Route::middleware('perm:users.manage')->group(function () {

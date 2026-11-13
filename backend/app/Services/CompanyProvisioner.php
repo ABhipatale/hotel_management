@@ -40,6 +40,7 @@ class CompanyProvisioner
                 'email' => $data['email'],
                 'gst_enabled' => (bool) ($data['gst_enabled'] ?? true),
                 'qr_enabled' => (bool) ($data['qr_enabled'] ?? true),
+                'multi_counter' => (bool) ($data['multi_counter'] ?? false),
                 'default_language' => $data['default_language'] ?? 'en',
                 'gst_number' => ($data['gst_enabled'] ?? true) ? ($data['gst_number'] ?? null) : null,
                 'bill_footer' => 'Thank you! Visit again.',
@@ -50,7 +51,20 @@ class CompanyProvisioner
             $owner = Tenant::as($company, function () use ($company, $data) {
                 $roles = $this->seedRoles();
 
-                $branch = Branch::create(['name' => 'Main Branch', 'address' => $data['address'] ?? null, 'is_default' => true]);
+                // Several counters: the names the platform admin typed (default "Counter 1", "Counter 2"); otherwise one "Main Branch" as always
+                $names = ! empty($data['multi_counter'])
+                    ? collect($data['counters'] ?? [])->map(fn ($n) => trim((string) $n))->filter()->unique()->values()->all()
+                    : [];
+                if (! empty($data['multi_counter']) && ! $names) {
+                    $names = ['Counter 1', 'Counter 2'];
+                }
+                if ($names) {
+                    foreach ($names as $i => $n) {
+                        Branch::create(['name' => $n, 'address' => $data['address'] ?? null, 'is_default' => $i === 0]);
+                    }
+                } else {
+                    Branch::create(['name' => 'Main Branch', 'address' => $data['address'] ?? null, 'is_default' => true]);
+                }
 
                 foreach (config('hms.default_categories') as $i => $name) {
                     FoodCategory::create(['name' => $name, 'sort_order' => $i]);

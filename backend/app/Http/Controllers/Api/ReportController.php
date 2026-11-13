@@ -68,10 +68,13 @@ class ReportController extends Controller
         };
     }
 
-    /** Reports cover the whole company (branches are not exposed), so no branch filter is applied. */
+    /**
+     * Single-counter company: the whole company (as before). Multi-counter: a counter user sees only their counter
+     * (also enforced by the model scope); the owner sees everything or the counter picked in the app.
+     */
     private function branchFilter(Request $r): ?int
     {
-        return null;
+        return Tenant::multiCounter() ? $this->branchScope($r) : null;
     }
 
     private function salesSeries(?int $branch, Carbon $from, Carbon $to, string $group): array

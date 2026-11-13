@@ -28,7 +28,7 @@ class TableController extends Controller
     {
         $branch = $this->branch($r);
         $plan = $r->attributes->get('plan');
-        if ($plan?->max_tables !== null && HotelTable::count() >= $plan->max_tables) {
+        if ($plan?->max_tables !== null && HotelTable::withoutGlobalScope('branch')->count() >= $plan->max_tables) {
             return response()->json(['message' => "Your plan allows up to {$plan->max_tables} tables. Please upgrade.", 'code' => 'limit_reached'], 402);
         }
         $data = $r->validate([

@@ -65,7 +65,14 @@ class AuthController extends Controller
         if ($user->company_id) {
             $company = $user->company;
             $state = app(SubscriptionService::class)->state($company);
-            $out['company'] = $company->only('id', 'uid', 'name', 'slug', 'logo_url', 'icon_url', 'brand_color', 'status', 'phone', 'address', 'gst_number', 'gst_enabled', 'qr_enabled', 'use_library_images', 'default_language');
+            $out['company'] = $company->only('id', 'uid', 'name', 'slug', 'logo_url', 'icon_url', 'brand_color', 'status', 'phone', 'address', 'gst_number', 'gst_enabled', 'qr_enabled', 'multi_counter', 'use_library_images', 'default_language');
+            if ($company->multi_counter) {
+                // Owner: every counter (for the counter switcher). Everyone else: the one counter they work in.
+                $all = \App\Support\Tenant::as($company, fn () => \App\Models\Branch::orderByDesc('is_default')->orderBy('id')->get(['id', 'name', 'is_default', 'is_active']));
+                $out['counters'] = $user->role === 'owner' ? $all->values() : [];
+                $mine = $user->role === 'owner' ? null : ($all->firstWhere('id', $user->branch_id) ?? $all->firstWhere('is_default', true));
+                $out['counter'] = $mine ? $mine->only('id', 'name') : null;
+            }
             $out['plan'] = $state['plan'];
             $out['subscription'] = $state['subscription']?->only('status', 'billing_cycle', 'starts_at', 'ends_at');
             $out['subscription_expired'] = $state['expired'];
