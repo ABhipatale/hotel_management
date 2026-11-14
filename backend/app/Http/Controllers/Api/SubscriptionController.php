@@ -32,12 +32,12 @@ class SubscriptionController extends Controller
         ];
     }
 
-    /** Prices of the single subscription. */
+    /** Prices for THIS company: its own price if the platform admin set one, otherwise the default. */
     public function pricing()
     {
-        $p = SubscriptionPlan::current();
+        $p = Tenant::company()->prices(SubscriptionPlan::current());
 
-        return ['price_monthly' => (float) $p->price_monthly, 'price_yearly' => (float) $p->price_yearly];
+        return ['price_monthly' => $p['price_monthly'], 'price_yearly' => $p['price_yearly']];
     }
 
     public function payments()
@@ -60,7 +60,7 @@ class SubscriptionController extends Controller
         $payment = SubscriptionPayment::create([
             'company_id' => $company->id,
             'invoice_no' => 'INV-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
-            'amount' => $d['billing_cycle'] === 'yearly' ? $plan->price_yearly : $plan->price_monthly,
+            'amount' => $company->priceFor($plan, $d['billing_cycle']),
             'billing_cycle' => $d['billing_cycle'],
             'gateway' => $gw->configured() ? 'razorpay' : 'simulated',
             'status' => 'pending',

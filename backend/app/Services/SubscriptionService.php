@@ -68,7 +68,7 @@ class SubscriptionService
                     'company_id' => $company->id,
                     'subscription_id' => $sub->id,
                     'invoice_no' => 'INV-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
-                    'amount' => $cycle === 'yearly' ? $plan->price_yearly : $plan->price_monthly,
+                    'amount' => $company->priceFor($plan, $cycle),
                     'billing_cycle' => $cycle,
                     'gateway' => $gateway,
                     'gateway_ref' => $gatewayRef,

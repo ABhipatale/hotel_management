@@ -28,7 +28,7 @@ class DatabaseSeeder extends Seeder
         // One subscription for everybody. Prices are only set on first install; the admin edits them later.
         $premium = SubscriptionPlan::firstOrNew(['slug' => 'premium']);
         if (! $premium->exists) {
-            $premium->forceFill(['name' => 'Subscription', 'price_monthly' => 3499, 'price_yearly' => 34990]);
+            $premium->forceFill(['name' => 'Subscription', 'price_monthly' => 500, 'price_yearly' => 5500]);
         }
         $premium->forceFill(['max_staff' => null, 'max_tables' => null, 'max_branches' => 1, 'features' => config('hms.features'), 'is_active' => true])->save();
 

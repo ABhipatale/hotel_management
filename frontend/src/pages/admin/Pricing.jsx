@@ -31,7 +31,7 @@ export default function Pricing() {
 
   return (
     <>
-      <PageHeader title="Pricing" sub="One subscription for every company — monthly or yearly" />
+      <PageHeader title="Pricing" sub="The default price — every company pays this unless you set its own price (Companies → Manage)" />
       <div className="grid gap-5 lg:grid-cols-2">
         <Card>
           <form onSubmit={save} className="space-y-4">
@@ -42,7 +42,7 @@ export default function Pricing() {
         </Card>
 
         <Card className="!border-brand !bg-brand text-white">
-          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-white/75"><IndianRupee className="h-4 w-4" /> {t('What companies see')}</div>
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-white/75"><IndianRupee className="h-4 w-4" /> {t('What companies see by default')}</div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/10">
               <div className="text-xs font-semibold text-white/70">{t('Monthly')}</div>
@@ -55,7 +55,7 @@ export default function Pricing() {
               <div className="text-xs text-white/60">{y > 0 ? t('per year · {amount}/mo', { amount: money(y / 12) }) : t('per year')}</div>
             </div>
           </div>
-          <p className="mt-4 text-xs leading-relaxed text-white/70">{t('Every company gets all features with unlimited staff and tables. New prices apply from the next purchase or renewal; running subscriptions are not affected.')}</p>
+          <p className="mt-4 text-xs leading-relaxed text-white/70">{t('Every company gets all features with unlimited staff and tables. A company with its own price pays that instead. New prices apply from the next purchase or renewal; running subscriptions are not affected.')}</p>
         </Card>
       </div>
     </>

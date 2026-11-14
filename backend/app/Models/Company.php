@@ -10,8 +10,26 @@ class Company extends Model
     use SoftDeletes;
 
     protected $guarded = ['id', 'uid', 'status'];
-    protected $casts = ['settings' => 'array', 'gst_enabled' => 'boolean', 'qr_enabled' => 'boolean', 'multi_counter' => 'boolean', 'use_library_images' => 'boolean'];
+    protected $casts = ['settings' => 'array', 'gst_enabled' => 'boolean', 'qr_enabled' => 'boolean', 'multi_counter' => 'boolean', 'price_monthly' => 'float', 'price_yearly' => 'float', 'use_library_images' => 'boolean'];
     protected $appends = ['logo_url', 'icon_url'];
+
+    /** This company's own subscription price, or the platform default when none was set. */
+    public function priceFor(SubscriptionPlan $plan, string $cycle): float
+    {
+        $own = $cycle === 'yearly' ? $this->price_yearly : $this->price_monthly;
+
+        return (float) ($own ?? ($cycle === 'yearly' ? $plan->price_yearly : $plan->price_monthly));
+    }
+
+    /** @return array{price_monthly: float, price_yearly: float, custom: bool} */
+    public function prices(SubscriptionPlan $plan): array
+    {
+        return [
+            'price_monthly' => $this->priceFor($plan, 'monthly'),
+            'price_yearly' => $this->priceFor($plan, 'yearly'),
+            'custom' => $this->price_monthly !== null || $this->price_yearly !== null,
+        ];
+    }
 
     public function getIconUrlAttribute(): ?string
     {

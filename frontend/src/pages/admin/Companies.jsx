@@ -3,7 +3,7 @@ import { Check, LayoutGrid, Plus, Search, Store } from 'lucide-react'
 import { api, toFormData } from '../../lib/api'
 import ImagePicker from '../../components/ImagePicker'
 import { useApi } from '../../lib/useApi'
-import { dateOnly } from '../../lib/format'
+import { dateOnly, money } from '../../lib/format'
 import { useT } from '../../i18n'
 import { counterColor } from '../../lib/counter'
 import { useToast } from '../../context/ToastContext'
@@ -48,7 +48,12 @@ export default function Companies() {
                 <div><div className="font-medium">{c.name}</div><div className="text-xs text-muted">{c.uid} · {c.email}</div></div>
               </div>
             ) },
-            { header: 'Subscription', render: (c) => (c.current_subscription ? <span className="capitalize">{tr(c.current_subscription.billing_cycle)}</span> : <Badge tone="amber">Awaiting purchase</Badge>) },
+            { header: 'Subscription', render: (c) => (
+              <div className="space-y-1">
+                {c.current_subscription ? <span className="capitalize">{tr(c.current_subscription.billing_cycle)}</span> : <Badge tone="amber">Awaiting purchase</Badge>}
+                {(c.price_monthly != null || c.price_yearly != null) && <div><Badge tone="violet" dot={false}>Custom price</Badge></div>}
+              </div>
+            ) },
             { header: 'Status', render: (c) => <Badge tone={c.deleted_at ? 'red' : statusTone(c.status)}>{c.deleted_at ? 'deleted' : c.status}</Badge> },
             { header: 'Expires', render: (c) => dateOnly(c.current_subscription?.ends_at) },
             { header: '', className: 'text-right', render: (c) => <Button size="sm" variant="secondary" onClick={() => setDetail(c)}>Manage</Button> },
@@ -73,6 +78,7 @@ export default function Companies() {
               <div className="space-y-4">
                 {detail.multi_counter && <CountersEditor key={detail.id} company={detail} />}
                 <BrandingEditor company={detail} onDone={(c) => { setDetail(c); reload() }} />
+                <CompanyPrice key={detail.id} company={detail} onDone={(c) => { setDetail(c); reload() }} />
                 <RenewSubscription company={detail} onDone={() => { toast.success('Subscription updated'); reload(); setDetail(null) }} />
               </div>
             </div>
@@ -234,6 +240,43 @@ function BrandingEditor({ company, onDone }) {
       <ImagePicker label="Company logo" current={company.logo_url} file={logo} onChange={setLogo} rounded="rounded-2xl" fit="object-contain bg-white" />
       <ImagePicker raw label="App icon (square, 512 x 512 recommended)" current={removeIcon ? null : company.icon_url} file={icon} onChange={(x) => { setIcon(x); setRemoveIcon(false) }} onRemove={company.icon_url ? () => setRemoveIcon(true) : undefined} />
       <Button className="w-full" disabled={!dirty} loading={busy} onClick={save}>Save branding</Button>
+    </div>
+  )
+}
+
+/** Super admin: this company's own subscription price. Empty = it pays the platform default price. */
+function CompanyPrice({ company, onDone }) {
+  const toast = useToast()
+  const tr = useT()
+  const { data: def } = useApi('/admin/pricing')
+  const [f, setF] = useState({ price_monthly: company.price_monthly ?? '', price_yearly: company.price_yearly ?? '' })
+  const [busy, setBusy] = useState(false)
+  const custom = company.price_monthly != null || company.price_yearly != null
+  const save = async (body) => {
+    setBusy(true)
+    try {
+      const { data } = await api.put(`/admin/companies/${company.id}`, body)
+      toast.success('Price saved')
+      setF({ price_monthly: data.price_monthly ?? '', price_yearly: data.price_yearly ?? '' })
+      onDone({ ...company, ...data })
+    } catch (e) { toast.error(e) } finally { setBusy(false) }
+  }
+  const val = (v) => (v === '' ? null : Number(v))
+  return (
+    <div className="space-y-3 rounded-2xl bg-canvas p-4 ring-1 ring-line">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold">{tr('Subscription price')}</div>
+        <Badge tone={custom ? 'violet' : 'slate'} dot={false}>{custom ? 'Custom price' : 'Default price'}</Badge>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Monthly (₹)" type="number" min="0" step="0.01" inputMode="decimal" value={f.price_monthly} placeholder={def ? String(def.price_monthly) : ''} onChange={(e) => setF({ ...f, price_monthly: e.target.value })} />
+        <Input label="Yearly (₹)" type="number" min="0" step="0.01" inputMode="decimal" value={f.price_yearly} placeholder={def ? String(def.price_yearly) : ''} onChange={(e) => setF({ ...f, price_yearly: e.target.value })} />
+      </div>
+      <p className="text-xs text-muted">{def ? tr('Leave a box empty to use the default price ({m} / month, {y} / year). A new price applies from the next purchase or renewal; a running subscription is not affected.', { m: money(def.price_monthly), y: money(def.price_yearly) }) : ''}</p>
+      <div className="flex gap-2">
+        <Button className="flex-1" loading={busy} onClick={() => save({ price_monthly: val(f.price_monthly), price_yearly: val(f.price_yearly) })}>{tr('Save price')}</Button>
+        {custom && <Button variant="secondary" disabled={busy} onClick={() => save({ price_monthly: null, price_yearly: null })}>{tr('Use default')}</Button>}
+      </div>
     </div>
   )
 }

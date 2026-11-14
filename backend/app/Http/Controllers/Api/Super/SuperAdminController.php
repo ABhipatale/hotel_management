@@ -23,7 +23,14 @@ class SuperAdminController extends Controller
     public function dashboard()
     {
         $active = Subscription::where('status', 'active')->where('ends_at', '>', now())->with('plan')->get();
-        $mrr = $active->sum(fn ($s) => $s->billing_cycle === 'yearly' ? $s->plan->price_yearly / 12 : $s->plan->price_monthly);
+        $companies = Company::withTrashed()->whereIn('id', $active->pluck('company_id'))->get()->keyBy('id');
+        // each company's own price (or the default) - so custom prices are reflected in the monthly revenue figure
+        $mrr = $active->sum(function ($s) use ($companies) {
+            $c = $companies[$s->company_id] ?? null;
+            $price = $c ? $c->priceFor($s->plan, $s->billing_cycle) : ($s->billing_cycle === 'yearly' ? $s->plan->price_yearly : $s->plan->price_monthly);
+
+            return $s->billing_cycle === 'yearly' ? $price / 12 : $price;
+        });
 
         return [
             'companies_total' => Company::count(),
@@ -115,6 +122,9 @@ class SuperAdminController extends Controller
             'use_library_images' => 'sometimes|boolean',
             'default_language' => 'sometimes|in:en,hi,mr',
             'multi_counter' => 'sometimes|boolean',
+            // this company's own subscription price; empty / null = use the platform default price
+            'price_monthly' => 'sometimes|nullable|numeric|min:0|max:10000000',
+            'price_yearly' => 'sometimes|nullable|numeric|min:0|max:100000000',
         ]);
         if (array_key_exists('multi_counter', $data)) {
             if ((bool) $data['multi_counter'] !== (bool) $c->multi_counter) {
