@@ -117,13 +117,13 @@ export default function Layout() {
   const right = primary.slice(half)
 
   const tab = (i) => (
-    <NavLink key={i.to} to={i.to} end={i.end} className="group relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-bold">
+    <NavLink key={i.to} to={i.to} end={i.end} className="group relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 text-center text-[11px] font-bold leading-tight">
       {({ isActive }) => (
         <>
           {/* Coral active indicator */}
           <span className={`absolute left-1/2 top-0 h-[3px] -translate-x-1/2 rounded-full bg-accent transition-all duration-300 ${isActive ? 'w-7 opacity-100' : 'w-0 opacity-0'}`} />
           <i.icon className={`h-[22px] w-[22px] transition group-active:scale-90 ${isActive ? 'text-brand' : 'text-slate-400'}`} strokeWidth={isActive ? 2.5 : 2} />
-          <span className={isActive ? 'text-brand' : 'text-slate-400'}>{t(i.label)}</span>
+          <span className={`max-w-full truncate ${isActive ? 'text-brand' : 'text-slate-400'}`}>{t(i.label)}</span>
         </>
       )}
     </NavLink>
@@ -222,7 +222,7 @@ export default function Layout() {
               </button>
             </div>
           )}
-          <div className="flex min-w-0 flex-1">{right.map(tab)}</div>
+          {right.length > 0 && <div className="flex min-w-0 flex-1">{right.map(tab)}</div>}
         </div>
       </nav>
 
