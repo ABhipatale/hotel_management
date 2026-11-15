@@ -48,3 +48,4 @@ Seeded logins (non-production only):
   ESC/POS works in Chromium browsers (WebUSB / Web Bluetooth) and is untested on real hardware.
 - **Scheduled jobs** (marking expired subscriptions, purging soft-deleted companies per retention policy) not added.
 - UI has not been tested across browsers/devices; only the API and build were verified.
+<!-- export PATH="/opt/homebrew/opt/php@8.3/bin:/opt/homebrew/opt/php@8.3/sbin:$PATH" -->

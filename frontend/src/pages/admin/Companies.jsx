@@ -281,6 +281,26 @@ function CompanyPrice({ company, onDone }) {
   )
 }
 
+/** Optional: money collected offline (cash / UPI / bank / cheque) for the plan being granted. */
+function OfflinePayment({ value, onChange }) {
+  const tr = useT()
+  const on = !!value
+  return (
+    <div className="space-y-3 rounded-2xl bg-canvas p-4 ring-1 ring-line">
+      <Switch checked={on} onChange={(v) => onChange(v ? { amount: '', method: 'cash', note: '' } : null)} label={tr('Payment received offline')} />
+      {on && (
+        <>
+          <Input label="Amount (₹)" type="number" min="0" step="0.01" inputMode="decimal" required value={value.amount} onChange={(e) => onChange({ ...value, amount: e.target.value })} />
+          <Select label="Method" value={value.method} onChange={(e) => onChange({ ...value, method: e.target.value })}>
+            {['cash', 'upi', 'bank', 'cheque', 'other'].map((m) => <option key={m} value={m}>{tr(m === 'upi' ? 'UPI' : m === 'bank' ? 'Bank transfer' : m[0].toUpperCase() + m.slice(1))}</option>)}
+          </Select>
+          <Input label="Reference / note" value={value.note} onChange={(e) => onChange({ ...value, note: e.target.value })} />
+        </>
+      )}
+    </div>
+  )
+}
+
 function RenewSubscription({ company, onDone }) {
   const toast = useToast()
   const tr = useT()
@@ -288,10 +308,11 @@ function RenewSubscription({ company, onDone }) {
   // A company that has not bought a plan keeps "Customer purchases the plan on first login" until the admin picks a period
   const [cycle, setCycle] = useState(has ? 'monthly' : '')
   const [busy, setBusy] = useState(false)
+  const [offline, setOffline] = useState(null)
   const go = async () => {
     if (!cycle) return
     setBusy(true)
-    try { await api.post(`/admin/companies/${company.id}/subscription`, { billing_cycle: cycle }); onDone() } catch (e) { toast.error(e) } finally { setBusy(false) }
+    try { await api.post(`/admin/companies/${company.id}/subscription`, { billing_cycle: cycle, offline_payment: offline || undefined }); setOffline(null); onDone() } catch (e) { toast.error(e) } finally { setBusy(false) }
   }
   return (
     <div className="space-y-3 rounded-2xl bg-canvas p-4 ring-1 ring-line">
@@ -304,6 +325,7 @@ function RenewSubscription({ company, onDone }) {
         {cycle ? tr(has ? "Extends from the current end date and records the payment at today's price." : 'The company is active immediately for the chosen period. Renew it later from Manage.')
           : tr(has ? 'This company already has a plan. Choose Monthly or Yearly to renew it.' : 'No plan is set. The owner sees the plan page after signing in and buys the plan.')}
       </p>
+      {cycle && <OfflinePayment value={offline} onChange={setOffline} />}
       <Button className="w-full" disabled={!cycle} loading={busy} onClick={go}>{tr(has ? 'Renew' : 'Activate plan')}</Button>
     </div>
   )
@@ -313,11 +335,12 @@ function AddCompany({ open, onClose, onDone }) {
   const toast = useToast()
   const tr = useT()
   const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', gst_enabled: true, qr_enabled: true, default_language: 'en', gst_number: '', billing_cycle: '', multi_counter: false })
+  const [offline, setOffline] = useState(null)
   const [names, setNames] = useState(['Counter 1', 'Counter 2'])
   const [busy, setBusy] = useState(false)
   const submit = async (e) => {
     e.preventDefault(); setBusy(true)
-    try { await api.post('/admin/companies', { ...f, counters: f.multi_counter ? names.filter((n) => n.trim()) : undefined }); toast.success('Company created'); onDone() } catch (x) { toast.error(x) } finally { setBusy(false) }
+    try { await api.post('/admin/companies', { ...f, counters: f.multi_counter ? names.filter((n) => n.trim()) : undefined, offline_payment: f.billing_cycle ? offline || undefined : undefined }); toast.success('Company created'); onDone() } catch (x) { toast.error(x) } finally { setBusy(false) }
   }
   const s = (k) => (e) => setF({ ...f, [k]: e.target.value })
   return (
@@ -339,6 +362,7 @@ function AddCompany({ open, onClose, onDone }) {
           <option value="yearly">{tr('I grant 1 year now')}</option>
         </Select>
         <p className="text-xs text-muted">{f.billing_cycle ? tr('The company is active immediately for the chosen period. Renew it later from Manage.') : tr('The owner’s first screen after signing in is the plan page (monthly or yearly). The app opens after they pay.')}</p>
+        {f.billing_cycle && <OfflinePayment value={offline} onChange={setOffline} />}
         <Button type="submit" loading={busy} className="w-full">Create</Button>
       </form>
     </Modal>

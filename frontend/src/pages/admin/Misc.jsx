@@ -16,7 +16,8 @@ export function AdminPayments() {
         { header: 'Invoice', key: 'invoice_no' },
         { header: 'Company', render: (p) => p.company?.name },
         { header: 'Amount', render: (p) => money(p.amount) },
-        { header: 'Gateway', render: (p) => p.gateway || '—' },
+        { header: 'Type', render: (p) => <Badge tone={p.mode === 'offline' ? 'amber' : 'green'} dot={false}>{p.mode === 'offline' ? 'Offline' : 'Online'}</Badge> },
+        { header: 'Method', render: (p) => p.mode === 'offline' ? [p.method, p.note].filter(Boolean).join(' · ') || '—' : p.gateway || '—' },
         { header: 'Status', render: (p) => <Badge tone={statusTone(p.status)}>{p.status}</Badge> },
         { header: 'Paid', render: (p) => dt(p.paid_at) },
       ]} />

@@ -97,9 +97,13 @@ class SuperAdminController extends Controller
             'multi_counter' => 'sometimes|boolean',          // several counters (each with its own tables, staff and books)
             'counters' => 'sometimes|array|max:20',
             'counters.*' => 'nullable|string|max:60',
+            'offline_payment' => 'nullable|array',
+            'offline_payment.amount' => 'required_with:offline_payment|numeric|min:0|max:100000000',
+            'offline_payment.method' => 'required_with:offline_payment|in:cash,upi,bank,cheque,other',
+            'offline_payment.note' => 'nullable|string|max:255',
         ]);
         $plan = SubscriptionPlan::current();
-        [$company] = $provisioner->provision($data, null, $plan, $data['billing_cycle'] ?? null);
+        [$company] = $provisioner->provision($data, null, $plan, $data['billing_cycle'] ?? null, ($data['billing_cycle'] ?? null) ? ($data['offline_payment'] ?? null) : null);
         AuditLog::record('super.company.create', 'company', $company->id);
 
         return response()->json($company, 201);
@@ -220,11 +224,14 @@ class SuperAdminController extends Controller
 
     public function assignSubscription(Request $request, int $id, SubscriptionService $subs)
     {
-        $data = $request->validate(['billing_cycle' => 'required|in:monthly,yearly']);
+        $data = $request->validate(['billing_cycle' => 'required|in:monthly,yearly', 'offline_payment' => 'nullable|array',
+            'offline_payment.amount' => 'required_with:offline_payment|numeric|min:0|max:100000000',
+            'offline_payment.method' => 'required_with:offline_payment|in:cash,upi,bank,cheque,other',
+            'offline_payment.note' => 'nullable|string|max:255',]);
         $company = Company::findOrFail($id);
         $plan = SubscriptionPlan::current();
-        $sub = $subs->activate($company, $plan, $data['billing_cycle'], 'manual');
-        AuditLog::record('super.subscription.assign', 'company', $id, $data);
+        $sub = $subs->activate($company, $plan, $data['billing_cycle'], 'manual', null, null, $data['offline_payment'] ?? null);
+        AuditLog::record('super.subscription.assign', 'company', $id, ['billing_cycle' => $data['billing_cycle'], 'offline' => isset($data['offline_payment'])]);
 
         return $sub->load('plan');
     }

@@ -50,8 +50,8 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/api': 'http://localhost:8001',
-      '/storage': 'http://localhost:8001',
+      '/api': 'http://127.0.0.1:8001',
+      '/storage': 'http://127.0.0.1:8001',
     },
   },
 })

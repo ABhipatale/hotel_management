@@ -12,11 +12,11 @@ use Illuminate\Support\Str;
 class SubscriptionService
 {
     /** Subscription granted by the platform admin when a company is created (no payment record). */
-    public function grant(Company $company, SubscriptionPlan $plan, string $cycle = 'monthly'): Subscription
+    public function grant(Company $company, SubscriptionPlan $plan, string $cycle = 'monthly', ?array $offline = null): Subscription
     {
         $start = now();
 
-        return Subscription::create([
+        $sub = Subscription::create([
             'company_id' => $company->id,
             'plan_id' => $plan->id,
             'billing_cycle' => $cycle,
@@ -24,12 +24,36 @@ class SubscriptionService
             'starts_at' => $start,
             'ends_at' => $cycle === 'yearly' ? $start->copy()->addYear() : $start->copy()->addMonth(),
         ]);
+
+        if ($offline) {
+            $this->recordOffline($company, $sub, $cycle, $offline);
+        }
+
+        return $sub;
+    }
+
+    /** Money the super admin collected outside the gateway (cash, UPI, bank transfer, cheque). */
+    public function recordOffline(Company $company, Subscription $sub, string $cycle, array $offline): SubscriptionPayment
+    {
+        return SubscriptionPayment::create([
+            'company_id' => $company->id,
+            'subscription_id' => $sub->id,
+            'invoice_no' => 'INV-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
+            'amount' => $offline['amount'],
+            'billing_cycle' => $cycle,
+            'mode' => 'offline',
+            'method' => $offline['method'] ?? null,
+            'note' => $offline['note'] ?? null,
+            'gateway' => 'offline',
+            'status' => 'paid',
+            'paid_at' => now(),
+        ]);
     }
 
     /** Activate / renew / upgrade / downgrade: closes the old subscription and opens a new one. */
-    public function activate(Company $company, SubscriptionPlan $plan, string $cycle, ?string $gateway = null, ?string $gatewayRef = null, ?SubscriptionPayment $pending = null): Subscription
+    public function activate(Company $company, SubscriptionPlan $plan, string $cycle, ?string $gateway = null, ?string $gatewayRef = null, ?SubscriptionPayment $pending = null, ?array $offline = null): Subscription
     {
-        return DB::transaction(function () use ($company, $plan, $cycle, $gateway, $gatewayRef, $pending) {
+        return DB::transaction(function () use ($company, $plan, $cycle, $gateway, $gatewayRef, $pending, $offline) {
             if ($pending) {
                 // Idempotent: lock the pending row; if already paid (webhook + callback race) return its subscription
                 $pending = SubscriptionPayment::whereKey($pending->id)->lockForUpdate()->first();
@@ -68,9 +92,12 @@ class SubscriptionService
                     'company_id' => $company->id,
                     'subscription_id' => $sub->id,
                     'invoice_no' => 'INV-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
-                    'amount' => $company->priceFor($plan, $cycle),
+                    'amount' => $offline['amount'] ?? $company->priceFor($plan, $cycle),
                     'billing_cycle' => $cycle,
-                    'gateway' => $gateway,
+                    'mode' => $offline ? 'offline' : 'online',
+                    'method' => $offline['method'] ?? null,
+                    'note' => $offline['note'] ?? null,
+                    'gateway' => $offline ? 'offline' : $gateway,
                     'gateway_ref' => $gatewayRef,
                     'status' => 'paid',
                     'paid_at' => now(),
