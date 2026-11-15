@@ -17,13 +17,21 @@ class StaffController extends Controller
     /** Roles the owner can hand out: "counter" (a counter manager) exists only in multi-counter companies. */
     private function assignable(): array
     {
-        return Tenant::multiCounter() ? [...self::ASSIGNABLE, 'counter'] : self::ASSIGNABLE;
+        $roles = self::ASSIGNABLE;
+        if (Tenant::company()?->kot_enabled) {
+            $roles[] = 'chef'; // kitchen login: only the kitchen screen
+        }
+        if (Tenant::multiCounter()) {
+            $roles[] = 'counter';
+        }
+
+        return $roles;
     }
 
     public function index(Request $r)
     {
         return User::inTenant(Tenant::id())->with('roleModel:id,name')->orderBy('name')->get()
-            ->map(fn ($u) => $u->only('id', 'name', 'email', 'phone', 'role', 'is_active', 'last_login_at', 'branch_id'));
+            ->map(fn ($u) => $u->only('id', 'name', 'email', 'phone', 'role', 'is_active', 'last_login_at', 'branch_id') + ['branch_ids' => $u->role === 'chef' ? $u->counterIds() : ($u->branch_id ? [(int) $u->branch_id] : [])]);
     }
 
     public function store(Request $r)
@@ -40,7 +48,10 @@ class StaffController extends Controller
             'password' => ['required', 'string', 'min:6', 'max:100'],
             'role' => ['required', Rule::in($this->assignable())],
             // multi-counter: every staff account belongs to exactly one counter
-            'branch_id' => Tenant::multiCounter() ? ['required', Tenant::exists('branches')] : 'nullable',
+            'branch_id' => Tenant::multiCounter() ? [Rule::requiredIf(fn () => $r->input('role') !== 'chef'), 'nullable', Tenant::exists('branches')] : 'nullable',
+            // a chef can cook for several counters
+            'branch_ids' => Tenant::multiCounter() && $r->input('role') === 'chef' ? ['required', 'array', 'min:1', 'max:20'] : 'nullable',
+            'branch_ids.*' => ['integer', Tenant::exists('branches')],
         ]);
 
         $u = new User(['name' => $data['name'], 'email' => $data['email'], 'phone' => $data['phone'] ?? null, 'password' => $data['password']]);
@@ -48,8 +59,11 @@ class StaffController extends Controller
             'company_id' => Tenant::id(),
             'role' => $data['role'],
             'role_id' => Role::where('slug', $data['role'])->value('id'),
-            'branch_id' => Tenant::multiCounter() ? $data['branch_id'] : null,
+            'branch_id' => Tenant::multiCounter() ? ($data['branch_id'] ?? null) : null,
         ])->save();
+        if (Tenant::multiCounter() && $data['role'] === 'chef') {
+            $u->setCounters($data['branch_ids']);
+        }
         AuditLog::record('staff.create', 'user', $u->id, ['role' => $data['role'], 'counter' => $u->branch_id]);
 
         return response()->json($u->only('id', 'name', 'email', 'role', 'is_active', 'branch_id'), 201);
@@ -67,12 +81,19 @@ class StaffController extends Controller
             'password' => ['nullable', 'string', 'min:6', 'max:100'],
             'role' => ['sometimes', Rule::in($this->assignable())],
             'branch_id' => Tenant::multiCounter() ? ['sometimes', 'nullable', Tenant::exists('branches')] : 'nullable',
+            'branch_ids' => 'sometimes|array|min:1|max:20',
+            'branch_ids.*' => ['integer', Tenant::exists('branches')],
             'is_active' => 'sometimes|boolean',
         ]);
         if (Tenant::multiCounter()) {
             $finalRole = $data['role'] ?? $u->role;
             $finalBranch = array_key_exists('branch_id', $data) ? $data['branch_id'] : $u->branch_id;
             abort_if($finalRole === 'counter' && ! $finalBranch, 422, 'Choose the counter this login belongs to.');
+            if ($finalRole === 'chef' && ! empty($data['branch_ids'])) {
+                $u->setCounters($data['branch_ids']); // also saves
+                $u->tokens()->delete();
+                unset($data['branch_id']);
+            }
             if (array_key_exists('branch_id', $data)) {
                 $u->branch_id = $data['branch_id'];
                 $u->tokens()->delete(); // moved to another counter: sign them in fresh
@@ -83,6 +104,9 @@ class StaffController extends Controller
             unset($data['password']);
         }
         if (isset($data['role'])) {
+            if ($u->role === 'chef' && $data['role'] !== 'chef') {
+                \Illuminate\Support\Facades\DB::table('branch_user')->where('user_id', $u->id)->delete(); // no longer a chef
+            }
             $u->role = $data['role'];
             $u->role_id = Role::where('slug', $data['role'])->value('id');
             unset($data['role']);

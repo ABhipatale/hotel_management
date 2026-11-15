@@ -52,6 +52,7 @@ export default function Companies() {
               <div className="space-y-1">
                 {c.current_subscription ? <span className="capitalize">{tr(c.current_subscription.billing_cycle)}</span> : <Badge tone="amber">Awaiting purchase</Badge>}
                 {(c.price_monthly != null || c.price_yearly != null) && <div><Badge tone="violet" dot={false}>Custom price</Badge></div>}
+                {c.kot_enabled && <div><Badge tone="amber" dot={false}>KOT{c.kot_print ? ' + print' : ''}</Badge></div>}
               </div>
             ) },
             { header: 'Status', render: (c) => <Badge tone={c.deleted_at ? 'red' : statusTone(c.status)}>{c.deleted_at ? 'deleted' : c.status}</Badge> },
@@ -175,6 +176,17 @@ function CountersEditor({ company }) {
   )
 }
 
+/** Kitchen order tickets: OFF = the hotel works exactly as before (no kitchen screen, nothing extra shown). */
+function KotSwitch({ enabled, print, onEnabled, onPrint }) {
+  const tr = useT()
+  return (
+    <div className="space-y-3">
+      <Switch label={tr('Kitchen tickets (KOT)')} checked={enabled} onChange={onEnabled} hint={enabled ? tr('Orders go to a kitchen screen as tickets; a Chef login and "ready" alerts for waiters are switched on.') : tr('Off: no kitchen screen. Orders work exactly as before.')} />
+      {enabled && <Switch label={tr('Also print kitchen slips')} checked={print} onChange={onPrint} hint={tr('Adds a printed KOT slip (thermal printer) in addition to the kitchen screen.')} />}
+    </div>
+  )
+}
+
 function QrSwitch({ checked, onChange }) {
   return <Switch label="QR table ordering" checked={checked} onChange={onChange} hint={checked ? 'Tables get QR codes; customers can scan and order from their phone.' : 'QR codes and the customer QR menu are switched off for this company.'} />
 }
@@ -185,7 +197,7 @@ function CompanyDetailsEditor({ company, onDone }) {
   const tr = useT()
   const [f, setF] = useState({
     name: company.name || '', phone: company.phone || '', email: company.email || '', address: company.address || '', city: company.city || '',
-    gst_enabled: company.gst_enabled !== false, gst_number: company.gst_number || '', qr_enabled: company.qr_enabled !== false, use_library_images: company.use_library_images !== false, default_language: company.default_language || 'en', multi_counter: !!company.multi_counter,
+    gst_enabled: company.gst_enabled !== false, gst_number: company.gst_number || '', qr_enabled: company.qr_enabled !== false, kot_enabled: !!company.kot_enabled, kot_print: !!company.kot_print, use_library_images: company.use_library_images !== false, default_language: company.default_language || 'en', multi_counter: !!company.multi_counter,
   })
   const [busy, setBusy] = useState(false)
   const s = (k) => (e) => setF({ ...f, [k]: e.target.value })
@@ -207,6 +219,7 @@ function CompanyDetailsEditor({ company, onDone }) {
       <GstFields enabled={f.gst_enabled} number={f.gst_number} onEnabled={(v) => setF({ ...f, gst_enabled: v })} onNumber={(v) => setF({ ...f, gst_number: v })} />
       <CounterMode multi={f.multi_counter} onMulti={(v) => setF({ ...f, multi_counter: v })} locked={!!company.multi_counter} />
       <QrSwitch checked={f.qr_enabled} onChange={(v) => setF({ ...f, qr_enabled: v })} />
+      <KotSwitch enabled={f.kot_enabled} print={f.kot_print} onEnabled={(v) => setF({ ...f, kot_enabled: v, kot_print: v ? f.kot_print : false })} onPrint={(v) => setF({ ...f, kot_print: v })} />
       <Switch label="Platform dish photos" checked={f.use_library_images} onChange={(v) => setF({ ...f, use_library_images: v })} hint={f.use_library_images ? 'Dishes without their own photo show matching photos from the platform image library.' : 'Only this company\'s own photos are shown. The platform library is hidden for it.'} />
       <LangSelect value={f.default_language} onChange={(v) => setF({ ...f, default_language: v })} />
       <Button className="w-full" loading={busy} onClick={save}>Save details</Button>
@@ -334,7 +347,7 @@ function RenewSubscription({ company, onDone }) {
 function AddCompany({ open, onClose, onDone }) {
   const toast = useToast()
   const tr = useT()
-  const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', gst_enabled: true, qr_enabled: true, default_language: 'en', gst_number: '', billing_cycle: '', multi_counter: false })
+  const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', gst_enabled: true, qr_enabled: true, kot_enabled: false, kot_print: false, default_language: 'en', gst_number: '', billing_cycle: '', multi_counter: false })
   const [offline, setOffline] = useState(null)
   const [names, setNames] = useState(['Counter 1', 'Counter 2'])
   const [busy, setBusy] = useState(false)
@@ -355,6 +368,7 @@ function AddCompany({ open, onClose, onDone }) {
         <GstFields enabled={f.gst_enabled} number={f.gst_number} onEnabled={(v) => setF({ ...f, gst_enabled: v })} onNumber={(v) => setF({ ...f, gst_number: v })} />
       <CounterMode multi={f.multi_counter} onMulti={(v) => setF({ ...f, multi_counter: v })} names={names} onNames={setNames} />
       <QrSwitch checked={f.qr_enabled} onChange={(v) => setF({ ...f, qr_enabled: v })} />
+      <KotSwitch enabled={f.kot_enabled} print={f.kot_print} onEnabled={(v) => setF({ ...f, kot_enabled: v, kot_print: v ? f.kot_print : false })} onPrint={(v) => setF({ ...f, kot_print: v })} />
       <LangSelect value={f.default_language} onChange={(v) => setF({ ...f, default_language: v })} />
         <Select label="Subscription" value={f.billing_cycle} onChange={s('billing_cycle')}>
           <option value="">{tr('Customer purchases the plan on first login')}</option>

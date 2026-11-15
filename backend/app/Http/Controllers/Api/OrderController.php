@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\HotelTable;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Services\KotService;
 use App\Services\OrderService;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ class OrderController extends Controller
     public function index(Request $r)
     {
         $q = Order::with('items.adder:id,name', 'table:id,number,section', 'waiter:id,name,role', 'bill:id,order_id,bill_no,grand_total,status')
+            ->when(KotService::enabled(), fn ($q) => $q->with('kots:id,order_id,number,type,status'))
             ->when($this->branchScope($r), fn ($q, $b) => $q->where('branch_id', $b));
 
         // Waiters and captains see their own orders PLUS every open order of a table, so whoever serves a table can see and
@@ -119,6 +121,11 @@ class OrderController extends Controller
             $order->load('bill.items');
         }
 
+        if (KotService::enabled()) {
+            // the ticket this order just sent to the kitchen (so the app can print its slip)
+            $order->setAttribute('kot', \App\Models\Kot::with('items')->where('order_id', $order->id)->where('type', 'new')->latest('id')->first());
+        }
+
         return response()->json($order, 201);
     }
 
@@ -133,7 +140,8 @@ class OrderController extends Controller
             'items.*.variant_id' => ['nullable', Tenant::exists('food_item_variants')],
             'items.*.quantity' => 'required|integer|min:1|max:99',
         ]);
-        $this->orders->addItems($order, $d['items'], $r->user());
+        $added = $this->orders->addItems($order, $d['items'], $r->user());
+        app(KotService::class)->fire($order, KotService::lines($added), [], $r->user());
         $order->update(['status' => in_array($order->status, ['ready', 'served'], true) ? 'preparing' : $order->status]);
 
         return $order->load('items');
@@ -173,6 +181,12 @@ class OrderController extends Controller
         abort_if(in_array($order->status, ['paid', 'cancelled'], true), 422, 'Order is closed.');
 
         $order->update(['status' => $d['status']]);
+        if ($d['status'] === 'accepted') {
+            app(KotService::class)->fireAll($order, $r->user()); // an approved customer (QR) order goes to the kitchen now
+        }
+        if ($d['status'] === 'cancelled') {
+            app(KotService::class)->cancelOrder($order, $r->user());
+        }
         $itemStatus = match ($d['status']) {
             'preparing' => 'preparing', 'ready' => 'ready', 'served' => 'served', 'cancelled' => 'cancelled', default => null,
         };

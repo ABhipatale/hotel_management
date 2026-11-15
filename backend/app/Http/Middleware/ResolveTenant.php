@@ -32,7 +32,12 @@ class ResolveTenant
 
         // Multi-counter companies: every non-owner is pinned to ONE counter (their own; staff with none stay on the default one),
         // and a disabled counter cannot be used.
-        if ($company->multi_counter && $user->role !== 'owner') {
+        if ($company->multi_counter && $user->role === 'chef') {
+            // A chef may cook for several counters: not pinned to one, but limited to the active counters they were given.
+            $ids = \App\Models\Branch::whereIn('id', $user->counterIds())->where('is_active', true)->pluck('id')->map(fn ($i) => (int) $i)->all();
+            abort_if(! $ids, 403, 'Your counters are disabled. Contact the owner.');
+            $request->attributes->set('kitchen_branches', $ids);
+        } elseif ($company->multi_counter && $user->role !== 'owner') {
             $counter = $user->branch_id
                 ? \App\Models\Branch::find($user->branch_id)
                 : \App\Models\Branch::orderByDesc('is_default')->orderBy('id')->first();

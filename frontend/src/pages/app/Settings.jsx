@@ -7,10 +7,11 @@ import { dt } from '../../lib/format'
 import { useT } from '../../i18n'
 import ImagePicker from '../../components/ImagePicker'
 import SavedPrinter from '../../components/SavedPrinter'
+import KotPrintSettings from '../../components/KotPrintSettings'
 import { Button, Card, Input, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
 
 export default function Settings() {
-  const { refresh, hasFeature } = useAuth()
+  const { refresh, hasFeature, company: shop } = useAuth()
   const t = useT()
   const toast = useToast()
   const { data: company, loading } = useApi('/company')
@@ -85,6 +86,14 @@ export default function Settings() {
               <Button type="submit" className="w-full">Save printer</Button>
             </form>
           </Card>
+
+          {shop?.kot_print && (
+            <Card>
+              <h3 className="mb-1 font-semibold">{t('Kitchen slip (KOT) printer')}</h3>
+              <p className="mb-3 text-xs text-muted">{t('For this device: print the kitchen slip when an order is placed here.')}</p>
+              <KotPrintSettings where="order" />
+            </Card>
+          )}
 
           <Card>
             <h3 className="mb-3 font-semibold">{t('Contact support')}</h3>

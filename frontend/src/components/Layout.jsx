@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Armchair, BarChart3, Bell, Building2, Clock, CreditCard, Download, Images, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
+  Armchair, BarChart3, Bell, Building2, ChefHat, Clock, CreditCard, Download, Images, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
   Settings, ShoppingBag, Split, Store, Tag, Users, UtensilsCrossed, Wallet,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -11,6 +11,7 @@ import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useT } from '../i18n'
 import { useOrderAlerts } from '../lib/orderAlerts'
+import { useKotReadyAlerts } from '../lib/kotAlerts'
 import OrderAlertBanner from './OrderAlertBanner'
 import LangSwitch from './LangSwitch'
 import { usePwaInstall } from '../lib/pwa'
@@ -32,6 +33,7 @@ const TENANT_NAV = [
   { to: '/app/counters', icon: Split, label: 'Counters', ownerMulti: true },
   { to: '/app/tables', icon: Armchair, label: 'Tables', perm: 'tables.view' },
   { to: '/app/orders', icon: ShoppingBag, label: 'Orders', perm: 'orders.view' },
+  { to: '/app/kitchen', icon: ChefHat, label: 'Kitchen', perm: 'orders.kitchen', kot: true },
   { to: '/app/billing', icon: Receipt, label: 'Bills', perm: 'billing.manage' },
   { to: '/app/menu', icon: UtensilsCrossed, label: 'Menu', perm: 'menu.manage' },
   { to: '/app/inventory', icon: Package, label: 'Inventory', perm: 'inventory.manage' },
@@ -70,6 +72,10 @@ export default function Layout() {
   useEffect(() => { if (onOrdersPage) alerts.clearUnseen() }, [onOrdersPage, alerts.unseen]) // eslint-disable-line react-hooks/exhaustive-deps
   const pendingCount = (pending?.length || 0) + alerts.unseen
 
+  // Kitchen tickets (only when KOT is on): tell the waiter / captain / owner the moment a dish is ready
+  const toastKot = useToast()
+  useKotReadyAlerts(!isSuperAdmin && !!company?.kot_enabled && (can('orders.create') || can('billing.manage')), (k) => toastKot.success(t('KOT #{n} is ready{where}', { n: k.number, where: k.table ? ` — ${t('Table {n}', { n: k.table })}` : '' })), selected)
+
   const doLogout = async () => { await logout(); nav('/login') }
 
   // Install as an app (PWA): native prompt where the browser supports it, short instructions elsewhere (iPhone Safari…)
@@ -99,14 +105,14 @@ export default function Layout() {
     : t('Your subscription ends in {n} days.', { n: daysLeft })
   const roleText = (r) => t(r?.replace('_', ' ') || '')
 
-  const items = isSuperAdmin ? ADMIN_NAV : TENANT_NAV.filter((n) => (n.ownerMulti ? multi && isOwner : can(n.perm)))
+  const items = isSuperAdmin ? ADMIN_NAV : TENANT_NAV.filter((n) => (n.ownerMulti ? multi && isOwner : n.kot ? company?.kot_enabled && can(n.perm) : can(n.perm)))
   const canNew = !isSuperAdmin && can('orders.create')
 
   // Mobile: up to 4 primary tabs around the centre "new order" button. Everything else lives in the
   // account menu that opens from the avatar in the top-right corner.
-  const primary = isSuperAdmin ? items.slice(0, 4) : items.filter((i) => ['/app', '/app/tables', '/app/orders', '/app/billing'].includes(i.to)).slice(0, 4)
+  const primary = isSuperAdmin ? items.slice(0, 4) : items.filter((i) => ['/app', '/app/tables', '/app/orders', '/app/billing'].includes(i.to) || (i.to === '/app/kitchen' && !can('orders.view'))).slice(0, 4)
   const rest = items.filter((i) => !primary.includes(i))
-  const half = Math.floor(primary.length / 2)
+  const half = canNew ? Math.floor(primary.length / 2) : primary.length // no centre button (e.g. a chef): one group, no empty half
   const left = primary.slice(0, half)
   const right = primary.slice(half)
 

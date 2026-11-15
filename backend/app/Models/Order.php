@@ -26,6 +26,11 @@ class Order extends Model
         return $this->belongsTo(User::class, 'waiter_id');
     }
 
+    public function kots()
+    {
+        return $this->hasMany(Kot::class);
+    }
+
     public function bill()
     {
         return $this->hasOne(Bill::class);

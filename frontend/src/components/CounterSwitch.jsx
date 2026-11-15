@@ -15,7 +15,11 @@ export default function CounterSwitch({ dark, className }) {
   if (!multi) return null
 
   if (!isOwner) {
-    if (!current) return null
+    if (!current) {
+      // a chef who cooks for several counters
+      if (counters.length < 2) return null
+      return <span className={cx('inline-flex min-h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-extrabold', dark ? 'bg-white/15 text-white ring-1 ring-white/25' : 'bg-brand-soft text-brand', className)}><Store className="h-4 w-4" />{counters.map((c) => c.name).join(' · ')}</span>
+    }
     return (
       <span className={cx('inline-flex min-h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-extrabold', dark ? 'bg-white/15 text-white ring-1 ring-white/25' : 'bg-brand-soft text-brand', className)}>
         <Store className="h-4 w-4" />{current.name}

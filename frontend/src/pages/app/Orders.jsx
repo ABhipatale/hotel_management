@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Pencil, Plus, QrCode, StickyNote } from 'lucide-react'
+import { ChefHat, Pencil, Plus, QrCode, StickyNote } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { ago, money } from '../../lib/format'
@@ -67,6 +67,13 @@ export default function Orders() {
                   </ul>
                 )
               })()}
+              {o.kots?.filter((k) => k.type === 'new' && k.status !== 'cancelled').length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {o.kots.filter((k) => k.type === 'new' && k.status !== 'cancelled').map((k) => (
+                    <span key={k.id} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${k.status === 'ready' ? 'bg-emerald-50 text-emerald-700' : k.status === 'cooking' ? 'bg-amber-50 text-amber-700' : k.status === 'served' ? 'bg-slate-100 text-slate-500' : 'bg-orange-50 text-orange-700'}`}><ChefHat className="h-3 w-3" />KOT #{k.number} · {t(k.status === 'new' ? 'Sent to kitchen' : k.status === 'cooking' ? 'Cooking' : k.status === 'ready' ? 'Ready' : 'Served')}</span>
+                  ))}
+                </div>
+              )}
               {o.notes && <p className="mb-2 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800"><StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0" />{o.notes}</p>}
               <div className="flex flex-wrap gap-2">
                 {o.status === 'pending' && can('orders.create') && <Button size="sm" variant="soft" onClick={() => setStatus(o, 'accepted')}>{t('Accept')}</Button>}

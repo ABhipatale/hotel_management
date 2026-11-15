@@ -34,6 +34,24 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class, 'role_id');
     }
 
+    /** Counters a chef cooks for (extra to users.branch_id). Plain table reads: no tenant / counter scopes involved. */
+    public function counterIds(): array
+    {
+        $ids = \Illuminate\Support\Facades\DB::table('branch_user')->where('user_id', $this->id)->pluck('branch_id')->map(fn ($i) => (int) $i)->all();
+
+        return $ids ?: ($this->branch_id ? [(int) $this->branch_id] : []);
+    }
+
+    public function setCounters(array $ids): void
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        \Illuminate\Support\Facades\DB::table('branch_user')->where('user_id', $this->id)->delete();
+        foreach ($ids as $b) {
+            \Illuminate\Support\Facades\DB::table('branch_user')->insert(['user_id' => $this->id, 'branch_id' => $b]);
+        }
+        $this->forceFill(['branch_id' => $ids[0] ?? null])->save();
+    }
+
     public function scopeInTenant($q, int $companyId)
     {
         return $q->where('company_id', $companyId);

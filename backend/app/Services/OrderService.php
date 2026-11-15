@@ -30,7 +30,7 @@ class OrderService
                 $open = Order::where('table_id', $table->id)->whereIn('status', ['pending', 'accepted', 'preparing', 'ready', 'served'])
                     ->whereDoesntHave('bill')->oldest('id')->lockForUpdate()->first();
                 if ($open) {
-                    $this->addItems($open, $data['items'], $waiter);
+                    $added = $this->addItems($open, $data['items'], $waiter);
                     $updates = [];
                     if (in_array($open->status, ['ready', 'served'], true)) {
                         $updates['status'] = 'preparing'; // new dishes are on their way
@@ -42,6 +42,7 @@ class OrderService
                         $open->update($updates);
                     }
                     $table->update(['status' => 'occupied']);
+                    app(KotService::class)->fire($open, KotService::lines($added), [], $waiter, $data['notes'] ?? null);
 
                     return tap($open->load('items.adder:id,name', 'table'), fn (Order $o) => $o->setAttribute('merged', true));
                 }
@@ -66,18 +67,24 @@ class OrderService
                 'notes' => $data['notes'] ?? null,
             ]);
 
-            $this->addItems($order, $data['items'], $waiter);
+            $added = $this->addItems($order, $data['items'], $waiter);
 
             if ($table && in_array($table->status, ['available', 'paid', 'reserved'], true)) {
                 $table->update(['status' => 'occupied']);
+            }
+
+            if ($source === 'staff') {
+                app(KotService::class)->fire($order, KotService::lines($added), [], $waiter, $data['notes'] ?? null);
             }
 
             return $order->load('items', 'table');
         });
     }
 
-    public function addItems(Order $order, array $items, ?User $by = null): void
+    /** @return array<int, OrderItem> the lines that were created */
+    public function addItems(Order $order, array $items, ?User $by = null): array
     {
+        $created = [];
         foreach ($items as $line) {
             // Scoped lookup: another tenant's item id simply does not exist here.
             $food = FoodItem::with('variants')->where('is_available', true)->find($line['food_item_id']);
@@ -103,7 +110,7 @@ class OrderService
                 $variantName = $v->name;
             }
 
-            OrderItem::create([
+            $created[] = OrderItem::create([
                 'order_id' => $order->id,
                 'added_by' => $by?->id,
                 'food_item_id' => $food->id,
@@ -119,6 +126,8 @@ class OrderService
                 $food->decrement('stock', $qty);
             }
         }
+
+        return $created;
     }
 
     public function generateBill(Order $order, ?User $by = null, float $extraDiscount = 0): Bill
@@ -207,6 +216,7 @@ class OrderService
                 $wanted[$k] = ['food_item_id' => $food->id, 'variant_id' => $line['variant_id'] ?? null, 'quantity' => min(99, ($wanted[$k]['quantity'] ?? 0) + max(1, (int) $line['quantity']))];
             }
 
+            $kotAdd = $kotCancel = [];
             foreach ($order->items()->where('status', '!=', 'cancelled')->get() as $item) {
                 $food = $item->food_item_id ? FoodItem::find($item->food_item_id) : null;
                 $k = $key($item->food_item_id, $item->variant);
@@ -215,6 +225,7 @@ class OrderService
                         $food->increment('stock', $item->quantity); // a removed line gives its stock back
                     }
                     $item->update(['status' => 'cancelled']);
+                    $kotCancel[] = ['order_item_id' => $item->id, 'name' => $item->name, 'variant' => $item->variant, 'quantity' => $item->quantity];
 
                     continue;
                 }
@@ -226,12 +237,14 @@ class OrderService
                         }
                         $delta > 0 ? $food->decrement('stock', $delta) : $food->increment('stock', -$delta);
                     }
+                    $line = ['order_item_id' => $item->id, 'name' => $item->name, 'variant' => $item->variant, 'quantity' => abs($delta)];
+                    $delta > 0 ? $kotAdd[] = $line : $kotCancel[] = $line;
                     $item->update(['quantity' => $wanted[$k]['quantity']]);
                 }
                 unset($wanted[$k]);
             }
             if ($wanted) {
-                $this->addItems($order, array_values($wanted), $by);
+                $kotAdd = array_merge($kotAdd, KotService::lines($this->addItems($order, array_values($wanted), $by)));
             }
             abort_if($order->items()->where('status', '!=', 'cancelled')->doesntExist(), 422, 'An order needs at least one item. Cancel the order instead.');
 
@@ -244,6 +257,8 @@ class OrderService
                 }
                 $bill->update(['subtotal' => $subtotal, 'discount' => $discount, 'tax' => $tax, 'grand_total' => $grand]);
             }
+
+            app(KotService::class)->fire($order, $kotAdd, $kotCancel, $by);
 
             return $order->load('items', 'bill.items', 'table:id,number');
         });

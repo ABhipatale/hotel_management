@@ -94,6 +94,8 @@ class SuperAdminController extends Controller
             'qr_enabled' => 'sometimes|boolean',
             'default_language' => 'sometimes|in:en,hi,mr',
             'billing_cycle' => 'nullable|in:monthly,yearly', // empty = customer purchases the plan on first login
+            'kot_enabled' => 'sometimes|boolean',            // kitchen order tickets (KOT) on/off
+            'kot_print' => 'sometimes|boolean',              // + printed kitchen slip
             'multi_counter' => 'sometimes|boolean',          // several counters (each with its own tables, staff and books)
             'counters' => 'sometimes|array|max:20',
             'counters.*' => 'nullable|string|max:60',
@@ -126,6 +128,8 @@ class SuperAdminController extends Controller
             'use_library_images' => 'sometimes|boolean',
             'default_language' => 'sometimes|in:en,hi,mr',
             'multi_counter' => 'sometimes|boolean',
+            'kot_enabled' => 'sometimes|boolean',
+            'kot_print' => 'sometimes|boolean',
             // this company's own subscription price; empty / null = use the platform default price
             'price_monthly' => 'sometimes|nullable|numeric|min:0|max:10000000',
             'price_yearly' => 'sometimes|nullable|numeric|min:0|max:100000000',
@@ -140,6 +144,10 @@ class SuperAdminController extends Controller
         // While GST is off its fields are locked: the stored number is kept (so switching GST back on restores it)
         if (array_key_exists('gst_enabled', $data) ? ! $data['gst_enabled'] : ! $c->gst_enabled) {
             unset($data['gst_number']);
+        }
+        // The printed kitchen slip only exists while KOT itself is on
+        if (! ($data['kot_enabled'] ?? $c->kot_enabled)) {
+            $data['kot_print'] = false;
         }
         $c->update($data);
         AuditLog::record('super.company.update', 'company', $id, ['gst_enabled' => $c->gst_enabled]);

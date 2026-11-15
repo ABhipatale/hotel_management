@@ -8,6 +8,7 @@ import { money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useI18n } from '../../i18n'
+import { kotConnection, kotPrefs, printKot } from '../../lib/kotSlip'
 import { catName, dishNames } from '../../lib/dishName'
 import { Button, Chips, Input, Modal, PageHeader, Select, Spinner } from '../../components/ui'
 
@@ -119,7 +120,11 @@ export default function NewOrder() {
         toast.success(t('Bill {no} generated', { no: data.bill.bill_no }))
         nav(`/app/billing?pay=${data.bill.id}`)
       } else {
-        toast.success(data.merged ? t('Added to the existing order {no}', { no: data.order_no }) : t('Order placed'))
+        toast.success(data.kot ? t('Sent to kitchen — KOT #{n}', { n: data.kot.number }) : data.merged ? t('Added to the existing order {no}', { no: data.order_no }) : t('Order placed'))
+        // optional kitchen slip from this device's printer
+        if (data.kot && company?.kot_print && kotPrefs.auto('order') && kotConnection()) {
+          printKot(data.kot, company, lang).then(() => api.post(`/kots/${data.kot.id}/printed`).catch(() => {})).catch((e) => toast.error(e.message ? t(e.message) : t('Printing failed')))
+        }
         nav(can('billing.manage') ? '/app/orders' : '/app/tables')
       }
     } catch (e) { toast.error(e) } finally { setBusy(false) }

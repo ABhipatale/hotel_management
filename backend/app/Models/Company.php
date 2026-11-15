@@ -10,7 +10,7 @@ class Company extends Model
     use SoftDeletes;
 
     protected $guarded = ['id', 'uid', 'status'];
-    protected $casts = ['settings' => 'array', 'gst_enabled' => 'boolean', 'qr_enabled' => 'boolean', 'multi_counter' => 'boolean', 'price_monthly' => 'float', 'price_yearly' => 'float', 'use_library_images' => 'boolean'];
+    protected $casts = ['settings' => 'array', 'gst_enabled' => 'boolean', 'qr_enabled' => 'boolean', 'multi_counter' => 'boolean', 'kot_enabled' => 'boolean', 'kot_print' => 'boolean', 'price_monthly' => 'float', 'price_yearly' => 'float', 'use_library_images' => 'boolean'];
     protected $appends = ['logo_url', 'icon_url'];
 
     /** This company's own subscription price, or the platform default when none was set. */

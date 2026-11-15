@@ -65,8 +65,13 @@ class AuthController extends Controller
         if ($user->company_id) {
             $company = $user->company;
             $state = app(SubscriptionService::class)->state($company);
-            $out['company'] = $company->only('id', 'uid', 'name', 'slug', 'logo_url', 'icon_url', 'brand_color', 'status', 'phone', 'address', 'gst_number', 'gst_enabled', 'qr_enabled', 'multi_counter', 'use_library_images', 'default_language');
-            if ($company->multi_counter) {
+            $out['company'] = $company->only('id', 'uid', 'name', 'slug', 'logo_url', 'icon_url', 'brand_color', 'status', 'phone', 'address', 'gst_number', 'gst_enabled', 'qr_enabled', 'multi_counter', 'kot_enabled', 'kot_print', 'use_library_images', 'default_language');
+            if ($company->multi_counter && $user->role === 'chef') {
+                // a chef: the counters they cook for (one or several)
+                $all = \App\Support\Tenant::as($company, fn () => \App\Models\Branch::whereIn('id', $user->counterIds())->orderBy('id')->get(['id', 'name', 'is_default', 'is_active']));
+                $out['counters'] = $all->values();
+                $out['counter'] = $all->count() === 1 ? $all->first()->only('id', 'name') : null;
+            } elseif ($company->multi_counter) {
                 // Owner: every counter (for the counter switcher). Everyone else: the one counter they work in.
                 $all = \App\Support\Tenant::as($company, fn () => \App\Models\Branch::orderByDesc('is_default')->orderBy('id')->get(['id', 'name', 'is_default', 'is_active']));
                 $out['counters'] = $user->role === 'owner' ? $all->values() : [];
