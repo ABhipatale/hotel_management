@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Clock, Download, Plus, QrCode, RefreshCw, Trash2, Users } from 'lucide-react'
+import { Clock, Download, MoreHorizontal, Plus, QrCode, RefreshCw, Trash2, Users } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { useAuth } from '../../context/AuthContext'
@@ -53,6 +53,8 @@ export default function Tables() {
 
   const counts = (data || []).reduce((a, t) => ({ ...a, [t.status]: (a[t.status] || 0) + 1 }), {})
   const rows = (data || []).filter((t) => filter === 'all' || t.status === filter)
+  // Tap a table: straight to taking its order (adds to the running order if it has one). Staff who cannot take orders get the options sheet.
+  const tap = (t) => (can('orders.create') ? nav(`/app/order/new?table=${t.id}`) : setSel(t))
   const busyCount = (data || []).filter((t) => t.status !== 'available').length
 
   const setStatus = async (t, status) => {
@@ -82,7 +84,7 @@ export default function Tables() {
   if (loading) return <Spinner />
   return (
     <>
-      <PageHeader title={tx('Tables')} sub={tx('{busy} busy · {free} free', { busy: busyCount, free: (data?.length || 0) - busyCount })} actions={manage && <Button size="sm" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> {tx('Add')}</Button>} />
+      <PageHeader title={tx('Tables')} sub={`${tx('{busy} busy · {free} free', { busy: busyCount, free: (data?.length || 0) - busyCount })}${can('orders.create') ? ` · ${tx('Tap a table to take its order')}` : ''}`} actions={manage && <Button size="sm" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> {tx('Add')}</Button>} />
 
       <Chips value={filter} onChange={setFilter} items={[['all', tx('All ({n})', { n: data.length })], ...STATUSES.map((s) => [s, `${tx(cap(s))}${counts[s] ? ` (${counts[s]})` : ''}`])]} />
 
@@ -91,10 +93,14 @@ export default function Tables() {
           {rows.map((t, i) => {
             const l = LOOK[t.status]
             return (
-              <button key={t.id} onClick={() => setSel(t)} style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }} className={`animate-pop relative overflow-hidden rounded-[1.25rem] border-2 p-3.5 text-left shadow-sm transition active:scale-[.96] ${l.card} ${l.text}`}>
-                <div className="flex min-h-6 items-center justify-between text-[11px] font-semibold opacity-70">
-                  <span className="flex items-center gap-1"><Users className="h-3 w-3" />{tx('{n} seater', { n: t.capacity })}</span>
-                  {t.open_orders > 0 && <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px]">{tx(t.open_orders > 1 ? '{n} orders' : '{n} order', { n: t.open_orders })}</span>}
+              <div key={t.id} role="button" tabIndex={0} onClick={() => tap(t)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tap(t) } }} style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }} className={`animate-pop relative cursor-pointer select-none overflow-hidden rounded-[1.25rem] border-2 p-3.5 text-left shadow-sm transition active:scale-[.96] ${l.card} ${l.text}`}>
+                <div className="flex min-h-8 items-center justify-between gap-1 text-[11px] font-semibold">
+                  <span className="flex min-w-0 items-center gap-1 whitespace-nowrap opacity-70" title={tx('{n} seater', { n: t.capacity })} aria-label={tx('{n} seater', { n: t.capacity })}><Users className="h-3.5 w-3.5 shrink-0" />{t.capacity}</span>
+                  <span className="flex shrink-0 items-center gap-1">
+                    {t.open_orders > 0 && <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] opacity-90">{tx(t.open_orders > 1 ? '{n} orders' : '{n} order', { n: t.open_orders })}</span>}
+                    {/* small button: status, section, QR code, delete */}
+                    <button type="button" aria-label={tx('Table options')} title={tx('Table options')} onClick={(e) => { e.stopPropagation(); setSel(t) }} onKeyDown={(e) => e.stopPropagation()} className="grid h-8 w-8 place-items-center rounded-full bg-white/80 text-slate-700 shadow-sm transition hover:bg-white active:scale-90"><MoreHorizontal className="h-4 w-4" /></button>
+                  </span>
                 </div>
                 <div className="mt-3 text-4xl font-extrabold tracking-tight">T{t.number}</div>
                 <div className="mb-3 min-h-4 truncate text-[11px] font-bold opacity-70">{t.section || ''}</div>
@@ -102,7 +108,7 @@ export default function Tables() {
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ${l.pill}`}>{stLabel(t.status)}</span>
                   {t.open_since && <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-white/80 px-2 py-1 text-[11px] font-semibold"><Clock className="h-3 w-3" />{elapsed(t.open_since)}</span>}
                 </div>
-              </button>
+              </div>
             )
           })}
         </div>
