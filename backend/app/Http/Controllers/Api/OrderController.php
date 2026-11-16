@@ -21,7 +21,7 @@ class OrderController extends Controller
     public function index(Request $r)
     {
         $q = Order::with('items.adder:id,name', 'table:id,number,section', 'waiter:id,name,role', 'bill:id,order_id,bill_no,grand_total,status')
-            ->when(KotService::enabled(), fn ($q) => $q->with('kots:id,order_id,number,type,status'))
+            ->when(KotService::screen(), fn ($q) => $q->with('kots:id,order_id,number,type,status'))
             ->when($this->branchScope($r), fn ($q, $b) => $q->where('branch_id', $b));
 
         // Waiters and captains see their own orders PLUS every open order of a table, so whoever serves a table can see and

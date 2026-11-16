@@ -21,6 +21,14 @@ class KotService
         return (bool) Tenant::company()?->kot_enabled;
     }
 
+    /** The kitchen screen (board, chef login, "ready" alerts). Off = KOT works as printed slips only. */
+    public static function screen(): bool
+    {
+        $c = Tenant::company();
+
+        return (bool) $c?->kot_enabled && ($c->kot_screen ?? true) !== false;
+    }
+
     /**
      * Sends dishes to the kitchen. $adds / $cancels are lists of ['order_item_id'?, 'name', 'variant'?, 'quantity'].
      * Dishes to cook become one "new" ticket, dishes taken off the order become one "cancel" ticket.

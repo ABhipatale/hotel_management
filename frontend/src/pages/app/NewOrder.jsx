@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Img from '../../components/Img'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Hash, ImageOff, Image as ImageIcon, LayoutGrid, List, Minus, Plus, Search, ShoppingCart, Trash2, UtensilsCrossed } from 'lucide-react'
+import { Hash, ImageOff, Printer, Image as ImageIcon, LayoutGrid, List, Minus, Plus, Search, ShoppingCart, Trash2, UtensilsCrossed } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { money } from '../../lib/format'
@@ -38,6 +38,8 @@ export default function NewOrder() {
   const [pick, setPick] = useState(null)
   const [notes, setNotes] = useState('')
   const [busy, setBusy] = useState(false)
+  const [askKot, setAskKot] = useState(null) // { kot, to }: the "print the kitchen slip?" popup
+  const [printing, setPrinting] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
   const filled = useRef(false)
   useEffect(() => {
@@ -121,13 +123,27 @@ export default function NewOrder() {
         nav(`/app/billing?pay=${data.bill.id}`)
       } else {
         toast.success(data.kot ? t('Sent to kitchen — KOT #{n}', { n: data.kot.number }) : data.merged ? t('Added to the existing order {no}', { no: data.order_no }) : t('Order placed'))
-        // optional kitchen slip from this device's printer
-        if (data.kot && company?.kot_print && kotPrefs.auto('order') && kotConnection()) {
+        // optional kitchen slip from this device's printer: automatic, asked with a popup, or not at all
+        const mode = kotPrefs.orderMode(company?.kot_print_mode)
+        const dest = can('billing.manage') ? '/app/orders' : '/app/tables'
+        if (data.kot && company?.kot_print && mode === 'auto' && kotConnection()) {
           printKot(data.kot, company, lang).then(() => api.post(`/kots/${data.kot.id}/printed`).catch(() => {})).catch((e) => toast.error(e.message ? t(e.message) : t('Printing failed')))
         }
+        if (data.kot && company?.kot_print && mode === 'ask') { setAskKot({ kot: data.kot, to: dest }); return }
         nav(can('billing.manage') ? '/app/orders' : '/app/tables')
       }
     } catch (e) { toast.error(e) } finally { setBusy(false) }
+  }
+
+  const answerKot = async (yes) => {
+    const a = askKot
+    if (!yes) { setAskKot(null); nav(a.to); return }
+    setPrinting(true)
+    try {
+      await printKot(a.kot, company, lang)
+      api.post(`/kots/${a.kot.id}/printed`).catch(() => {})
+      setAskKot(null); nav(a.to)
+    } catch (e) { toast.error(e.message ? t(e.message) : t('Printing failed')) } finally { setPrinting(false) } // stays open so you can retry or tap Not now
   }
 
   if (loading || (editId && loadingEdit)) return <Spinner />
@@ -316,6 +332,17 @@ export default function NewOrder() {
         </button>
       )}
       <Modal open={cartOpen} onClose={() => setCartOpen(false)} title={t('Your order')}><div className="h-[70dvh]">{Cart}</div></Modal>
+
+      <Modal open={!!askKot} onClose={() => answerKot(false)} title={t('Order placed')}>
+        {askKot && (
+          <div className="space-y-4 text-center">
+            <p className="text-sm text-muted">{t('Sent to kitchen — KOT #{n}', { n: askKot.kot.number })}</p>
+            <div className="text-lg font-extrabold">{t('Print the kitchen slip now?')}</div>
+            <Button size="lg" className="w-full" loading={printing} onClick={() => answerKot(true)}><Printer className="h-5 w-5" /> {t('Yes – print KOT')}</Button>
+            <Button size="lg" variant="secondary" className="w-full" disabled={printing} onClick={() => answerKot(false)}>{t('Not now')}</Button>
+          </div>
+        )}
+      </Modal>
 
       <Modal open={!!pick} onClose={() => setPick(null)} title={pick?.name}>
         <div className="space-y-2">

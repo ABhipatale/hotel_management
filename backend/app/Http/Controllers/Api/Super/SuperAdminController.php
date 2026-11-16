@@ -95,7 +95,9 @@ class SuperAdminController extends Controller
             'default_language' => 'sometimes|in:en,hi,mr',
             'billing_cycle' => 'nullable|in:monthly,yearly', // empty = customer purchases the plan on first login
             'kot_enabled' => 'sometimes|boolean',            // kitchen order tickets (KOT) on/off
+            'kot_screen' => 'sometimes|boolean',             // kitchen screen on/off (off = printed slips only)
             'kot_print' => 'sometimes|boolean',              // + printed kitchen slip
+            'kot_print_mode' => 'sometimes|nullable|in:auto,ask,off', // how the slip prints when an order is placed (null = each device decides)
             'multi_counter' => 'sometimes|boolean',          // several counters (each with its own tables, staff and books)
             'business_type' => 'sometimes|in:restaurant,cafe', // restaurant = hotel / restaurant as always; cafe = quick counter sale + tokens
             'counters' => 'sometimes|array|max:20',
@@ -131,7 +133,9 @@ class SuperAdminController extends Controller
             'multi_counter' => 'sometimes|boolean',
             'business_type' => 'sometimes|in:restaurant,cafe',
             'kot_enabled' => 'sometimes|boolean',
+            'kot_screen' => 'sometimes|boolean',
             'kot_print' => 'sometimes|boolean',
+            'kot_print_mode' => 'sometimes|nullable|in:auto,ask,off',
             // this company's own subscription price; empty / null = use the platform default price
             'price_monthly' => 'sometimes|nullable|numeric|min:0|max:10000000',
             'price_yearly' => 'sometimes|nullable|numeric|min:0|max:100000000',
@@ -150,6 +154,12 @@ class SuperAdminController extends Controller
         // The printed kitchen slip only exists while KOT itself is on
         if (! ($data['kot_enabled'] ?? $c->kot_enabled)) {
             $data['kot_print'] = false;
+            $data['kot_screen'] = true; // KOT off: back to the default
+        } elseif (! ($data['kot_screen'] ?? $c->kot_screen ?? true)) {
+            $data['kot_print'] = true; // no kitchen screen => the printed slip is the whole point
+        }
+        if (! ($data['kot_print'] ?? $c->kot_print) || ! ($data['kot_enabled'] ?? $c->kot_enabled)) {
+            $data['kot_print_mode'] = null; // no printed slips => no print mode
         }
         $c->update($data);
         AuditLog::record('super.company.update', 'company', $id, ['gst_enabled' => $c->gst_enabled]);

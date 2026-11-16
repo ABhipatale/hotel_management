@@ -14,6 +14,9 @@ export const kotPrefs = {
   /** print a slip automatically: on the kitchen screen when a ticket arrives, on the order screen when an order is placed */
   auto: (where) => get(`hms.kot.auto.${where}`, '0') === '1',
   setAuto: (where, on) => put(`hms.kot.auto.${where}`, on ? '1' : '0'),
+  /** what happens to the printed slip when an order is placed on THIS device: 'off' | 'ask' (Yes/No popup) | 'auto' */
+  orderMode: (companyDefault) => { const m = get('hms.kot.mode.order', null); return m === 'ask' || m === 'auto' || m === 'off' ? m : (get('hms.kot.auto.order', '0') === '1' ? 'auto' : (['auto', 'ask', 'off'].includes(companyDefault) ? companyDefault : 'off')) }, // this device's own choice, else the platform admin's default for the company, else off
+  setOrderMode: (m) => { put('hms.kot.mode.order', m); put('hms.kot.auto.order', m === 'auto' ? '1' : '0') },
 }
 
 /** Which saved printer this device would print to (null = none chosen yet). */

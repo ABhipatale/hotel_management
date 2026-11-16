@@ -16,7 +16,7 @@ export default function Staff() {
   const t = useT()
   const { multi, counters, nameOf } = useCounter()
   const { company } = useAuth()
-  const ROLES = [...(multi ? ['counter'] : []), 'waiter', 'captain', ...(company?.kot_enabled ? ['chef'] : [])]
+  const ROLES = [...(multi ? ['counter'] : []), 'waiter', 'captain', ...(company?.kot_enabled && company?.kot_screen !== false ? ['chef'] : [])]
   const active = counters.filter((c) => c.is_active)
   const toast = useToast()
   const ask = useConfirm()

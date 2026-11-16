@@ -36,7 +36,7 @@ const Onboarding = lazy(() => import('./pages/app/Onboarding'))
 function homeFor(a) {
   if (a.isSuperAdmin) return '/admin'
   if (a.user?.role === 'counter' && a.can('dashboard.view')) return '/app' // a counter manager starts on their counter's home
-  if (a.company?.kot_enabled && a.can('orders.kitchen') && !a.can('orders.create')) return '/app/kitchen' // a chef lands on the kitchen screen
+  if (a.company?.kot_enabled && a.company?.kot_screen !== false && a.can('orders.kitchen') && !a.can('orders.create')) return '/app/kitchen' // a chef lands on the kitchen screen
   if (a.can('orders.create')) return '/app/order/new'
   if (a.can('orders.view')) return '/app/orders'
   if (a.can('dashboard.view')) return '/app'
@@ -66,7 +66,7 @@ function OwnerMulti({ children }) {
 /** Kitchen screen: only for companies the platform admin enabled KOT for. */
 function KotOnly({ children }) {
   const a = useAuth()
-  return a.company?.kot_enabled ? children : <Navigate to={homeFor(a)} replace />
+  return a.company?.kot_enabled && a.company?.kot_screen !== false ? children : <Navigate to={homeFor(a)} replace />
 }
 
 function Home() {

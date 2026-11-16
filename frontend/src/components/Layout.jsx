@@ -74,7 +74,7 @@ export default function Layout() {
 
   // Kitchen tickets (only when KOT is on): tell the waiter / captain / owner the moment a dish is ready
   const toastKot = useToast()
-  useKotReadyAlerts(!isSuperAdmin && !!company?.kot_enabled && (can('orders.create') || can('billing.manage')), (k) => toastKot.success(t('KOT #{n} is ready{where}', { n: k.number, where: k.table ? ` — ${t('Table {n}', { n: k.table })}` : '' })), selected)
+  useKotReadyAlerts(!isSuperAdmin && !!company?.kot_enabled && company?.kot_screen !== false && (can('orders.create') || can('billing.manage')), (k) => toastKot.success(t('KOT #{n} is ready{where}', { n: k.number, where: k.table ? ` — ${t('Table {n}', { n: k.table })}` : '' })), selected)
 
   const doLogout = async () => { await logout(); nav('/login') }
 
@@ -105,7 +105,7 @@ export default function Layout() {
     : t('Your subscription ends in {n} days.', { n: daysLeft })
   const roleText = (r) => t(r?.replace('_', ' ') || '')
 
-  const items = isSuperAdmin ? ADMIN_NAV : TENANT_NAV.filter((n) => (n.ownerMulti ? multi && isOwner : n.kot ? company?.kot_enabled && can(n.perm) : can(n.perm)))
+  const items = isSuperAdmin ? ADMIN_NAV : TENANT_NAV.filter((n) => (n.ownerMulti ? multi && isOwner : n.kot ? company?.kot_enabled && company?.kot_screen !== false && can(n.perm) : can(n.perm)))
   const canNew = !isSuperAdmin && can('orders.create')
 
   // Mobile: up to 4 primary tabs around the centre "new order" button. Everything else lives in the

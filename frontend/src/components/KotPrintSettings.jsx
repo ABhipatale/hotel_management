@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useT } from '../i18n'
+import { useAuth } from '../context/AuthContext'
 import { kotPrefs } from '../lib/kotSlip'
 import SavedPrinter from './SavedPrinter'
 import { Switch } from './ui'
@@ -7,8 +8,10 @@ import { Switch } from './ui'
 /** Kitchen-slip printing choices for THIS device: which printer, paper width, and when to print by itself. */
 export default function KotPrintSettings({ where }) {
   const t = useT()
+  const { company } = useAuth()
   const [width, setWidth] = useState(kotPrefs.width())
   const [auto, setAuto] = useState(kotPrefs.auto(where))
+  const [mode, setMode] = useState(kotPrefs.orderMode(company?.kot_print_mode))
   const [kind, setKind] = useState(() => (navigator.bluetooth ? 'bluetooth' : 'usb'))
   return (
     <div className="space-y-4">
@@ -23,12 +26,27 @@ export default function KotPrintSettings({ where }) {
           <button key={w} type="button" onClick={() => { setWidth(w); kotPrefs.setWidth(w) }} className={`min-h-11 rounded-xl text-sm font-bold ring-1 transition active:scale-95 ${width === w ? 'bg-brand text-white ring-brand' : 'bg-white text-slate-600 ring-line'}`}>{w}</button>
         ))}
       </div>
-      <Switch
-        label={where === 'kitchen' ? t('Print a slip when a new ticket arrives') : t('Print a kitchen slip when I place an order')}
-        hint={t('Only on this device. Needs a saved printer above.')}
-        checked={auto}
-        onChange={(v) => { setAuto(v); kotPrefs.setAuto(where, v) }}
-      />
+      {where === 'order' ? (
+        <div className="space-y-2">
+          <div className="text-sm font-bold">{t('When I place an order')}</div>
+          <div className="grid gap-2">
+            {[['auto', 'Print the kitchen slip automatically', 'No questions asked: fastest for a busy counter.'], ['ask', 'Ask me each time (popup)', 'A quick Yes / No: print the kitchen slip now?'], ['off', 'Do not print', 'The kitchen screen still gets the ticket.']].map(([k, l, h]) => (
+              <button key={k} type="button" onClick={() => { setMode(k); kotPrefs.setOrderMode(k) }} aria-pressed={mode === k} className={`rounded-2xl p-3 text-left ring-1 transition active:scale-[.99] ${mode === k ? 'bg-brand-soft ring-2 ring-brand' : 'bg-white ring-line'}`}>
+                <div className={`text-sm font-extrabold ${mode === k ? 'text-brand' : ''}`}>{t(l)}</div>
+                <div className="text-xs text-muted">{t(h)}</div>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted">{t('Only on this device. Needs a saved printer above.')}</p>
+        </div>
+      ) : (
+        <Switch
+          label={t('Print a slip when a new ticket arrives')}
+          hint={t('Only on this device. Needs a saved printer above.')}
+          checked={auto}
+          onChange={(v) => { setAuto(v); kotPrefs.setAuto(where, v) }}
+        />
+      )}
     </div>
   )
 }

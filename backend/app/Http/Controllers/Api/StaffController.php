@@ -18,7 +18,7 @@ class StaffController extends Controller
     private function assignable(): array
     {
         $roles = self::ASSIGNABLE;
-        if (Tenant::company()?->kot_enabled) {
+        if (\App\Services\KotService::screen()) {
             $roles[] = 'chef'; // kitchen login: only the kitchen screen
         }
         if (Tenant::multiCounter()) {

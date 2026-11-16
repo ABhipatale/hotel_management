@@ -11,9 +11,11 @@ use Illuminate\Validation\Rule;
 /** Kitchen screen: live tickets, moving them along, and "ready" alerts for waiters. Off unless the company has KOT enabled. */
 class KotController extends Controller
 {
-    private function guard(): void
+    /** $screen: the kitchen board / alerts / status need the kitchen screen; marking a slip printed only needs KOT itself. */
+    private function guard(bool $screen = true): void
     {
         abort_unless(KotService::enabled(), 403, 'Kitchen tickets (KOT) are not enabled for this hotel.');
+        abort_if($screen && ! KotService::screen(), 403, 'The kitchen screen is not enabled for this hotel.');
     }
 
     /** Every ticket query goes through here: a chef sees only the counters they were given, the owner follows the counter pills. */
@@ -90,7 +92,7 @@ class KotController extends Controller
     /** Remember that a slip was printed (so the screen can show it). */
     public function printed(Request $r, int $id)
     {
-        $this->guard();
+        $this->guard(false);
         $this->scoped($r)->findOrFail($id)->update(['printed_at' => now()]);
 
         return ['ok' => true];

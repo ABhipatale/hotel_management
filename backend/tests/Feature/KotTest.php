@@ -215,4 +215,47 @@ class KotTest extends TestCase
         $chef = $this->login('chef@x.test', '123456');
         $this->assertSame([$c3], collect($this->getJson('/api/kots', $chef)->json())->pluck('branch_id')->unique()->values()->all());
     }
+
+    public function test_admin_sets_the_slip_print_mode_only_while_kot_printing_is_on(): void
+    {
+        $admin = $this->login('admin@hms.test', 'Admin@12345');
+        $id = Company::where('email', 'atithi@demo.test')->value('id');
+        $owner = $this->login('atithi@demo.test');
+        $this->assertNull($this->getJson('/api/auth/me', $owner)->json('company.kot_print_mode')); // default: each device decides
+
+        $this->putJson("/api/admin/companies/$id", ['kot_enabled' => true, 'kot_print' => true, 'kot_print_mode' => 'ask'], $admin)->assertOk();
+        $this->assertSame('ask', $this->getJson('/api/auth/me', $owner)->json('company.kot_print_mode'));
+        $this->putJson("/api/admin/companies/$id", ['kot_print_mode' => 'nonsense'], $admin)->assertStatus(422);
+
+        $this->putJson("/api/admin/companies/$id", ['kot_print' => false], $admin)->assertOk(); // printing off => mode cleared
+        $this->assertNull($this->getJson('/api/auth/me', $owner)->json('company.kot_print_mode'));
+    }
+
+    public function test_print_only_mode_has_slips_but_no_kitchen_screen(): void
+    {
+        $admin = $this->login('admin@hms.test', 'Admin@12345');
+        $id = Company::where('email', 'atithi@demo.test')->value('id');
+        $owner = $this->login('atithi@demo.test');
+
+        // KOT on, kitchen screen OFF: printing is forced on, the screen is gone
+        $this->putJson("/api/admin/companies/$id", ['kot_enabled' => true, 'kot_screen' => false, 'kot_print' => false, 'kot_print_mode' => 'ask'], $admin)->assertOk();
+        $co = $this->getJson('/api/auth/me', $owner)->json('company');
+        $this->assertFalse((bool) $co['kot_screen']);
+        $this->assertTrue((bool) $co['kot_print']);
+        $this->assertSame('ask', $co['kot_print_mode']);
+
+        $this->getJson('/api/kots', $owner)->assertForbidden();        // no kitchen board
+        $this->getJson('/api/kots/ready', $owner)->assertForbidden();  // no ready alerts
+        $this->postJson('/api/staff', ['name' => 'C', 'email' => 'c@x.test', 'password' => '123456', 'role' => 'chef'], $owner)->assertStatus(422); // no chef login
+
+        // ...but placing an order still creates the ticket (to print) and the slip can be marked printed
+        $table = $this->getJson('/api/tables', $owner)->json('0.id');
+        $order = $this->postJson('/api/orders', ['table_id' => $table, 'items' => [$this->line($owner, 0)]], $owner)->assertCreated()->json();
+        $this->assertNotEmpty($order['kot']);
+        $this->postJson('/api/kots/'.$order['kot']['id'].'/printed', [], $owner)->assertOk();
+
+        // switching the screen back on restores the kitchen
+        $this->putJson("/api/admin/companies/$id", ['kot_screen' => true], $admin)->assertOk();
+        $this->getJson('/api/kots', $owner)->assertOk();
+    }
 }
