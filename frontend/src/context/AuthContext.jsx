@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { api, setUnauthorizedHandler, tokenStore } from '../lib/api'
+import { api, clearOfflineCopy, setUnauthorizedHandler, tokenStore } from '../lib/api'
 import { applyBrand } from '../lib/branding'
 import { useI18n } from '../i18n'
 
@@ -16,6 +16,7 @@ export function AuthProvider({ children }) {
 
   const clear = useCallback(() => {
     tokenStore.clear()
+    clearOfflineCopy()
     setSession(null)
     applyBranding(null)
   }, [])
@@ -33,7 +34,7 @@ export function AuthProvider({ children }) {
     api
       .get('/auth/me')
       .then((r) => load(r.data))
-      .catch(() => clear())
+      .catch((e) => { if (e?.response && e.response.status < 500) clear() }) // no internet / server down: stay signed in
       .finally(() => setLoading(false))
   }, [clear, load])
 

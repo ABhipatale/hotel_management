@@ -2,13 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Img from '../../components/Img'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Hash, ImageOff, Printer, Image as ImageIcon, LayoutGrid, List, Minus, Plus, Search, ShoppingCart, Trash2, UtensilsCrossed } from 'lucide-react'
-import { api } from '../../lib/api'
+import { api, isNetworkError } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useI18n } from '../../i18n'
 import { kotConnection, kotPrefs, printKot } from '../../lib/kotSlip'
+import { newRef, outbox } from '../../lib/outbox'
+import { buildLocalBill, offlineNumber } from '../../lib/localBill'
+import Receipt from '../../components/Receipt'
 import { catName, dishNames } from '../../lib/dishName'
 import { Button, Chips, Input, Modal, Select, Spinner } from '../../components/ui'
 
@@ -41,6 +44,7 @@ export default function NewOrder() {
   const [askKot, setAskKot] = useState(null) // { kot, to }: the "print the kitchen slip?" popup
   const [printing, setPrinting] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
+  const [offlineBill, setOfflineBill] = useState(null) // the provisional bill made on this device while offline
   const filled = useRef(false)
   useEffect(() => {
     if (!editing || !items || filled.current) return
@@ -102,6 +106,24 @@ export default function NewOrder() {
   const quickAdd = (i) => { tapItem(i); setQ(''); if (!i.variants?.length) toast.success(`#${i.code} ${i.name}`) }
   const onSearchKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); const hit = exact || (list.length === 1 ? list[0] : null); if (hit) quickAdd(hit) } }
 
+  // Only the owner may take orders and print bills without internet. The order is kept on this device and sent when the connection is back.
+  const canOffline = user?.role === 'owner'
+  const goOffline = async (withBill, ref, payload) => {
+    const orderNo = offlineNumber('O')
+    const billNo = withBill ? offlineNumber('B') : null
+    const sum = Math.round(total * 100) / 100
+    // saved first, so the order can never be lost even if the bill below cannot be built
+    outbox.add({ id: ref, userId: user.id, createdAt: new Date().toISOString(), payload, local: { order_no: orderNo, bill_no: billNo }, total: sum, summary: lines.map((l) => `${l.quantity}× ${l.name}`).join(', '), status: 'pending' })
+    const label = billNo || orderNo
+    setCart({}); setNotes('')
+    if (!withBill) { toast.success(t('Saved on this device ({no}). It will be sent when the internet is back.', { no: label })); return }
+    let comp = company
+    let prn = null
+    try { comp = (await api.get('/company')).data } catch { /* no saved copy: the shop details of this session are used */ }
+    try { prn = (await api.get('/printer')).data } catch { /* no saved printer settings: browser print */ }
+    setOfflineBill(buildLocalBill({ lines, items, company: comp, printer: prn, table: (tables || []).find((x) => String(x.id) === String(tableId)), user, orderNo, billNo }))
+  }
+
   // withBill = counter sale: create the order and generate its bill in one step, then go straight to payment.
   const submit = async (withBill = false) => {
     setBusy(withBill ? 'bill' : 'order')
@@ -112,12 +134,22 @@ export default function NewOrder() {
         nav(editing?.bill && can('billing.manage') ? `/app/billing?pay=${editing.bill.id}&from=orders` : '/app/orders')
         return
       }
-      const { data } = await api.post('/orders', {
+      const payload = {
         table_id: tableId || null,
         type, notes: notes || null,
         generate_bill: withBill || undefined,
         items: lines.map((l) => ({ food_item_id: l.food_item_id, variant_id: l.variant_id || null, quantity: l.quantity })),
-      })
+      }
+      const ref = canOffline ? newRef() : null // the owner's orders carry a reference, so a retry after a lost answer is never a second order
+      if (ref && !navigator.onLine) { await goOffline(withBill, ref, payload); return }
+      let res
+      try {
+        res = await api.post('/orders', ref ? { ...payload, client_ref: ref } : payload, ref ? { timeout: 15000 } : undefined)
+      } catch (e) {
+        if (ref && isNetworkError(e)) { await goOffline(withBill, ref, payload); return } // no real internet / server unreachable
+        throw e
+      }
+      const { data } = res
       if (withBill && data.bill) {
         toast.success(t('Bill {no} generated', { no: data.bill.bill_no }))
         nav(`/app/billing?pay=${data.bill.id}&from=new`)
@@ -339,6 +371,15 @@ export default function NewOrder() {
             <div className="text-lg font-extrabold">{t('Print the kitchen slip now?')}</div>
             <Button size="lg" className="w-full" loading={printing} onClick={() => answerKot(true)}><Printer className="h-5 w-5" /> {t('Yes – print KOT')}</Button>
             <Button size="lg" variant="secondary" className="w-full" disabled={printing} onClick={() => answerKot(false)}>{t('Not now')}</Button>
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={!!offlineBill} onClose={() => setOfflineBill(null)} title={t('Bill (saved offline)')}>
+        {offlineBill && (
+          <div className="space-y-3">
+            <p className="rounded-2xl bg-accent-soft px-3.5 py-2.5 text-xs font-semibold leading-snug text-accent-dark">{t('This bill has a temporary number. It is saved on this device and will be sent when the internet is back. Collect the payment in Bills after that.')}</p>
+            <Receipt data={offlineBill} />
           </div>
         )}
       </Modal>

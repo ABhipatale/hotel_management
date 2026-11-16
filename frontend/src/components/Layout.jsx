@@ -14,6 +14,7 @@ import { dateKey, today } from '../lib/format'
 import { useOrderAlerts } from '../lib/orderAlerts'
 import { useKotReadyAlerts } from '../lib/kotAlerts'
 import OrderAlertBanner from './OrderAlertBanner'
+import OfflineBar from './OfflineBar'
 import LangSwitch from './LangSwitch'
 import { usePwaInstall } from '../lib/pwa'
 import { useApi } from '../lib/useApi'
@@ -202,6 +203,8 @@ export default function Layout() {
           {/* Phones: the owner's counter pills sit under the app bar */}
           {!isSuperAdmin && multi && isOwner && <div className="px-4 pb-3 lg:hidden"><CounterSwitch dark /></div>}
         </header>
+
+        {!isSuperAdmin && <OfflineBar />}
 
         {!isSuperAdmin && subscription_expired && (
           <div className="bg-rose-600 px-4 py-2.5 text-center text-sm font-medium text-white">{t('Subscription expired — read-only.')} {can('subscription.manage') ? <NavLink to="/app/subscription" className="font-extrabold underline">{t('Renew')}</NavLink> : <span className="font-bold">{t('Please ask the owner to renew.')}</span>}</div>

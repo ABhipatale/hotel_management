@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Models\HotelTable;
 use App\Models\Order;
@@ -104,6 +105,8 @@ class OrderController extends Controller
             'items.*.food_item_id' => ['required', Tenant::exists('food_items')],
             'items.*.variant_id' => ['nullable', Tenant::exists('food_item_variants')],
             'items.*.quantity' => 'required|integer|min:1|max:99',
+            'client_ref' => 'nullable|string|max:40',   // orders saved while the device was offline: a unique reference makes a retry harmless
+            'client_time' => 'nullable|date',           // when the order was really taken (offline orders reach the server later)
         ]);
         $table = ! empty($d['table_id']) ? HotelTable::findOrFail($d['table_id']) : null;
         $branch = $table?->branch_id ?? $this->branch($r);
@@ -114,13 +117,33 @@ class OrderController extends Controller
         $withBill = $r->boolean('generate_bill');
         abort_if($withBill && ! $r->user()->hasPermission('billing.manage'), 403, 'You cannot generate bills.');
 
-        $order = $this->orders->place($branch, $table, $d, 'staff', $r->user());
-
-        if ($withBill) {
-            $bill = $this->orders->generateBill($order, $r->user());
-            \App\Models\AuditLog::record('bill.generate', 'bill', $bill->id);
-            $order->load('bill.items');
+        // The same offline order arriving twice (the first answer got lost): give back what was already created
+        $ref = $d['client_ref'] ?? null;
+        if ($ref && ($seen = $this->seenRef($ref))) {
+            return $this->repeat($r, $seen, $withBill);
         }
+
+        try {
+            $order = DB::transaction(function () use ($branch, $table, $d, $r, $ref, $withBill) {
+                $order = $this->orders->place($branch, $table, $d, 'staff', $r->user());
+                if ($ref) {
+                    DB::table('order_client_refs')->insert(['company_id' => Tenant::id(), 'ref' => $ref, 'order_id' => $order->id, 'created_at' => now()]);
+                }
+                if ($withBill) {
+                    $bill = $this->orders->generateBill($order, $r->user());
+                    \App\Models\AuditLog::record('bill.generate', 'bill', $bill->id);
+                    $order->load('bill.items');
+                }
+
+                return $order;
+            });
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            if ($ref && ($seen = $this->seenRef($ref))) {
+                return $this->repeat($r, $seen, $withBill); // two copies raced: the other one won
+            }
+            throw $e;
+        }
+        $this->backdate($order, $d['client_time'] ?? null);
 
         if (KotService::enabled()) {
             // the ticket this order just sent to the kitchen (so the app can print its slip)
@@ -128,6 +151,48 @@ class OrderController extends Controller
         }
 
         return response()->json($order, 201);
+    }
+
+    private function seenRef(string $ref): ?Order
+    {
+        $id = DB::table('order_client_refs')->where('company_id', Tenant::id())->where('ref', $ref)->value('order_id');
+
+        return $id ? Order::withoutGlobalScope('branch')->find($id) : null;
+    }
+
+    /** An offline order that was already saved: the same answer again (200, not a second order). Makes the bill if the first try stopped before that. */
+    private function repeat(Request $r, Order $order, bool $withBill)
+    {
+        if ($withBill && ! $order->bill) {
+            $this->orders->generateBill($order, $r->user());
+        }
+        $order->load('bill.items', 'items', 'table');
+        if (KotService::enabled()) {
+            $order->setAttribute('kot', \App\Models\Kot::with('items')->where('order_id', $order->id)->where('type', 'new')->latest('id')->first());
+        }
+        $order->setAttribute('duplicate', true);
+
+        return response()->json($order, 200);
+    }
+
+    /** An order taken offline keeps the time it was really taken (so it lands on the right day), if that time is believable. */
+    private function backdate(Order $order, ?string $clientTime): void
+    {
+        if (! $clientTime) {
+            return;
+        }
+        try {
+            $t = \Carbon\Carbon::parse($clientTime);
+        } catch (\Throwable) {
+            return;
+        }
+        if ($t->isFuture() || $t->lt(now()->subHours(48))) {
+            return; // a wrong clock on the device must not move money into another day
+        }
+        Order::withoutGlobalScopes()->whereKey($order->id)->update(['created_at' => $t]);
+        if ($order->bill) {
+            \App\Models\Bill::withoutGlobalScopes()->whereKey($order->bill->id)->update(['created_at' => $t]);
+        }
     }
 
     /** Add more items to an open order. */
