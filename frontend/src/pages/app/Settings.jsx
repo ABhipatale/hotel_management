@@ -8,6 +8,7 @@ import { useT } from '../../i18n'
 import ImagePicker from '../../components/ImagePicker'
 import SavedPrinter from '../../components/SavedPrinter'
 import KotPrintSettings from '../../components/KotPrintSettings'
+import BillLanguageSettings from '../../components/BillLanguageSettings'
 import { Button, Card, Input, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
 
 export default function Settings() {
@@ -85,6 +86,11 @@ export default function Settings() {
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.show_logo} onChange={(e) => setP({ ...p, show_logo: e.target.checked })} /> {t('Print logo on browser receipts')}</label>
               <Button type="submit" className="w-full">Save printer</Button>
             </form>
+          </Card>
+
+          <Card>
+            <h3 className="mb-3 font-semibold">{t('Bill language')}</h3>
+            <BillLanguageSettings />
           </Card>
 
           {shop?.kot_print && (

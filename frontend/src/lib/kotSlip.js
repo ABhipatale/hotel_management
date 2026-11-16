@@ -35,26 +35,31 @@ async function loadFonts() {
   } catch { /* system fonts are used */ }
 }
 
-/** @returns {Promise<Uint8Array>} ESC/POS raster bytes for one ticket */
-export async function buildKotSlip(kot, company, { width = '80mm', lang = 'en' } = {}) {
+/**
+ * Draws one ticket. 80 mm (576 px) is the full design; 58 mm (384 px) is the same layout scaled down.
+ * @returns {Promise<{ canvas: HTMLCanvasElement, W: number, H: number }>} the finished picture (H = used height)
+ */
+export async function drawKotCanvas(kot, company, { width = '80mm', lang = 'en' } = {}) {
   await loadFonts()
   const mr = lang === 'mr'
   const L = mr
-    ? { kot: 'केओटी', cancel: 'थांबवा – रद्द', table: 'टेबल', takeaway: 'पार्सल', delivery: 'डिलिव्हरी', order: 'ऑर्डर', by: 'वेटर', note: 'सूचना', items: 'एकूण' }
-    : { kot: 'KOT', cancel: 'STOP - CANCELLED', table: 'TABLE', takeaway: 'TAKEAWAY', delivery: 'DELIVERY', order: 'Order', by: 'By', note: 'Note', items: 'Items' }
+    ? { kot: 'केओटी', cancel: 'थांबवा – रद्द', table: 'टेबल', takeaway: 'पार्सल', delivery: 'डिलिव्हरी', order: 'ऑर्डर', by: 'वेटर', note: 'सूचना', items: 'एकूण डिश', printed: 'प्रिंट' }
+    : { kot: 'KOT', cancel: 'STOP - CANCELLED', table: 'TABLE', takeaway: 'TAKEAWAY', delivery: 'DELIVERY', order: 'Order', by: 'By', note: 'NOTE', items: 'Total items', printed: 'Printed' }
   const wide = width !== '58mm'
   const W = wide ? 576 : 384
-  const pad = 6
+  const k = wide ? 1 : 0.68 // everything below is drawn for 80 mm and scaled for 58 mm
+  const pad = Math.round(10 * k)
   const lines = kot.items || []
   const canvas = document.createElement('canvas')
   canvas.width = W
-  canvas.height = 700 + lines.length * 140
+  canvas.height = 900 + lines.length * 260
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
   ctx.fillStyle = '#fff'
   ctx.fillRect(0, 0, W, canvas.height)
   ctx.fillStyle = '#000'
-  let y = 4
-  const font = (size, bold = true) => { ctx.font = `${bold ? 700 : 400} ${size}px ${FONT}` }
+  ctx.strokeStyle = '#000'
+  let y = Math.round(8 * k)
+  const font = (size, bold = true) => { ctx.font = `${bold ? 700 : 400} ${Math.round(size * k)}px ${FONT}` }
   const wrap = (text, maxW) => {
     const out = []
     let cur = ''
@@ -67,54 +72,116 @@ export async function buildKotSlip(kot, company, { width = '80mm', lang = 'en' }
     if (cur) out.push(cur)
     return out
   }
-  const center = (text, size, bold = true) => { font(size, bold); y += Math.round(size * 1.2); ctx.textAlign = 'center'; ctx.fillText(text, W / 2, y); y += 4 }
-  const pair = (l, r, size = 22, bold = false) => { font(size, bold); y += Math.round(size * 1.3); ctx.textAlign = 'left'; ctx.fillText(l, pad, y); ctx.textAlign = 'right'; ctx.fillText(r, W - pad, y) }
-  const rule = (dash = true) => { y += 8; ctx.save(); ctx.lineWidth = 3; if (dash) ctx.setLineDash([8, 5]); ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - pad, y); ctx.stroke(); ctx.restore(); y += 8 }
+  const center = (text, size, bold = true) => { font(size, bold); y += Math.round(size * k * 1.2); ctx.textAlign = 'center'; ctx.fillText(text, W / 2, y); y += Math.round(4 * k) }
+  const pair = (l, r, size = 23, bold = false) => { font(size, bold); y += Math.round(size * k * 1.35); ctx.textAlign = 'left'; ctx.fillText(l, pad, y); ctx.textAlign = 'right'; ctx.fillText(r, W - pad, y) }
+  const rule = (kind = 'solid') => {
+    y += Math.round(10 * k)
+    ctx.save()
+    if (kind === 'dash') ctx.setLineDash([Math.round(9 * k), Math.round(6 * k)])
+    if (kind === 'dots') ctx.setLineDash([2, Math.round(7 * k)])
+    ctx.lineWidth = kind === 'thick' ? Math.max(4, Math.round(6 * k)) : Math.max(2, Math.round(3 * k))
+    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - pad, y); ctx.stroke()
+    ctx.restore()
+    y += Math.round(10 * k)
+  }
+  const bar = (text, size, h) => { // white text on a black bar across the whole slip
+    ctx.fillStyle = '#000'; ctx.fillRect(0, y, W, Math.round(h * k))
+    ctx.fillStyle = '#fff'; font(size); ctx.textAlign = 'center'
+    ctx.fillText(text, W / 2, y + Math.round(h * k) / 2 + Math.round(size * k * 0.35))
+    ctx.fillStyle = '#000'; y += Math.round(h * k)
+  }
 
   const isCancel = kot.type === 'cancel'
-  if (company?.name) center(company.name, 22, false)
+
+  // 1. shop name
+  if (company?.name) {
+    font(26)
+    wrap(company.name, W - pad * 2).slice(0, 2).forEach((ln) => { y += Math.round(32 * k); ctx.textAlign = 'center'; ctx.fillText(ln, W / 2, y) })
+    y += Math.round(6 * k)
+  }
+  rule('thick')
+
+  // 2. the big ticket number (a cancelled ticket gets the STOP bar instead, so only one black bar is ever on the slip)
   if (isCancel) {
-    // white text on a black bar: impossible to miss
-    y += 8
-    ctx.fillRect(0, y, W, 56)
-    ctx.fillStyle = '#fff'
-    font(30); ctx.textAlign = 'center'; ctx.fillText(L.cancel, W / 2, y + 40)
-    ctx.fillStyle = '#000'
-    y += 62
+    bar(L.cancel, 34, 66)
+    y += Math.round(6 * k)
+    center(`${L.kot} #${kot.number}`, 64)
+  } else {
+    bar(`${L.kot} #${kot.number}`, 70, 104)
   }
-  center(`${L.kot} #${kot.number}`, wide ? 64 : 52)
+
+  // 3. where it goes: table (boxed) / takeaway / delivery
   const t = kot.order?.table
-  center(t ? `${L.table} ${t.number}${t.section ? ` · ${t.section}` : ''}` : (kot.order?.type === 'delivery' ? L.delivery : L.takeaway), wide ? 46 : 38)
+  const where = t ? `${L.table} ${t.number}` : (kot.order?.type === 'delivery' ? L.delivery : L.takeaway)
+  y += Math.round(12 * k)
+  font(54)
+  const bw = Math.min(W - pad * 2, ctx.measureText(where).width + Math.round(60 * k))
+  const bh = Math.round(76 * k)
+  ctx.lineWidth = Math.max(3, Math.round(5 * k))
+  ctx.strokeRect(Math.round((W - bw) / 2), y, bw, bh)
+  ctx.textAlign = 'center'; ctx.fillText(where, W / 2, y + bh / 2 + Math.round(54 * k * 0.35))
+  y += bh
+  if (t?.section) center(t.section, 26, false)
+
+  // 4. order details
+  y += Math.round(6 * k)
   const when = new Date(kot.created_at)
-  pair(`${L.order}: ${kot.order?.order_no || ''}`, when.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }))
-  if (kot.sender?.name) pair(`${L.by}: ${kot.sender.name}`, when.toLocaleDateString('en-IN'))
-  rule(false)
+  pair(`${L.order}: ${kot.order?.order_no || ''}`, when.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }), 23, true)
+  pair(kot.sender?.name ? `${L.by}: ${kot.sender.name}` : '', when.toLocaleDateString('en-IN'))
+  rule('thick')
 
-  lines.forEach((i) => {
-    const size = wide ? 34 : 30
-    font(size)
-    const label = `${i.name}${i.variant ? ` (${i.variant})` : ''}`
-    const qtyW = 78
-    wrap(label, W - pad * 2 - qtyW).forEach((ln, idx) => {
-      y += Math.round(size * 1.25)
-      if (idx === 0) { ctx.textAlign = 'left'; ctx.fillText(`${i.quantity} ×`, pad, y) }
-      ctx.textAlign = 'left'; ctx.fillText(ln, pad + qtyW, y)
-    })
-    y += 8
+  // 5. dishes: quantity in a frame, name big, size / variant on its own line
+  const qb = Math.round(80 * k)
+  const gap = Math.round(16 * k)
+  const nameSize = 38
+  lines.forEach((i, n) => {
+    if (n > 0) { ctx.save(); ctx.lineWidth = 2; ctx.setLineDash([Math.round(4 * k), Math.round(7 * k)]); ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - pad, y); ctx.stroke(); ctx.restore(); y += Math.round(10 * k) }
+    font(nameSize)
+    const nameLines = wrap(i.name, W - pad * 2 - qb - gap)
+    const nameH = Math.round(nameSize * k * 1.18)
+    const varSize = 28
+    const blockH = nameLines.length * nameH + (i.variant ? Math.round(varSize * k * 1.3) : 0)
+    const rowH = Math.max(qb, blockH)
+    // quantity box
+    ctx.lineWidth = Math.max(3, Math.round(5 * k))
+    ctx.strokeRect(pad + 1, y + 2, qb, qb - 4)
+    font(46); ctx.textAlign = 'center'; ctx.fillText(String(i.quantity), pad + 1 + qb / 2, y + 2 + (qb - 4) / 2 + Math.round(46 * k * 0.35))
+    // name (+ variant)
+    font(nameSize); ctx.textAlign = 'left'
+    const top = y + Math.round(nameSize * k * 0.95) + Math.max(0, Math.round((rowH - blockH) / 2))
+    nameLines.forEach((ln, idx) => ctx.fillText(ln, pad + qb + gap, top + idx * nameH))
+    if (i.variant) { font(varSize, false); ctx.fillText(`(${i.variant})`, pad + qb + gap, top + nameLines.length * nameH - Math.round(4 * k)) }
+    y += rowH + Math.round(12 * k)
   })
-  rule()
-  if (kot.note) {
-    font(26); y += 6
-    const noteLines = wrap(`${L.note}: ${kot.note}`, W - pad * 2 - 16)
-    const h = noteLines.length * 34 + 14
-    ctx.lineWidth = 3; ctx.strokeRect(pad, y, W - pad * 2, h)
-    noteLines.forEach((ln, idx) => { ctx.textAlign = 'left'; ctx.fillText(ln, pad + 8, y + 32 + idx * 34) })
-    y += h + 10
-  }
-  center(`${L.items}: ${lines.reduce((n, i) => n + Number(i.quantity), 0)}`, 22, false)
-  y += 14
+  rule('thick')
 
-  const H = Math.min(canvas.height, y)
+  // 6. kitchen note, framed
+  if (kot.note) {
+    font(28)
+    const noteLines = wrap(kot.note, W - pad * 2 - Math.round(24 * k))
+    const lh = Math.round(36 * k)
+    const h = (noteLines.length + 1) * lh + Math.round(16 * k)
+    y += Math.round(4 * k)
+    ctx.lineWidth = Math.max(3, Math.round(5 * k)); ctx.strokeRect(pad + 1, y, W - pad * 2 - 2, h)
+    font(22); ctx.textAlign = 'left'; ctx.fillText(L.note, pad + Math.round(12 * k), y + lh * 0.9)
+    font(28)
+    noteLines.forEach((ln, idx) => ctx.fillText(ln, pad + Math.round(12 * k), y + (idx + 1.9) * lh))
+    y += h + Math.round(8 * k)
+    rule('dash')
+  }
+
+  // 7. footer
+  const total = lines.reduce((n, i) => n + Number(i.quantity), 0)
+  pair(`${L.items}: ${total}`, `${L.printed} ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`, 22, false)
+  y += Math.round(16 * k)
+
+  return { canvas, W, H: Math.min(canvas.height, y) }
+}
+
+/** @returns {Promise<Uint8Array>} ESC/POS raster bytes for one ticket */
+export async function buildKotSlip(kot, company, opts = {}) {
+  const { canvas, W, H } = await drawKotCanvas(kot, company, opts)
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
   const img = ctx.getImageData(0, 0, W, H).data
   const rowBytes = W / 8
   const bytes = [ESC, 0x40]

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { MessageCircle, Printer } from 'lucide-react'
 import { buildReceipt, printBluetooth, printUsb, savedPrinter } from '../lib/escpos'
 import { buildReceiptImage, needsImage, receiptFooter, receiptLabels, receiptName } from '../lib/receiptImage'
+import { billLang } from '../lib/billLang'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../i18n'
@@ -21,9 +22,8 @@ export default function Receipt({ data, phone }) {
   const { bill, company, printer, table, waiter } = data
   // Receipt language: Marathi when the shop's default language is Marathi or the app is in Marathi, unless this device
   // chose otherwise with the English / मराठी buttons below (remembered on this device).
-  const [chosen, setChosen] = useState(() => { try { return localStorage.getItem('hms.billlang') } catch { return null } })
-  const rl = chosen || (shop?.default_language === 'mr' || lang === 'mr' ? 'mr' : 'en')
-  const pickLang = (v) => { setChosen(v); try { localStorage.setItem('hms.billlang', v) } catch { /* private mode */ } }
+  const chosen = billLang.get() // set in Settings → Bill language ('auto' = follow the shop / app)
+  const rl = chosen !== 'auto' ? chosen : (shop?.default_language === 'mr' || lang === 'mr' ? 'mr' : 'en')
   const L = receiptLabels(rl)
   const gstOn = company.gst_enabled !== false
   const width = printer?.paper_width === '58mm' ? '58mm' : '80mm'
@@ -91,12 +91,6 @@ export default function Receipt({ data, phone }) {
         <hr className="my-1.5 border-t-2 border-double border-black" />
         {bill.payments?.map((p) => <div key={p.id} className="flex justify-between"><span>{L.paid} ({L[p.method] || p.method})</span><span>{m(p.amount)}</span></div>)}
         <div className="mt-2 text-center font-bold">{receiptFooter(company, rl)}</div>
-      </div>
-
-      <div role="group" aria-label={t('Bill language')} className="mt-4 grid grid-cols-2 gap-1 rounded-2xl bg-white p-1 ring-1 ring-line">
-        {[['en', 'English'], ['mr', 'मराठी']].map(([v, label]) => (
-          <button key={v} type="button" aria-pressed={rl === v} onClick={() => pickLang(v)} className={`min-h-10 rounded-xl text-sm font-bold transition active:scale-95 ${rl === v ? 'bg-brand text-white' : 'text-muted'}`}>{label}</button>
-        ))}
       </div>
 
       {/* Buttons wrap onto two rows on very narrow phones instead of overflowing the sheet */}
