@@ -38,6 +38,13 @@ return [
     // Features a plan can unlock. Core: tables, menu, orders, billing.
     'features' => ['qr', 'thermal', 'reports', 'advanced_reports', 'inventory', 'expenses', 'pnl', 'advanced_permissions'],
 
+    // The hotel's clock for deciding what "today" is (bill / KOT numbers restart at midnight here, reports cut their days here).
+    // Timestamps themselves stay stored in UTC.
+    'timezone' => env('HMS_TIMEZONE', 'Asia/Kolkata'),
+
+    // Customer QR ordering: most orders that may wait for staff approval at one table at the same time (stops spam / pranks)
+    'qr_max_pending' => (int) env('HMS_QR_MAX_PENDING', 3),
+
     // What happens after subscription expiry: read-only keeps data viewable; block denies all tenant access.
     'expiry_policy' => env('HMS_EXPIRY_POLICY', 'read_only'),
 ];

@@ -1,6 +1,9 @@
 // Minimal ESC/POS encoder + Web USB / Web Bluetooth transport. Chromium-based browsers only.
 // Network printers cannot be reached directly from a browser (no raw TCP) — they use the browser-print fallback
 // or a local print agent. Settings are still stored per company/branch.
+
+import { dateIST, timeIST } from './format'
+
 const ESC = 0x1b
 const GS = 0x1d
 
@@ -43,7 +46,7 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer }
 
   // ── Bill details ──
   const d = new Date(bill.created_at)
-  const when = `${d.toLocaleDateString('en-IN')} ${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+  const when = `${dateIST(d)} ${timeIST(d)}`
   if (wide) two(`Bill: ${bill.bill_no}`, when)
   else { line(`Bill: ${bill.bill_no}`); line(when) }
   if (table || waiter) two(table ? `Table: ${table}` : '', waiter ? `Staff: ${waiter}` : '')

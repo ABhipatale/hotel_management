@@ -38,7 +38,7 @@ class SubscriptionService
         return SubscriptionPayment::create([
             'company_id' => $company->id,
             'subscription_id' => $sub->id,
-            'invoice_no' => 'INV-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
+            'invoice_no' => 'INV-'.\App\Support\BizTime::now()->format('Ymd').'-'.strtoupper(Str::random(6)),
             'amount' => $offline['amount'],
             'billing_cycle' => $cycle,
             'mode' => 'offline',
@@ -91,7 +91,7 @@ class SubscriptionService
                 SubscriptionPayment::create([
                     'company_id' => $company->id,
                     'subscription_id' => $sub->id,
-                    'invoice_no' => 'INV-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
+                    'invoice_no' => 'INV-'.\App\Support\BizTime::now()->format('Ymd').'-'.strtoupper(Str::random(6)),
                     'amount' => $offline['amount'] ?? $company->priceFor($plan, $cycle),
                     'billing_cycle' => $cycle,
                     'mode' => $offline ? 'offline' : 'online',

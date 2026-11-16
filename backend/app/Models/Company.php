@@ -10,7 +10,8 @@ class Company extends Model
     use SoftDeletes;
 
     protected $guarded = ['id', 'uid', 'status'];
-    protected $casts = ['settings' => 'array', 'gst_enabled' => 'boolean', 'qr_enabled' => 'boolean', 'multi_counter' => 'boolean', 'kot_enabled' => 'boolean', 'kot_screen' => 'boolean', 'kot_print' => 'boolean', 'price_monthly' => 'float', 'price_yearly' => 'float', 'use_library_images' => 'boolean'];
+    protected $casts = ['settings' => 'array', 'gst_enabled' => 'boolean', 'qr_enabled' => 'boolean', 'multi_counter' => 'boolean', 'approval_pin' => 'hashed', 'staff_discount_percent' => 'float', 'kot_enabled' => 'boolean', 'kot_screen' => 'boolean', 'kot_print' => 'boolean', 'price_monthly' => 'float', 'price_yearly' => 'float', 'use_library_images' => 'boolean'];
+    protected $hidden = ['approval_pin']; // the PIN hash never leaves the server
     protected $appends = ['logo_url', 'icon_url'];
 
     /** This company's own subscription price, or the platform default when none was set. */

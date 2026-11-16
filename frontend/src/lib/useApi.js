@@ -33,10 +33,15 @@ export function useApi(url, { params, poll, skip } = {}) {
   useEffect(() => {
     alive.current = true
     load()
-    const t = poll ? setInterval(() => load(true), poll) : null
+    // Polling only while the screen is actually being looked at (a hidden tab / locked phone does not hit the server);
+    // coming back refreshes at once.
+    const t = poll ? setInterval(() => { if (!document.hidden) load(true) }, poll) : null
+    const onVisible = () => { if (poll && !document.hidden) load(true) }
+    if (poll) document.addEventListener('visibilitychange', onVisible)
     return () => {
       alive.current = false
       if (t) clearInterval(t)
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [load, poll])
 

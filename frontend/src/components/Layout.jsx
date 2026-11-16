@@ -10,6 +10,7 @@ import CounterSwitch from './CounterSwitch'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useT } from '../i18n'
+import { dateKey, today } from '../lib/format'
 import { useOrderAlerts } from '../lib/orderAlerts'
 import { useKotReadyAlerts } from '../lib/kotAlerts'
 import OrderAlertBanner from './OrderAlertBanner'
@@ -107,7 +108,7 @@ export default function Layout() {
   const daysLeft = Math.ceil(msLeft / 86400000)
   const expiresSoon = msLeft > 0 && daysLeft <= 3
   const endsText = daysLeft <= 1
-    ? (new Date(subscription?.ends_at).toDateString() === new Date().toDateString() ? t('Your subscription ends today.') : t('Your subscription ends tomorrow.'))
+    ? (dateKey(subscription?.ends_at) === today() ? t('Your subscription ends today.') : t('Your subscription ends tomorrow.'))
     : t('Your subscription ends in {n} days.', { n: daysLeft })
   const roleText = (r) => t(r?.replace('_', ' ') || '')
 

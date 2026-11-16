@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Support\BizTime;
 use App\Http\Controllers\Controller;
 use App\Models\Kot;
 use App\Services\KotService;
@@ -37,7 +38,7 @@ class KotController extends Controller
         $this->guard();
         $q = $this->base($r);
         if ($r->boolean('done')) {
-            $q->whereIn('status', ['served', 'cancelled'])->where('kot_date', now()->toDateString())->latest('id')->limit(100);
+            $q->whereIn('status', ['served', 'cancelled'])->where('kot_date', BizTime::today())->latest('id')->limit(100);
         } else {
             $q->where(fn ($w) => $w->whereIn('status', ['new', 'cooking', 'ready'])->orWhere(fn ($x) => $x->where('status', 'served')->where('served_at', '>=', now()->subHour())))
                 ->orderBy('id');

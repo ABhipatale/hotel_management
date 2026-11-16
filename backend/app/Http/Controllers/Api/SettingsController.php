@@ -18,6 +18,41 @@ class SettingsController extends Controller
         return Tenant::company();
     }
 
+    /** Owner approval controls: whether a PIN is set (never the PIN itself) and the discount staff may give without it. */
+    public function approvals()
+    {
+        $c = Tenant::company();
+
+        return ['has_pin' => ! empty($c->approval_pin), 'staff_discount_percent' => (float) ($c->staff_discount_percent ?? 10)];
+    }
+
+    public function saveApprovals(Request $r)
+    {
+        abort_unless($r->user()->role === 'owner', 403, 'Only the owner can change approvals.');
+        $d = $r->validate([
+            'pin' => ['nullable', 'digits_between:4,8'],
+            'clear_pin' => 'sometimes|boolean',
+            'staff_discount_percent' => 'sometimes|numeric|min:0|max:100',
+        ]);
+        $c = Tenant::company();
+        $update = [];
+        if (! empty($d['pin'])) {
+            $update['approval_pin'] = $d['pin']; // hashed by the model
+        }
+        if ($r->boolean('clear_pin')) {
+            $update['approval_pin'] = null;
+        }
+        if (array_key_exists('staff_discount_percent', $d)) {
+            $update['staff_discount_percent'] = $d['staff_discount_percent'];
+        }
+        if ($update) {
+            $c->update($update);
+            AuditLog::record('approvals.update', 'company', $c->id, ['pin' => array_key_exists('approval_pin', $update) ? ($update['approval_pin'] === null ? 'removed' : 'changed') : null, 'staff_discount_percent' => $update['staff_discount_percent'] ?? null]);
+        }
+
+        return $this->approvals();
+    }
+
     /** Company profile + branding (logo, colour, bill header/footer, GST). */
     public function updateCompany(Request $r)
     {

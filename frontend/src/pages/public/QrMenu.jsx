@@ -52,8 +52,10 @@ export default function QrMenu() {
   useEffect(() => {
     if (!menu) return
     loadOrders()
-    const t = setInterval(loadOrders, 6000)
-    return () => clearInterval(t)
+    const t = setInterval(() => { if (!document.hidden) loadOrders() }, 6000) // not while the phone is locked / the tab is hidden
+    const onVisible = () => { if (!document.hidden) loadOrders() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible) }
   }, [menu, loadOrders])
 
   const list = useMemo(() => (menu?.items || []).filter((i) => (cat === 'all' || i.category_id === +cat) && (!veg || i.is_veg) && (i.name.toLowerCase().includes(q.toLowerCase()) || (i.name_mr || '').toLowerCase().includes(q.toLowerCase()))), [menu, cat, q, veg])

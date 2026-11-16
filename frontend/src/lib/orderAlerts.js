@@ -64,7 +64,7 @@ export function useOrderAlerts(enabled, scope = '') {
           ring()
         }
       } catch { /* offline or signed out: try again next time */ }
-      if (!stop) timer = setTimeout(tick, document.hidden ? 15000 : 5000)
+      if (!stop) timer = setTimeout(tick, document.hidden ? 30000 : 5000)
     }
     tick()
     return () => { stop = true; clearTimeout(timer) }

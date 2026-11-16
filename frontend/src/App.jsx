@@ -4,6 +4,7 @@ import { I18nProvider, useI18n } from './i18n'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import { ConfirmProvider } from './context/ConfirmContext'
+import { ApprovalProvider } from './context/ApprovalContext'
 import { CounterProvider, NeedCounter } from './context/CounterContext'
 import Layout from './components/Layout'
 import { PageSkeleton, Spinner } from './components/ui'
@@ -87,6 +88,7 @@ export default function App() {
       <I18nProvider>
       <ToastProvider>
         <ConfirmProvider>
+          <ApprovalProvider>
         <AuthProvider>
           <CounterProvider>
           <LangKeyed>
@@ -128,6 +130,7 @@ export default function App() {
           </LangKeyed>
           </CounterProvider>
         </AuthProvider>
+          </ApprovalProvider>
         </ConfirmProvider>
       </ToastProvider>
       </I18nProvider>

@@ -8,7 +8,7 @@ import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContaine
 import { useAuth } from '../../context/AuthContext'
 import { useApi } from '../../lib/useApi'
 import { useI18n } from '../../i18n'
-import { ago, money, num, today } from '../../lib/format'
+import { ago, istHour, money, num, today, TZ } from '../../lib/format'
 import { Badge, Card, ErrorNote, SectionTitle, Spinner, Stat, statusTone } from '../../components/ui'
 
 // Chart palette = the three theme colours + two neutral tints
@@ -21,7 +21,7 @@ const lbl = (t, s) => t(String(s).replace(/_/g, ' ').replace(/^./, (c) => c.toUp
 const LOCALE = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN' }
 
 function greeting() {
-  const h = new Date().getHours()
+  const h = istHour()
   if (h < 12) return { text: 'Good morning', Icon: Sunrise }
   if (h < 17) return { text: 'Good afternoon', Icon: Sun }
   return { text: 'Good evening', Icon: Moon }
@@ -53,7 +53,7 @@ export default function Dashboard() {
 
   const { text, Icon: GreetIcon } = greeting()
   const quick = QUICK.filter((q) => can(q.perm))
-  const dateText = new Date().toLocaleDateString(LOCALE[lang] || 'en-IN', { weekday: 'long', day: 'numeric', month: 'long' })
+  const dateText = new Date().toLocaleDateString(LOCALE[lang] || 'en-IN', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' })
   // The API returns DECIMAL sums as strings; the chart needs real numbers.
   const payments = d.payment_analytics.map((p) => ({ ...p, total: Number(p.total) }))
   const occupied = Math.max(0, d.active_tables)

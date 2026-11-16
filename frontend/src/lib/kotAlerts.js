@@ -26,7 +26,7 @@ export function useKotReadyAlerts(enabled, onReady, scope = '') {
         fresh.forEach((k) => seen.current.add(k.id))
         if (!stop && fresh.length) { ring(); fresh.forEach((k) => cb.current?.(k)) }
       } catch { /* offline / signed out: next time */ }
-      if (!stop) timer = setTimeout(tick, document.hidden ? 15000 : 6000)
+      if (!stop) timer = setTimeout(tick, document.hidden ? 30000 : 6000)
     }
     tick()
     return () => { stop = true; clearTimeout(timer) }

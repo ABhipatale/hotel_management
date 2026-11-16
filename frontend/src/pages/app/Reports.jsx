@@ -5,11 +5,12 @@ import { useApi } from '../../lib/useApi'
 import { money, today } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useT } from '../../i18n'
+import ExceptionsReport from '../../components/ExceptionsReport'
 import { Button, Card, Chips, Input, PageHeader, Select, ListSkeleton, Table } from '../../components/ui'
 
 const REPORTS = [
   ['sales', 'Sales'], ['tables', 'Table-wise'], ['waiters', 'Waiter-wise'], ['items', 'Item-wise'], ['payments', 'Payment-wise'],
-  ['expenses', 'Expenses', 'expenses'], ['inventory', 'Inventory', 'inventory'], ['pnl', 'Profit & Loss', 'pnl'],
+  ['exceptions', 'Discounts & voids'], ['expenses', 'Expenses', 'expenses'], ['inventory', 'Inventory', 'inventory'], ['pnl', 'Profit & Loss', 'pnl'],
 ]
 
 const COLS = {
@@ -58,7 +59,7 @@ export default function Reports() {
         {type === 'sales' && <Select value={group} onChange={(e) => setGroup(e.target.value)}><option value="day">{t('Daily')}</option><option value="month">{t('Monthly')}</option><option value="year">{t('Yearly')}</option></Select>}
       </div>
 
-      {error ? <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{error}</p> : loading ? <ListSkeleton /> : type === 'pnl' ? (
+      {error ? <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{error}</p> : loading ? <ListSkeleton /> : type === 'exceptions' ? <ExceptionsReport data={data} /> : type === 'pnl' ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {[['Gross sales', data.sales], ...(gstOn ? [['GST collected', data.tax_collected], ['Net sales', data.net_sales]] : []), ['Expenses', data.expenses], ['Profit', data.profit]].map(([l, v]) => (
             <Card key={l}><div className="text-xs text-muted">{t(l)}</div><div className={`text-xl font-semibold ${l === 'Profit' && v < 0 ? 'text-rose-600' : ''}`}>{money(v)}</div></Card>

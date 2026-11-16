@@ -1,6 +1,7 @@
 // Kitchen slip (KOT) for thermal printers. Drawn on a canvas and sent as a picture so Marathi dish names print correctly
 // (a plain ESC/POS printer has no Devanagari font), with big bold dishes that are easy to read in a hot kitchen.
 import { printBluetooth, printUsb, savedPrinter } from './escpos'
+import { dateIST, timeIST } from './format'
 
 const ESC = 0x1b
 const GS = 0x1d
@@ -126,8 +127,8 @@ export async function drawKotCanvas(kot, company, { width = '80mm', lang = 'en' 
   // 4. order details
   y += Math.round(6 * k)
   const when = new Date(kot.created_at)
-  pair(`${L.order}: ${kot.order?.order_no || ''}`, when.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }), 23, true)
-  pair(kot.sender?.name ? `${L.by}: ${kot.sender.name}` : '', when.toLocaleDateString('en-IN'))
+  pair(`${L.order}: ${kot.order?.order_no || ''}`, timeIST(when), 23, true)
+  pair(kot.sender?.name ? `${L.by}: ${kot.sender.name}` : '', dateIST(when))
   rule('thick')
 
   // 5. dishes: quantity in a frame, name big, size / variant on its own line
@@ -172,7 +173,7 @@ export async function drawKotCanvas(kot, company, { width = '80mm', lang = 'en' 
 
   // 7. footer
   const total = lines.reduce((n, i) => n + Number(i.quantity), 0)
-  pair(`${L.items}: ${total}`, `${L.printed} ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`, 22, false)
+  pair(`${L.items}: ${total}`, `${L.printed} ${timeIST(new Date())}`, 22, false)
   y += Math.round(16 * k)
 
   return { canvas, W, H: Math.min(canvas.height, y) }

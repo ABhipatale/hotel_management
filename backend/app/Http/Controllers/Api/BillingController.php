@@ -7,7 +7,9 @@ use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\Order;
 use App\Models\PrinterSetting;
+use App\Services\ApprovalService;
 use App\Services\OrderService;
+use App\Support\BizTime;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
 
@@ -28,7 +30,7 @@ class BillingController extends Controller
             $q->where('status', $s);
         }
         if ($d = $r->query('date')) {
-            $q->whereDate('created_at', $d);
+            $q->whereBetween('created_at', [BizTime::dayStart($d), BizTime::dayEnd($d)]); // that day in India
         }
 
         return $q->latest()->limit(200)->get();
@@ -37,9 +39,28 @@ class BillingController extends Controller
     public function generate(Request $r, int $orderId)
     {
         $order = Order::findOrFail($orderId);
-        $d = $r->validate(['extra_discount' => 'nullable|numeric|min:0']);
-        $bill = $this->orders->generateBill($order, $r->user(), (float) ($d['extra_discount'] ?? 0));
-        AuditLog::record('bill.generate', 'bill', $bill->id);
+        $d = $r->validate(['extra_discount' => 'nullable|numeric|min:0|max:10000000']);
+        $extra = (float) ($d['extra_discount'] ?? 0);
+        $isNew = ! $order->bill; // an existing bill is returned as it is: no discount is applied, so none is checked or logged
+
+        // Staff may give an extra discount up to the company's limit; above it the owner's approval PIN is needed
+        $approved = null;
+        if ($isNew && $extra > 0) {
+            if ($r->user()->role === 'owner') {
+                $approved = 'owner';
+            } else {
+                $limit = (float) (Tenant::company()?->staff_discount_percent ?? 10);
+                $base = $this->orders->grossSubtotal($order);
+                $approved = ($base > 0 && $extra <= round($base * $limit / 100, 2) + 0.005)
+                    ? 'within limit'
+                    : app(ApprovalService::class)->require($r, 'A discount above '.rtrim(rtrim(number_format($limit, 2), '0'), '.').'%');
+            }
+        }
+
+        $bill = $this->orders->generateBill($order, $r->user(), $isNew ? $extra : 0.0);
+        AuditLog::record('bill.generate', 'bill', $bill->id, $isNew && $extra > 0
+            ? ['bill_no' => $bill->bill_no, 'order_no' => $order->order_no, 'branch_id' => $bill->branch_id, 'subtotal' => (float) $bill->subtotal, 'extra_discount' => $extra, 'approved' => $approved]
+            : []);
 
         return response()->json($bill, 201);
     }
@@ -66,13 +87,17 @@ class BillingController extends Controller
 
     public function void(Request $r, int $id)
     {
+        $d = $r->validate(['reason' => 'required|string|min:3|max:120']);
         $bill = Bill::findOrFail($id);
         abort_if($bill->status === 'paid', 422, 'Paid bills cannot be voided.');
+        // The owner may void; anybody else needs the owner's approval PIN. The reason and the amount are always remembered.
+        $approved = app(ApprovalService::class)->require($r, 'Cancelling a bill');
+        $meta = ['bill_no' => $bill->bill_no, 'order_no' => $bill->order?->order_no, 'branch_id' => $bill->branch_id, 'total' => (float) $bill->grand_total, 'reason' => $d['reason'], 'approved' => $approved];
         $bill->update(['status' => 'void']);
         $bill->order->update(['status' => 'served']);
         $bill->order->table?->update(['status' => 'occupied']);
         $bill->delete(); // frees the order for re-billing
-        AuditLog::record('bill.void', 'bill', $id);
+        AuditLog::record('bill.void', 'bill', $id, $meta);
 
         return response()->noContent();
     }

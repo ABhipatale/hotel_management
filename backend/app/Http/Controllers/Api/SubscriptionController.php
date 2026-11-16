@@ -59,7 +59,7 @@ class SubscriptionController extends Controller
 
         $payment = SubscriptionPayment::create([
             'company_id' => $company->id,
-            'invoice_no' => 'INV-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
+            'invoice_no' => 'INV-'.\App\Support\BizTime::now()->format('Ymd').'-'.strtoupper(Str::random(6)),
             'amount' => $company->priceFor($plan, $d['billing_cycle']),
             'billing_cycle' => $d['billing_cycle'],
             'gateway' => $gw->configured() ? 'razorpay' : 'simulated',

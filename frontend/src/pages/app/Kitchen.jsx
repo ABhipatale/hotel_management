@@ -63,7 +63,7 @@ export default function Kitchen() {
   const [sound, setSound] = useState(alertSoundEnabled())
   const [setup, setSetup] = useState(false)
   const [tick, setTick] = useState(0)
-  const { data, loading, reload } = useApi('/kots', { poll: 4000 })
+  const { data, loading, reload } = useApi('/kots', { poll: 5000 })
   const { data: done } = useApi('/kots', { params: { done: 1 }, skip: tab !== 'done', poll: tab === 'done' ? 10000 : undefined })
   const seen = useRef(null)
   const canPrint = !!company?.kot_print

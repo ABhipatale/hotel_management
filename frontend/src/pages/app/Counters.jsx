@@ -3,21 +3,20 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Banknote, Pencil, Plus, Receipt, ShoppingBag, Store, TrendingDown, TrendingUp, Users, Armchair, Wallet, UserPlus } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
-import { money } from '../../lib/format'
+import { dateKey, money, today, TZ } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useCounter } from '../../context/CounterContext'
 import { useToast } from '../../context/ToastContext'
 import { useT } from '../../i18n'
 import { Badge, Button, Card, Chips, Input, Modal, PageHeader, Spinner, Switch, cx } from '../../components/ui'
 
-const iso = (d) => d.toISOString().slice(0, 10)
 const RANGES = [['today', 'Today'], ['week', 'Last 7 days'], ['month', 'This month']]
 const rangeDates = (k) => {
-  const to = new Date()
-  const from = new Date()
-  if (k === 'week') from.setDate(from.getDate() - 6)
-  if (k === 'month') from.setDate(1)
-  return { from: iso(from), to: iso(to) }
+  const to = today() // all on the Indian calendar
+  const [y, m, d] = to.split('-').map(Number)
+  if (k === 'week') return { from: dateKey(new Date(Date.UTC(y, m - 1, d - 6, 12))), to }
+  if (k === 'month') return { from: `${to.slice(0, 8)}01`, to }
+  return { from: to, to }
 }
 
 /** Smoothly counts a number up when it changes (feels alive, costs nothing). */
@@ -87,7 +86,7 @@ function Trend({ points, color }) {
       </svg>
       {h && (
         <div className="pointer-events-none absolute -top-9 rounded-xl bg-ink px-2.5 py-1 text-[11px] font-bold text-white shadow-float" style={{ left: `${(x(hover) / W) * 100}%`, transform: 'translateX(-50%)' }}>
-          {new Date(h.date).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit' })} · <span className="tabular">{money(h.total)}</span>
+          {new Date(h.date).toLocaleDateString('en-IN', { timeZone: TZ, weekday: 'short', day: '2-digit' })} · <span className="tabular">{money(h.total)}</span>
         </div>
       )}
     </div>

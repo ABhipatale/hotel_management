@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\User;
 use App\Services\CounterService;
+use App\Support\BizTime;
 use App\Support\Tenant;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -34,21 +35,22 @@ class CounterController extends Controller
     public function overview(Request $r)
     {
         $this->owner($r);
-        $from = Carbon::parse($r->query('from', now()->toDateString()))->startOfDay();
-        $to = Carbon::parse($r->query('to', now()->toDateString()))->endOfDay();
+        $from = BizTime::dayStart($r->query('from', BizTime::today()));   // days are cut at midnight in India
+        $to = BizTime::dayEnd($r->query('to', BizTime::today()));
 
         $paid = fn () => Bill::where('status', 'paid')->whereBetween('created_at', [$from, $to]);
         $sales = $paid()->select('branch_id', DB::raw('SUM(grand_total) as sales'), DB::raw('SUM(tax) as tax'), DB::raw('COUNT(*) as bills'))->groupBy('branch_id')->get()->keyBy('branch_id');
-        $exp = Expense::whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])->select('branch_id', DB::raw('SUM(amount) as total'))->groupBy('branch_id')->pluck('total', 'branch_id');
+        $exp = Expense::whereBetween('expense_date', [BizTime::dateOf($from), BizTime::dateOf($to)])->select('branch_id', DB::raw('SUM(amount) as total'))->groupBy('branch_id')->pluck('total', 'branch_id');
         $orders = Order::whereBetween('created_at', [$from, $to])->where('status', '!=', 'cancelled')->select('branch_id', DB::raw('COUNT(*) as n'))->groupBy('branch_id')->pluck('n', 'branch_id');
         $open = Order::whereNotIn('status', ['paid', 'cancelled'])->select('branch_id', DB::raw('COUNT(*) as n'))->groupBy('branch_id')->pluck('n', 'branch_id');
         $tables = HotelTable::select('branch_id', DB::raw('COUNT(*) as n'))->groupBy('branch_id')->pluck('n', 'branch_id');
         $staff = User::inTenant(Tenant::id())->where('role', '!=', 'owner')->select('branch_id', DB::raw('COUNT(*) as n'))->groupBy('branch_id')->pluck('n', 'branch_id');
         $pay = Payment::whereBetween('created_at', [$from, $to])->select('branch_id', 'method', DB::raw('SUM(amount) as total'))->groupBy('branch_id', 'method')->get()->groupBy('branch_id');
 
-        $days = collect(range(6, 0))->map(fn ($i) => now()->subDays($i)->toDateString());
-        $trend = Bill::where('status', 'paid')->where('created_at', '>=', now()->subDays(6)->startOfDay())
-            ->select('branch_id', DB::raw('DATE(created_at) as d'), DB::raw('SUM(grand_total) as total'))->groupBy('branch_id', DB::raw('DATE(created_at)'))->get()->groupBy('branch_id');
+        $days = collect(range(6, 0))->map(fn ($i) => BizTime::now()->subDays($i)->toDateString());
+        $dayCol = BizTime::dateSql('created_at');
+        $trend = Bill::where('status', 'paid')->where('created_at', '>=', BizTime::dayStart(BizTime::now()->subDays(6)))
+            ->select('branch_id', DB::raw("$dayCol as d"), DB::raw('SUM(grand_total) as total'))->groupBy('branch_id', DB::raw($dayCol))->get()->groupBy('branch_id');
 
         $default = (int) Branch::orderByDesc('is_default')->orderBy('id')->value('id');
         $rows = Branch::orderByDesc('is_default')->orderBy('id')->get()->map(function (Branch $b) use ($sales, $exp, $orders, $open, $tables, $staff, $pay, $trend, $days, $default) {
@@ -74,7 +76,7 @@ class CounterController extends Controller
             'bills' => $rows->sum('bills'), 'orders' => $rows->sum('orders'), 'open_orders' => $rows->sum('open_orders'),
         ];
 
-        return ['from' => $from->toDateString(), 'to' => $to->toDateString(), 'counters' => $rows, 'total' => $total];
+        return ['from' => BizTime::dateOf($from), 'to' => BizTime::dateOf($to), 'counters' => $rows, 'total' => $total];
     }
 
     public function store(Request $r)

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\BizTime;
 use App\Models\Bill;
 use App\Models\BillItem;
 use App\Models\Customer;
@@ -158,6 +159,12 @@ class OrderService
         });
     }
 
+    /** What the (not cancelled) dishes of an order add up to, before any discount: the base for the staff discount limit. */
+    public function grossSubtotal(Order $order): float
+    {
+        return round($order->items()->where('status', '!=', 'cancelled')->get()->sum(fn ($i) => $i->price * $i->quantity), 2);
+    }
+
     /** @return array{0: array<int, array<string, mixed>>, 1: float, 2: float, 3: float, 4: float} [bill lines, subtotal, discount, tax, grand total] */
     private function billTotals(Order $order, float $extraDiscount): array
     {
@@ -216,7 +223,7 @@ class OrderService
                 $wanted[$k] = ['food_item_id' => $food->id, 'variant_id' => $line['variant_id'] ?? null, 'quantity' => min(99, ($wanted[$k]['quantity'] ?? 0) + max(1, (int) $line['quantity']))];
             }
 
-            $kotAdd = $kotCancel = [];
+            $kotAdd = $kotCancel = $removed = [];
             foreach ($order->items()->where('status', '!=', 'cancelled')->get() as $item) {
                 $food = $item->food_item_id ? FoodItem::find($item->food_item_id) : null;
                 $k = $key($item->food_item_id, $item->variant);
@@ -226,6 +233,7 @@ class OrderService
                     }
                     $item->update(['status' => 'cancelled']);
                     $kotCancel[] = ['order_item_id' => $item->id, 'name' => $item->name, 'variant' => $item->variant, 'quantity' => $item->quantity];
+                    $removed[] = ['name' => $item->name, 'qty' => (int) $item->quantity, 'amount' => round($item->price * $item->quantity, 2)];
 
                     continue;
                 }
@@ -239,6 +247,9 @@ class OrderService
                     }
                     $line = ['order_item_id' => $item->id, 'name' => $item->name, 'variant' => $item->variant, 'quantity' => abs($delta)];
                     $delta > 0 ? $kotAdd[] = $line : $kotCancel[] = $line;
+                    if ($delta < 0) {
+                        $removed[] = ['name' => $item->name, 'qty' => abs($delta), 'amount' => round($item->price * abs($delta), 2)];
+                    }
                     $item->update(['quantity' => $wanted[$k]['quantity']]);
                 }
                 unset($wanted[$k]);
@@ -259,6 +270,13 @@ class OrderService
             }
 
             app(KotService::class)->fire($order, $kotAdd, $kotCancel, $by);
+
+            // Dishes taken off an order the kitchen has already started: remembered for the owner's "Discounts & voids" report
+            if ($removed && $by && in_array($order->status, ['preparing', 'ready', 'served'], true)) {
+                \App\Models\AuditLog::record('order.item_removed', 'order', $order->id, [
+                    'order_no' => $order->order_no, 'branch_id' => $order->branch_id, 'items' => $removed, 'amount' => round(array_sum(array_column($removed, 'amount')), 2),
+                ], $by);
+            }
 
             return $order->load('items', 'bill.items', 'table:id,number');
         });
@@ -305,10 +323,12 @@ class OrderService
 
     private function nextNumber(string $prefix, string $model, string $column): string
     {
-        $date = now()->format('ymd');
+        $date = BizTime::now()->format('ymd');   // the day number restarts at midnight in India
         // numbers are unique per company (not per counter), so look across every counter
-        $count = $model::withoutGlobalScope('branch')->where($column, 'like', "$prefix-$date-%")->lockForUpdate()->count() + 1;
+        // highest number used today + 1 (not "how many there are": a voided / deleted bill would make the next number repeat)
+        $last = $model::withoutGlobalScope('branch')->where($column, 'like', "$prefix-$date-%")->lockForUpdate()->pluck($column)
+            ->map(fn ($n) => (int) substr((string) $n, strrpos((string) $n, '-') + 1))->max() ?? 0;
 
-        return sprintf('%s-%s-%04d', $prefix, $date, $count);
+        return sprintf('%s-%s-%04d', $prefix, $date, $last + 1);
     }
 }

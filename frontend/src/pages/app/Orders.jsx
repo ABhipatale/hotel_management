@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ChefHat, Pencil, Plus, QrCode, StickyNote } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
-import { ago, money } from '../../lib/format'
+import { ago, money, today } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
+import { useApproval } from '../../context/ApprovalContext'
 import { useCounter } from '../../context/CounterContext'
 import { useT } from '../../i18n'
 import { Badge, Button, Card, Chips, Empty, PageHeader, Spinner, statusTone } from '../../components/ui'
@@ -18,14 +19,16 @@ export default function Orders() {
   const { can } = useAuth()
   const toast = useToast()
   const ask = useConfirm()
+  const approve = useApproval()
   const t = useT()
   const nav = useNavigate()
   const { allCounters, nameOf, colorOf } = useCounter()
   const [tab, setTab] = useState('open')
-  const { data, loading, reload } = useApi('/orders', { params: tab === 'open' ? { open: 1 } : { date: new Date().toISOString().slice(0, 10) }, poll: 8000 })
+  const { data, loading, reload } = useApi('/orders', { params: tab === 'open' ? { open: 1 } : { date: today() }, poll: 8000 })
 
   const setStatus = async (o, status) => {
-    try { await api.patch(`/orders/${o.id}/status`, { status }); reload() } catch (e) { toast.error(e) }
+    // cancelling an order the kitchen already started may need the owner's approval PIN (asked here when the server wants it)
+    try { await approve((pin) => api.patch(`/orders/${o.id}/status`, { status }, pin ? { headers: { 'X-Approval-Pin': pin } } : undefined)); reload() } catch (e) { if (!e.cancelled) toast.error(e) }
   }
   const bill = async (o) => {
     try { await api.post(`/orders/${o.id}/bill`); toast.success(t('Bill generated — open Billing to collect payment')); reload() } catch (e) { toast.error(e) }

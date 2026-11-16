@@ -82,6 +82,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         // Company settings / branding / printer
         Route::get('company', [SettingsController::class, 'company']);
         Route::post('company', [SettingsController::class, 'updateCompany'])->middleware('perm:settings.manage');
+        Route::get('approvals', [SettingsController::class, 'approvals'])->middleware('perm:settings.manage');
+        Route::put('approvals', [SettingsController::class, 'saveApprovals'])->middleware('perm:settings.manage');
         Route::get('printer', [SettingsController::class, 'printer']);
         Route::put('printer', [SettingsController::class, 'updatePrinter'])->middleware('perm:settings.manage');
         Route::get('permissions', [SettingsController::class, 'permissions']);
@@ -181,7 +183,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         // Reports (basic = 'reports', advanced types need the advanced plan)
         Route::middleware(['perm:reports.view', 'feature:reports'])->group(function () {
             Route::get('reports/{type}', [ReportController::class, 'report'])
-                ->where('type', 'sales|tables|waiters|items|payments|inventory|expenses|pnl');
+                ->where('type', 'sales|tables|waiters|items|payments|inventory|expenses|pnl|exceptions');
         });
     });
 });

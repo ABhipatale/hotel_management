@@ -80,6 +80,9 @@ class PublicMenuController extends Controller
                 'items.*.variant_id' => ['nullable', Tenant::exists('food_item_variants')],
                 'items.*.quantity' => 'required|integer|min:1|max:20',
             ]);
+            // Spam / prank guard: only a few customer orders may wait for staff approval at one table at a time
+            $waiting = Order::where('table_id', $table->id)->where('source', 'qr')->where('status', 'pending')->count();
+            abort_if($waiting >= (int) config('hms.qr_max_pending', 3), 429, 'Your earlier orders are still waiting for the staff to accept them. Please wait a moment.');
             $order = $orders->place($table->branch_id, $table, $d, 'qr');
 
             return response()->json(['order_no' => $order->order_no, 'tracking_code' => $this->trackingCode($order), 'status' => $order->status], 201);

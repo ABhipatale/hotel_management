@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\Expense;
 use App\Models\HotelTable;
@@ -10,6 +11,8 @@ use App\Models\InventoryItem;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
+use App\Models\User;
+use App\Support\BizTime;
 use App\Support\Tenant;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -21,12 +24,12 @@ class ReportController extends Controller
     public function dashboard(Request $r)
     {
         $branch = $this->branchFilter($r);
-        $today = now()->startOfDay();
-        $month = now()->startOfMonth();
+        $today = BizTime::dayStart(BizTime::today());   // "today" and "this month" begin at midnight in India
+        $month = BizTime::monthStart();
 
         $paid = fn () => Bill::where('status', 'paid')->when($branch, fn ($q) => $q->where('branch_id', $branch));
         $tables = HotelTable::when($branch, fn ($q) => $q->where('branch_id', $branch));
-        $expenses = fn ($from) => Expense::where('expense_date', '>=', $from->toDateString())->when($branch, fn ($q) => $q->where('branch_id', $branch))->sum('amount');
+        $expenses = fn ($from) => Expense::where('expense_date', '>=', BizTime::dateOf($from))->when($branch, fn ($q) => $q->where('branch_id', $branch))->sum('amount');
         $monthSales = (float) $paid()->where('created_at', '>=', $month)->sum('grand_total');
         $monthExp = (float) $expenses($month);
 
@@ -44,15 +47,15 @@ class ReportController extends Controller
             'waiter_performance' => $this->waiters($branch, $month, now())->take(5)->values(),
             'payment_analytics' => $this->payments($branch, $month, now()),
             'inventory_alerts' => InventoryItem::whereColumn('quantity', '<=', 'min_quantity')->when($branch, fn ($q) => $q->where('branch_id', $branch))->get(['id', 'name', 'quantity', 'min_quantity', 'unit']),
-            'sales_last_7_days' => $this->salesSeries($branch, now()->subDays(6)->startOfDay(), now(), 'day'),
+            'sales_last_7_days' => $this->salesSeries($branch, BizTime::dayStart(BizTime::now()->subDays(6)), now(), 'day'),
         ];
     }
 
     public function report(Request $r, string $type)
     {
         $branch = $this->branchFilter($r);
-        $from = Carbon::parse($r->query('from', now()->startOfMonth()->toDateString()))->startOfDay();
-        $to = Carbon::parse($r->query('to', now()->toDateString()))->endOfDay();
+        $from = BizTime::dayStart($r->query('from', BizTime::now()->startOfMonth()->toDateString()));
+        $to = BizTime::dayEnd($r->query('to', BizTime::today()));
 
         return match ($type) {
             'sales' => ['group' => $g = $r->query('group', 'day'), 'rows' => $this->salesSeries($branch, $from, $to, in_array($g, ['day', 'month', 'year'], true) ? $g : 'day')],
@@ -60,12 +63,45 @@ class ReportController extends Controller
             'waiters' => $this->waiters($branch, $from, $to)->values(),
             'items' => $this->items($branch, $from, $to)->values(),
             'payments' => $this->payments($branch, $from, $to),
-            'expenses' => Expense::whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])->when($branch, fn ($q) => $q->where('branch_id', $branch))
+            'expenses' => Expense::whereBetween('expense_date', [BizTime::dateOf($from), BizTime::dateOf($to)])->when($branch, fn ($q) => $q->where('branch_id', $branch))
                 ->select('category', DB::raw('SUM(amount) as total'), DB::raw('COUNT(*) as entries'))->groupBy('category')->orderByDesc('total')->get(),
             'inventory' => InventoryItem::when($branch, fn ($q) => $q->where('branch_id', $branch))->orderBy('name')->get()->map(fn ($i) => $i->toArray() + ['low_stock' => $i->quantity <= $i->min_quantity]),
             'pnl' => $this->pnl($branch, $from, $to),
+            'exceptions' => $this->exceptions($branch, $from, $to),
             default => abort(404),
         };
+    }
+
+    /**
+     * "Discounts & voids": what the owner should look at every day. Built from the audit trail, so it also shows who did it
+     * and who approved it. A counter manager sees only their own counter.
+     */
+    private function exceptions(?int $branch, Carbon $from, Carbon $to): array
+    {
+        $logs = AuditLog::where('company_id', Tenant::id())
+            ->whereIn('action', ['bill.void', 'bill.generate', 'order.cancel', 'order.item_removed'])
+            ->whereBetween('created_at', [$from, $to])->latest('id')->limit(500)->get()
+            ->filter(fn ($l) => $branch === null || ! isset($l->meta['branch_id']) || (int) $l->meta['branch_id'] === $branch)
+            ->filter(fn ($l) => $l->action !== 'bill.generate' || ! empty($l->meta['extra_discount']))
+            ->values();
+        $names = User::whereIn('id', $logs->pluck('user_id')->filter()->unique()->all())->pluck('name', 'id');
+        $row = fn ($l) => ['at' => $l->created_at, 'by' => $names[$l->user_id] ?? '—'] + ($l->meta ?? []);
+        $by = fn (string $a) => $logs->where('action', $a)->map($row)->values();
+
+        $voids = $by('bill.void');
+        $discounts = $by('bill.generate');
+        $cancellations = $by('order.cancel');
+        $removed = $by('order.item_removed');
+
+        return [
+            'voids' => $voids, 'discounts' => $discounts, 'cancellations' => $cancellations, 'removed' => $removed,
+            'totals' => [
+                'voids' => round((float) $voids->sum('total'), 2),
+                'discounts' => round((float) $discounts->sum('extra_discount'), 2),
+                'cancellations' => round((float) $cancellations->sum('amount'), 2),
+                'removed' => round((float) $removed->sum('amount'), 2),
+            ],
+        ];
     }
 
     /**
@@ -80,7 +116,7 @@ class ReportController extends Controller
     private function salesSeries(?int $branch, Carbon $from, Carbon $to, string $group): array
     {
         $rows = Bill::where('status', 'paid')->whereBetween('created_at', [$from, $to])->when($branch, fn ($q) => $q->where('branch_id', $branch))
-            ->select(DB::raw('DATE(created_at) as d'), DB::raw('SUM(grand_total) as sales'), DB::raw('SUM(tax) as tax'), DB::raw('SUM(discount) as discount'), DB::raw('COUNT(*) as bills'))
+            ->select(DB::raw(BizTime::dateSql('created_at').' as d'), DB::raw('SUM(grand_total) as sales'), DB::raw('SUM(tax) as tax'), DB::raw('SUM(discount) as discount'), DB::raw('COUNT(*) as bills'))
             ->groupBy('d')->orderBy('d')->get();
 
         $fmt = ['day' => 'Y-m-d', 'month' => 'Y-m', 'year' => 'Y'][$group];
@@ -132,7 +168,7 @@ class ReportController extends Controller
     {
         $sales = (float) Bill::where('status', 'paid')->whereBetween('created_at', [$from, $to])->when($branch, fn ($q) => $q->where('branch_id', $branch))->sum('grand_total');
         $tax = (float) Bill::where('status', 'paid')->whereBetween('created_at', [$from, $to])->when($branch, fn ($q) => $q->where('branch_id', $branch))->sum('tax');
-        $exp = (float) Expense::whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])->when($branch, fn ($q) => $q->where('branch_id', $branch))->sum('amount');
+        $exp = (float) Expense::whereBetween('expense_date', [BizTime::dateOf($from), BizTime::dateOf($to)])->when($branch, fn ($q) => $q->where('branch_id', $branch))->sum('amount');
 
         return ['sales' => $sales, 'tax_collected' => $tax, 'net_sales' => round($sales - $tax, 2), 'expenses' => $exp, 'profit' => round($sales - $tax - $exp, 2)];
     }

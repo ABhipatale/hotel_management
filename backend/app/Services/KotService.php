@@ -7,6 +7,7 @@ use App\Models\KotItem;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\User;
+use App\Support\BizTime;
 use App\Support\Tenant;
 use Illuminate\Support\Facades\DB;
 
@@ -88,7 +89,7 @@ class KotService
     private function make(Order $order, string $type, array $lines, ?User $by, ?string $note): Kot
     {
         return DB::transaction(function () use ($order, $type, $lines, $by, $note) {
-            $today = now()->toDateString();
+            $today = BizTime::today();  // the kitchen's day starts at midnight in India
             // one running number per day for the whole company (the kitchen reads "KOT 12", not a database id)
             $number = Kot::withoutGlobalScope('branch')->where('kot_date', $today)->lockForUpdate()->count() + 1;
             $kot = Kot::create([

@@ -9,10 +9,11 @@ import ImagePicker from '../../components/ImagePicker'
 import SavedPrinter from '../../components/SavedPrinter'
 import KotPrintSettings from '../../components/KotPrintSettings'
 import BillLanguageSettings from '../../components/BillLanguageSettings'
+import ApprovalSettings from '../../components/ApprovalSettings'
 import { Button, Card, Input, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
 
 export default function Settings() {
-  const { refresh, hasFeature, company: shop } = useAuth()
+  const { refresh, hasFeature, company: shop, user } = useAuth()
   const t = useT()
   const toast = useToast()
   const { data: company, loading } = useApi('/company')
@@ -92,6 +93,13 @@ export default function Settings() {
             <h3 className="mb-3 font-semibold">{t('Bill language')}</h3>
             <BillLanguageSettings />
           </Card>
+
+          {user?.role === 'owner' && (
+            <Card>
+              <h3 className="mb-3 font-semibold">{t('Approvals')}</h3>
+              <ApprovalSettings />
+            </Card>
+          )}
 
           {shop?.kot_print && (
             <Card>

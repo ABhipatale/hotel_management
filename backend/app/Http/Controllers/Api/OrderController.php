@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Services\KotService;
 use App\Services\OrderService;
+use App\Support\BizTime;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -40,7 +41,7 @@ class OrderController extends Controller
             $q->where('table_id', $t);
         }
         if ($d = $r->query('date')) {
-            $q->whereDate('created_at', $d);
+            $q->whereBetween('created_at', [BizTime::dayStart($d), BizTime::dayEnd($d)]); // that day in India
         }
 
         return $q->latest()->limit(200)->get();
@@ -180,7 +181,21 @@ class OrderController extends Controller
         }
         abort_if(in_array($order->status, ['paid', 'cancelled'], true), 422, 'Order is closed.');
 
+        // Cancelling an order the kitchen already started (food made or served) needs the owner's approval PIN, once the owner has set one
+        $before = $order->status;
+        $approved = null;
+        $amount = 0.0;
+        if ($d['status'] === 'cancelled') {
+            if (in_array($before, ['preparing', 'ready', 'served'], true)) {
+                $approved = app(\App\Services\ApprovalService::class)->requireIfConfigured($r, 'Cancelling an order that the kitchen already started');
+            }
+            $amount = $this->orders->grossSubtotal($order);
+        }
+
         $order->update(['status' => $d['status']]);
+        if ($d['status'] === 'cancelled' && $before !== 'pending') {
+            \App\Models\AuditLog::record('order.cancel', 'order', $order->id, ['order_no' => $order->order_no, 'branch_id' => $order->branch_id, 'status_before' => $before, 'amount' => $amount, 'approved' => $approved]);
+        }
         if ($d['status'] === 'accepted') {
             app(KotService::class)->fireAll($order, $r->user()); // an approved customer (QR) order goes to the kitchen now
         }

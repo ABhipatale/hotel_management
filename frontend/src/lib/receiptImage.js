@@ -1,6 +1,9 @@
 // Receipt as a picture for thermal printers. Plain ESC/POS text cannot print Marathi (the printer has no Devanagari font),
 // so the bill is drawn on a canvas (the phone's own fonts shape the Devanagari correctly) and sent as ESC/POS raster bands.
 // Used when the app is in Marathi, or whenever the bill holds non-English text (e.g. a Marathi business name).
+
+import { dateIST, timeIST } from './format'
+
 const ESC = 0x1b
 const GS = 0x1d
 
@@ -125,7 +128,7 @@ export async function buildReceiptImage({ bill, company, table, order_no, waiter
 
   // ── bill details ──
   const d = new Date(bill.created_at)
-  const when = `${d.toLocaleDateString('en-IN')} ${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+  const when = `${dateIST(d)} ${timeIST(d)}`
   pair(`${L.bill}: ${bill.bill_no}`, '', base - 2)
   pair(`${L.date}: ${when}`, '', base - 2)
   if (table || waiter) pair(table ? `${L.table}: ${table}` : '', waiter ? `${L.staff}: ${waiter}` : '', base - 2)

@@ -3,6 +3,7 @@ import { MessageCircle, Printer } from 'lucide-react'
 import { buildReceipt, printBluetooth, printUsb, savedPrinter } from '../lib/escpos'
 import { buildReceiptImage, needsImage, receiptFooter, receiptLabels, receiptName } from '../lib/receiptImage'
 import { billLang } from '../lib/billLang'
+import { dateIST, timeIST } from '../lib/format'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../i18n'
@@ -74,7 +75,7 @@ export default function Receipt({ data, phone }) {
           {gstOn && company.gst_number && <div>{L.gstin}: {company.gst_number}</div>}
         </div>
         <hr className="my-1.5 border-t-2 border-double border-black" />
-        <div className="flex flex-wrap justify-between gap-x-2"><span className="break-all">{L.bill}: {bill.bill_no}</span><span>{d.toLocaleDateString('en-IN')} {d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</span></div>
+        <div className="flex flex-wrap justify-between gap-x-2"><span className="break-all">{L.bill}: {bill.bill_no}</span><span>{dateIST(d)} {timeIST(d)}</span></div>
         {(table || waiter) && <div className="flex justify-between gap-x-2"><span>{table ? `${L.table}: ${table}` : ''}</span><span>{waiter ? `${L.staff}: ${waiter}` : ''}</span></div>}
         <hr className="my-1.5 border-dashed border-black" />
         <div className="flex gap-1 font-bold"><span className="flex-1">{L.item}</span><span className="w-8 text-right">{L.qty}</span><span className="w-16 text-right">{L.amt}</span></div>
