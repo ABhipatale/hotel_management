@@ -109,7 +109,7 @@ export default function NewOrder() {
       if (editId) {
         await api.put(`/orders/${editId}/items`, { items: lines.map((l) => ({ food_item_id: l.food_item_id, variant_id: l.variant_id || null, quantity: l.quantity })), notes: notes || null })
         toast.success(t('Order updated'))
-        nav(editing?.bill && can('billing.manage') ? `/app/billing?pay=${editing.bill.id}` : '/app/orders')
+        nav(editing?.bill && can('billing.manage') ? `/app/billing?pay=${editing.bill.id}&from=orders` : '/app/orders')
         return
       }
       const { data } = await api.post('/orders', {
@@ -120,7 +120,7 @@ export default function NewOrder() {
       })
       if (withBill && data.bill) {
         toast.success(t('Bill {no} generated', { no: data.bill.bill_no }))
-        nav(`/app/billing?pay=${data.bill.id}`)
+        nav(`/app/billing?pay=${data.bill.id}&from=new`)
       } else {
         toast.success(data.kot ? t('Sent to kitchen — KOT #{n}', { n: data.kot.number }) : data.merged ? t('Added to the existing order {no}', { no: data.order_no }) : t('Order placed'))
         // optional kitchen slip from this device's printer: automatic, asked with a popup, or not at all

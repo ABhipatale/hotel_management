@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Banknote, Smartphone } from 'lucide-react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { dt, money, today } from '../../lib/format'
@@ -17,13 +17,20 @@ export default function Billing() {
   const [receipt, setReceipt] = useState(null)
   const [paying, setPaying] = useState(null)
   const [sp, setSp] = useSearchParams()
+  const nav = useNavigate()
+  // Where to return after the payment, when it was started from the order screens ("Place & bill", Collect on an order).
+  // Collect pressed on this Billing page itself leaves this empty: it stays here, as before.
+  const back = useRef(null)
 
   // Arriving from "Place & bill": open the payment sheet for that bill right away
   useEffect(() => {
     const id = sp.get('pay')
     if (!id || !data) return
     const b = data.find((x) => String(x.id) === id)
-    if (b) { setPaying(b); setSp({}, { replace: true }) }
+    if (b) {
+      back.current = sp.get('from') === 'new' ? '/app/order/new' : sp.get('from') === 'orders' ? '/app/orders' : null
+      setPaying(b); setSp({}, { replace: true })
+    }
   }, [sp, data, setSp])
 
   const open = async (b) => {
@@ -54,8 +61,8 @@ export default function Billing() {
         />
       )}
 
-      <Modal open={!!receipt} onClose={() => setReceipt(null)} title={t('Receipt')}>{receipt && <Receipt data={receipt} />}</Modal>
-      <PayModal bill={paying} onClose={() => setPaying(null)} onPaid={(r) => { setPaying(null); reload(); setReceipt(r) }} />
+      <Modal open={!!receipt} onClose={() => { setReceipt(null); if (back.current) { const to = back.current; back.current = null; nav(to) } }} title={t('Receipt')}>{receipt && <Receipt data={receipt} />}</Modal>
+      <PayModal bill={paying} onClose={() => { setPaying(null); back.current = null }} onPaid={(r) => { setPaying(null); reload(); setReceipt(r) }} />
     </>
   )
 }
