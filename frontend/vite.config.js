@@ -9,7 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'favicon.png', 'icon-192.png', 'icon-512.png'],
+      includeAssets: ['favicon.svg', 'favicon.png', 'icon-192.png', 'icon-512.png', 'logo-mark.png'],
       manifest: {
         name: 'Hotel SaaS',
         short_name: 'HotelSaaS',

@@ -141,7 +141,7 @@ export default function QrMenu() {
           const photo = i.image_url || (i.image_path ? `${location.origin}/storage/${i.image_path}` : null)
           const names = dishNames(i, lang)
           return (
-            <div key={i.id} style={{ animationDelay: `${Math.min(idx, 8) * 30}ms` }} className="animate-pop flex flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-card ring-1 ring-line/60">
+            <div key={i.id} onClick={() => (i.variants.length ? setPick(i) : add(i))} style={{ animationDelay: `${Math.min(idx, 8) * 30}ms` }} className={`animate-pop flex cursor-pointer select-none flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-card transition active:scale-[.98] ${qty > 0 ? 'ring-2 ring-brand' : 'ring-1 ring-line/60'}`}>
               <div className="relative">
                 {photo ? <Img src={photo} thumb className="aspect-[3/2] w-full object-cover" /> : <div className="grid aspect-[3/2] w-full place-items-center bg-gradient-to-br from-brand-soft to-ivory"><span className="text-4xl font-extrabold text-brand/25">{names.main?.[0]}</span></div>}
                 <span className="absolute left-2 top-2 grid h-5 w-5 place-items-center rounded-md bg-white/95 shadow-card"><i className={`grid h-3.5 w-3.5 place-items-center rounded-[3px] border-2 ${i.is_veg ? 'border-emerald-600' : 'border-rose-600'}`}><b className={`h-1.5 w-1.5 rounded-full ${i.is_veg ? 'bg-emerald-600' : 'bg-rose-600'}`} /></i></span>
@@ -152,7 +152,7 @@ export default function QrMenu() {
                 {names.sub && <div className="line-clamp-1 text-xs text-muted">{names.sub}</div>}
                 <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5"><b className="text-base text-brand">{money(unit(i))}</b>{off && <s className="text-[11px] text-muted">{money(i.price)}</s>}</div>
                 {i.variants.length > 0 && <div className="text-[11px] font-semibold text-muted">{t('{n} sizes', { n: i.variants.length + 1 })}</div>}
-                <div className="mt-auto pt-2.5">
+                <div className="mt-auto pt-2.5" onClick={(e) => e.stopPropagation()}>
                   {qty > 0 && !i.variants.length ? (
                     <div className="flex min-h-11 items-center justify-between rounded-xl bg-brand px-1 text-white">
                       <button onClick={() => change(key, -1)} aria-label={t('Remove one')} className="grid h-10 w-10 place-items-center rounded-lg active:bg-white/15"><Minus className="h-4 w-4" strokeWidth={3} /></button>

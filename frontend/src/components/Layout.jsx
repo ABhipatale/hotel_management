@@ -51,7 +51,7 @@ function Logo({ company, isSuperAdmin, size = 'h-11 w-11' }) {
   if (isSuperAdmin) return <div className={`grid ${tile} place-items-center bg-ivory text-brand`}><Store className="h-5 w-5" strokeWidth={2.3} /></div>
   return company?.logo_url && !bad
     ? <img src={company.logo_url} alt="" decoding="async" onError={() => setBad(true)} className={`${tile} bg-white object-contain p-1`} />
-    : <div className={`grid ${tile} place-items-center bg-ivory text-lg font-extrabold text-brand`}>{company?.name?.[0]}</div>
+    : <img src="/logo-mark.png" alt="" decoding="async" className={`${tile} object-cover ring-1 ring-white/25`} /> // no logo uploaded: the ABNEXA symbol
 }
 
 export default function Layout() {
