@@ -144,6 +144,7 @@ body {
   body * { visibility: hidden; }
   #receipt, #receipt * { visibility: visible; }
   #receipt { position: absolute; left: 0; top: 0; box-shadow: none !important; }
+  #receipt-scroll { max-height: none !important; overflow: visible !important; }
   @page { margin: 0; }
 }
 

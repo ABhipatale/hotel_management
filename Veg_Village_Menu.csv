@@ -1,0 +1,152 @@
+﻿product_number,name,marathi_name,category,category_marathi,price,veg
+1,Roasted Papad,टोस्टेड पापड,Appetizer,अ‍ॅपेटायझर,30,yes
+2,Fry Papad,फ्राय पापड,Appetizer,अ‍ॅपेटायझर,35,yes
+3,Masala Papad,मसाला पापड,Appetizer,अ‍ॅपेटायझर,50,yes
+4,Cheese Masala Papad,चीज मसाला पापड,Appetizer,अ‍ॅपेटायझर,60,yes
+5,Finger Chips,फिंगर चिप्स,Appetizer,अ‍ॅपेटायझर,85,yes
+6,Peri-Peri Finger Chips,पेरी-पेरी फिंगर चिप्स,Appetizer,अ‍ॅपेटायझर,90,yes
+7,Veg Pakoda,व्हेज पकोडा,Appetizer,अ‍ॅपेटायझर,100,yes
+8,Green Salad,ग्रीन सॅलड,Salad / Raita,सॅलड / रायता,70,yes
+9,Cucumber Salad,काकडी सॅलड,Salad / Raita,सॅलड / रायता,50,yes
+10,Mix Raita,मिक्स रायता,Salad / Raita,सॅलड / रायता,70,yes
+11,Pineapple Raita,पायनॅपल रायता,Salad / Raita,सॅलड / रायता,80,yes
+12,Boondi Raita,बुंदी रायता,Salad / Raita,सॅलड / रायता,80,yes
+13,Plain Curd,साधे दही,Salad / Raita,सॅलड / रायता,55,yes
+14,Veg Manchow Soup,व्हेज मांचो सूप,Soups,सूप,120,yes
+15,Veg Hot n Sour Soup,व्हेज हॉट अँड सॉर सूप,Soups,सूप,110,yes
+16,Cream of Tomato Soup,क्रीम ऑफ टोमॅटो सूप,Soups,सूप,120,yes
+17,Veg Sweet Corn Soup,व्हेज स्वीट कॉर्न सूप,Soups,सूप,130,yes
+18,Lemon Coriander Soup,लेमन कोरिअंडर सूप,Soups,सूप,120,yes
+19,Veg Manchurian Dry,व्हेज मांचुरियन ड्राय,Chinese Starter,चायनीज स्टार्टर,180,yes
+20,Veg Manchurian Gravy,व्हेज मांचुरियन ग्रेव्ही,Chinese Starter,चायनीज स्टार्टर,200,yes
+21,Gobhi Manchurian Dry,गोभी मांचुरियन ड्राय,Chinese Starter,चायनीज स्टार्टर,170,yes
+22,Paneer Chilly,पनीर चिली,Chinese Starter,चायनीज स्टार्टर,240,yes
+23,Paneer Manchurian,पनीर मांचुरियन,Chinese Starter,चायनीज स्टार्टर,220,yes
+24,Veg Crispy,व्हेज क्रिस्पी,Chinese Starter,चायनीज स्टार्टर,180,yes
+25,Paneer Satay,पनीर साटे,Chinese Starter,चायनीज स्टार्टर,260,yes
+26,Paneer 65,पनीर 65,Chinese Starter,चायनीज स्टार्टर,250,yes
+27,Mushroom Chilly,मशरूम चिली,Chinese Starter,चायनीज स्टार्टर,200,yes
+28,Baby Corn Mushroom Chilly / Manchurian,बेबी कॉर्न मशरूम चिली / मांचुरियन,Chinese Starter,चायनीज स्टार्टर,200,yes
+29,Paneer Hot Pan,पनीर हॉट पॅन,Chinese Starter,चायनीज स्टार्टर,250,yes
+30,Veg 65,व्हेज 65,Chinese Starter,चायनीज स्टार्टर,180,yes
+31,Cheese Corn Tikki,चीज कॉर्न टिक्की,Tandoori Starters,तंदुरी स्टार्टर्स,250,yes
+32,Veg Hara Bhara Kebab,व्हेज हरा भरा कबाब,Tandoori Starters,तंदुरी स्टार्टर्स,220,yes
+33,Veg Seekh Kebab,व्हेज सीख कबाब,Tandoori Starters,तंदुरी स्टार्टर्स,220,yes
+34,Baby Corn Tikka,बेबी कॉर्न टिक्का,Tandoori Starters,तंदुरी स्टार्टर्स,220,yes
+35,Paneer Tikka Kebab,पनीर टिक्का कबाब,Tandoori Starters,तंदुरी स्टार्टर्स,230,yes
+36,Paneer Banjara Kebab,पनीर बंजारा कबाब,Tandoori Starters,तंदुरी स्टार्टर्स,250,yes
+37,Paneer Angara Kebab,पनीर अंगारा कबाब,Tandoori Starters,तंदुरी स्टार्टर्स,260,yes
+38,Paneer Pahadi Kebab,पनीर पहाडी कबाब,Tandoori Starters,तंदुरी स्टार्टर्स,250,yes
+39,Paneer Malai Kebab,पनीर मलाई कबाब,Tandoori Starters,तंदुरी स्टार्टर्स,250,yes
+40,Paneer Shaly,पनीर शॅली,Tandoori Starters,तंदुरी स्टार्टर्स,250,yes
+41,Paneer Cheese Tikka,पनीर चीज टिक्का,Tandoori Starters,तंदुरी स्टार्टर्स,280,yes
+42,Paneer Achari Tikka,पनीर अचारी टिक्का,Tandoori Starters,तंदुरी स्टार्टर्स,230,yes
+43,Mushroom Tikka,मशरूम टिक्का,Tandoori Starters,तंदुरी स्टार्टर्स,250,yes
+44,Mushroom Hill Top,मशरूम हिल टॉप,Tandoori Starters,तंदुरी स्टार्टर्स,250,yes
+45,Paneer Banjara Tikka,पनीर बंजारा टिक्का,Tandoori Starters,तंदुरी स्टार्टर्स,250,yes
+46,Veg SP. Veg,व्हेज स्पेशल व्हेज,Indian - Main Course,इंडियन - मेन कोर्स,350,yes
+47,Mix Veg,मिक्स व्हेज,Indian - Main Course,इंडियन - मेन कोर्स,220,yes
+48,Veg Kolhapuri,व्हेज कोल्हापुरी,Indian - Main Course,इंडियन - मेन कोर्स,230,yes
+49,Veg Kadhai,व्हेज कढई,Indian - Main Course,इंडियन - मेन कोर्स,230,yes
+50,Veg Maratha,व्हेज मराठा,Indian - Main Course,इंडियन - मेन कोर्स,240,yes
+51,Veg Bhuna,व्हेज भुना,Indian - Main Course,इंडियन - मेन कोर्स,230,yes
+52,Veg Amritsari,व्हेज अमृतसरी,Indian - Main Course,इंडियन - मेन कोर्स,220,yes
+53,Veg Handi,व्हेज हांडी,Indian - Main Course,इंडियन - मेन कोर्स,200,yes
+54,Veg Deewani Handi,व्हेज दिवानी हांडी,Indian - Main Course,इंडियन - मेन कोर्स,230,yes
+55,Veg Deewani Khaas,व्हेज दिवानी खास,Indian - Main Course,इंडियन - मेन कोर्स,250,yes
+56,Veg Keema Kasturi,व्हेज कीमा कस्तुरी,Indian - Main Course,इंडियन - मेन कोर्स,230,yes
+57,Veg Makhanwala,व्हेज मखनवाला,Indian - Main Course,इंडियन - मेन कोर्स,240,yes
+58,Tomato Paneer Bharta,टोमॅटो पनीर भरता,Indian - Main Course,इंडियन - मेन कोर्स,230,yes
+59,Veg Hyderabadi,व्हेज हैदराबादी,Indian - Main Course,इंडियन - मेन कोर्स,220,yes
+60,Veg Tawa,व्हेज तवा,Indian - Main Course,इंडियन - मेन कोर्स,240,yes
+61,Lasuni Methi,लसूनी मेथी,Indian - Main Course,इंडियन - मेन कोर्स,180,yes
+62,Lasuni Palak,लसूनी पालक,Indian - Main Course,इंडियन - मेन कोर्स,210,yes
+63,Methi Chaman,मेथी चमन,Indian - Main Course,इंडियन - मेन कोर्स,200,yes
+64,Baingan Masala,बैगन मसाला,Indian - Main Course,इंडियन - मेन कोर्स,180,yes
+65,Pithla,पिठला,Indian - Main Course,इंडियन - मेन कोर्स,180,yes
+66,Bhendi Masala,भेंडी मसाला,Indian - Main Course,इंडियन - मेन कोर्स,170,yes
+67,Veg Malwani,व्हेज मालवणी,Indian - Main Course,इंडियन - मेन कोर्स,250,yes
+68,Paneer Masala,पनीर मसाला,Paneer Special,पनीर स्पेशल,220,yes
+69,Paneer Kadahi,पनीर कढई,Paneer Special,पनीर स्पेशल,240,yes
+70,Paneer Lababdaar,पनीर लबाबदार,Paneer Special,पनीर स्पेशल,250,yes
+71,Paneer Angara,पनीर अंगारा,Paneer Special,पनीर स्पेशल,260,yes
+72,Paneer Tikka Masala,पनीर टिक्का मसाला,Paneer Special,पनीर स्पेशल,260,yes
+73,Paneer Butter Masala,पनीर बटर मसाला,Paneer Special,पनीर स्पेशल,250,yes
+74,Paneer Chingari,पनीर चिंगारी,Paneer Special,पनीर स्पेशल,260,yes
+75,Paneer Kaju Masala,पनीर काजू मसाला,Paneer Special,पनीर स्पेशल,260,yes
+76,Palak Paneer,पालक पनीर,Paneer Special,पनीर स्पेशल,240,yes
+77,Paneer Bhurji,पनीर भुर्जी,Paneer Special,पनीर स्पेशल,270,yes
+78,Kaju Masala,काजू मसाला,Paneer Special,पनीर स्पेशल,240,yes
+79,Paneer Toofani,पनीर तुफानी,Paneer Special,पनीर स्पेशल,250,yes
+80,Mutter Paneer,मटर पनीर,Paneer Special,पनीर स्पेशल,210,yes
+81,Aloo Mutter,आलू मटर,Paneer Special,पनीर स्पेशल,180,yes
+82,Aloo Gobhi,आलू गोभी,Paneer Special,पनीर स्पेशल,180,yes
+83,Mutter Mushroom,मटर मशरूम,Paneer Special,पनीर स्पेशल,200,yes
+84,Mushroom Masala,मशरूम मसाला,Paneer Special,पनीर स्पेशल,220,yes
+85,Paneer Lachhedaar,पनीर लच्छेदार,Paneer Special,पनीर स्पेशल,250,yes
+86,Kaju Korma,काजू कोरमा,Kaju & Malai Specials,काजू व मलाई स्पेशल,250,yes
+87,Methi Mutter Malai,मेथी मटर मलाई,Kaju & Malai Specials,काजू व मलाई स्पेशल,240,yes
+88,Malai Kofta,मलाई कोफ्ता,Kaju & Malai Specials,काजू व मलाई स्पेशल,250,yes
+89,Kaju Curry,काजू करी,Kaju & Malai Specials,काजू व मलाई स्पेशल,250,yes
+90,Dal Fry,दाल फ्राय,Dal,दाल,120,yes
+91,Dal Tadka,दाल तडका,Dal,दाल,130,yes
+92,Dal Kolhapuri,दाल कोल्हापुरी,Dal,दाल,150,yes
+93,Dal Palak,दाल पालक,Dal,दाल,150,yes
+94,Plain Roti,प्लेन रोटी,Indian Breads,इंडियन ब्रेड्स,20,yes
+95,Butter Roti,बटर रोटी,Indian Breads,इंडियन ब्रेड्स,25,yes
+96,Missi Roti,मिस्सी रोटी,Indian Breads,इंडियन ब्रेड्स,40,yes
+97,Plain Naan,प्लेन नान,Indian Breads,इंडियन ब्रेड्स,35,yes
+98,Butter Naan,बटर नान,Indian Breads,इंडियन ब्रेड्स,40,yes
+99,Garlic Naan,गार्लिक नान,Indian Breads,इंडियन ब्रेड्स,60,yes
+100,Cheese Garlic Naan,चीज गार्लिक नान,Indian Breads,इंडियन ब्रेड्स,70,yes
+101,Kulcha,कुलचा,Indian Breads,इंडियन ब्रेड्स,30,yes
+102,Butter Kulcha,बटर कुलचा,Indian Breads,इंडियन ब्रेड्स,35,yes
+103,Lachha Paratha,लच्छा पराठा,Indian Breads,इंडियन ब्रेड्स,50,yes
+104,Aloo Paratha,आलू पराठा,Indian Breads,इंडियन ब्रेड्स,80,yes
+105,Paneer Paratha,पनीर पराठा,Indian Breads,इंडियन ब्रेड्स,100,yes
+106,Mix Paratha,मिक्स पराठा,Indian Breads,इंडियन ब्रेड्स,100,yes
+107,Bread Basket,ब्रेड बास्केट,Indian Breads,इंडियन ब्रेड्स,350,yes
+108,Plain Rice (Half),प्लेन राईस (हाफ),Rice & Biryani,राईस व बिर्याणी,50,yes
+109,Plain Rice (Full),प्लेन राईस (फुल),Rice & Biryani,राईस व बिर्याणी,90,yes
+110,Jeera Rice (Half),जीरा राईस (हाफ),Rice & Biryani,राईस व बिर्याणी,60,yes
+111,Jeera Rice (Full),जीरा राईस (फुल),Rice & Biryani,राईस व बिर्याणी,100,yes
+112,Ghee Rice,घी राईस,Rice & Biryani,राईस व बिर्याणी,170,yes
+113,Curd Rice,कर्ड राईस,Rice & Biryani,राईस व बिर्याणी,150,yes
+114,Masala Rice,मसाला राईस,Rice & Biryani,राईस व बिर्याणी,150,yes
+115,Dal Khichdi,दाल खिचडी,Rice & Biryani,राईस व बिर्याणी,160,yes
+116,Veg Pulav,व्हेज पुलाव,Rice & Biryani,राईस व बिर्याणी,150,yes
+117,Paneer Pulav,पनीर पुलाव,Rice & Biryani,राईस व बिर्याणी,190,yes
+118,Veg Biryani,व्हेज बिर्याणी,Rice & Biryani,राईस व बिर्याणी,200,yes
+119,Veg Dum Biryani,व्हेज दम बिर्याणी,Rice & Biryani,राईस व बिर्याणी,230,yes
+120,Veg Hyderabadi Biryani,व्हेज हैदराबादी बिर्याणी,Rice & Biryani,राईस व बिर्याणी,220,yes
+121,Paneer Tikka Biryani,पनीर टिक्का बिर्याणी,Rice & Biryani,राईस व बिर्याणी,240,yes
+122,Veg Hakka Noodles,व्हेज हक्का नूडल्स,Noodles - Rice,नूडल्स - राईस,160,yes
+123,Veg Schezwan Noodles,व्हेज शेझवान नूडल्स,Noodles - Rice,नूडल्स - राईस,180,yes
+124,Veg Singapore Noodles,व्हेज सिंगापूर नूडल्स,Noodles - Rice,नूडल्स - राईस,180,yes
+125,Veg Fried Rice,व्हेज फ्राईड राईस,Noodles - Rice,नूडल्स - राईस,170,yes
+126,Veg Schezwan Fried Rice,व्हेज शेझवान फ्राईड राईस,Noodles - Rice,नूडल्स - राईस,180,yes
+127,Veg Schezwan Triple Fried Rice,व्हेज शेझवान ट्रिपल फ्राईड राईस,Noodles - Rice,नूडल्स - राईस,220,yes
+128,Veg Village Spl. Fried Rice,व्हेज व्हिलेज स्पेशल फ्राईड राईस,Noodles - Rice,नूडल्स - राईस,280,yes
+129,Paneer Rice,पनीर राईस,Noodles - Rice,नूडल्स - राईस,210,yes
+130,Veg Thali,व्हेज थाळी,Thali,थाळी,180,yes
+131,Veg SP. Thali,व्हेज स्पेशल थाळी,Thali,थाळी,210,yes
+132,Idli,इडली,South Indian Breakfast,साउथ इंडियन नाश्ता,50,yes
+133,Idli Wada,इडली वडा,South Indian Breakfast,साउथ इंडियन नाश्ता,70,yes
+134,Mendu Wada,मेंदू वडा,South Indian Breakfast,साउथ इंडियन नाश्ता,70,yes
+135,Wada Pav,वडा पाव,South Indian Breakfast,साउथ इंडियन नाश्ता,20,yes
+136,Wada Sambar,वडा सांबार,South Indian Breakfast,साउथ इंडियन नाश्ता,50,yes
+137,Missal Pav,मिसळ पाव,South Indian Breakfast,साउथ इंडियन नाश्ता,50,yes
+138,Poori Bhaji,पुरी भाजी,South Indian Breakfast,साउथ इंडियन नाश्ता,60,yes
+139,Poha,पोहे,South Indian Breakfast,साउथ इंडियन नाश्ता,40,yes
+140,Sabudana Khichdi,साबुदाना खिचडी,South Indian Breakfast,साउथ इंडियन नाश्ता,40,yes
+141,Sira,शिरा,South Indian Breakfast,साउथ इंडियन नाश्ता,40,yes
+142,Upma,उपमा,South Indian Breakfast,साउथ इंडियन नाश्ता,40,yes
+143,Tea,चहा,Tea & Coffee,चहा व कॉफी,15,yes
+144,Spl. Tea,स्पेशल चहा,Tea & Coffee,चहा व कॉफी,25,yes
+145,Black Tea,ब्लॅक टी,Tea & Coffee,चहा व कॉफी,20,yes
+146,Coffee,कॉफी,Tea & Coffee,चहा व कॉफी,30,yes
+147,Black Coffee,ब्लॅक कॉफी,Tea & Coffee,चहा व कॉफी,20,yes
+148,Gulab Jamun with Ice-Cream,गुलाब जामुन विथ आईस-क्रीम,Dessert,डेझर्ट,80,yes
+149,Ice Cream Flavour,आईस क्रीम फ्लेव्हर,Dessert,डेझर्ट,50,yes
+150,Lassi,लस्सी,Dessert,डेझर्ट,60,yes
+151,Cold Coffee,कोल्ड कॉफी,Dessert,डेझर्ट,70,yes

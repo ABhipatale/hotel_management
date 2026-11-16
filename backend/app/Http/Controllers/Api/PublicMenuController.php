@@ -59,7 +59,7 @@ class PublicMenuController extends Controller
             'start_url' => '/?company='.$c->slug,
             'scope' => '/',
             'display' => 'standalone',
-            'orientation' => 'portrait',
+            'orientation' => 'any',
             'theme_color' => '#17645F', // one global product theme; tenants only customise name + logo/icon
             'background_color' => '#F3EEE8',
             'icons' => $icons,

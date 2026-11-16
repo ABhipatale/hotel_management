@@ -134,7 +134,7 @@ export default function MenuManager() {
       <Chips value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), catName(c, lang)])]} />
 
       {!rows.length ? <Empty title={t('No dishes yet')} action={<Button onClick={() => open()}>{t('Add your first dish')}</Button>} /> : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((i) => (
             <Card key={i.id} className={`flex gap-3 ${i.is_available ? '' : 'opacity-60'}`}>
               {i.image_url ? <Img src={i.image_url} thumb className="h-20 w-20 shrink-0 rounded-xl object-cover" /> : <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-brand-soft"><UtensilsCrossed className="h-7 w-7 text-brand/40" strokeWidth={1.6} /></div>}

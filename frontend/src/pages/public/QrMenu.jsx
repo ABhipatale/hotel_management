@@ -90,11 +90,11 @@ export default function QrMenu() {
   const stepLabel = latest ? STEPS[Math.max(0, STEPS.findIndex(([x]) => x === latest.status))][1] : ''
 
   return (
-    <div className="mx-auto min-h-full max-w-xl bg-canvas pb-32">
+    <div className="min-h-full bg-canvas pb-32">
       {/* Compact header: logo, name, table and language in one row */}
       <div className="relative overflow-hidden bg-brand px-4 pb-6 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
         <div className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-white/10" />
-        <div className="relative flex items-center gap-3">
+        <div className="relative mx-auto flex max-w-4xl items-center gap-3">
           {company.logo_url && !logoBad ? <img src={company.logo_url} alt="" decoding="async" onError={() => setLogoBad(true)} className="h-12 w-12 shrink-0 rounded-xl bg-white object-contain p-1" /> : <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-ivory text-xl font-extrabold text-brand">{company.name[0]}</div>}
           <div className="min-w-0 flex-1 leading-tight">
             <h1 className="truncate text-lg font-extrabold tracking-tight">{company.name}</h1>
@@ -104,6 +104,7 @@ export default function QrMenu() {
         </div>
       </div>
 
+      <div className="mx-auto max-w-4xl">
       {/* Search floats over the hero edge; only the category bar sticks while scrolling */}
       <div className="relative z-10 -mt-3.5 px-4">
         <div className="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-lift ring-1 ring-line/70">
@@ -132,7 +133,7 @@ export default function QrMenu() {
         {groups.map((g) => (
           <section key={g.id} className="space-y-3">
             {g.name && <h2 className="flex items-center gap-2 px-1 pt-2 text-[13px] font-extrabold uppercase tracking-wider text-brand"><span>{g.name}</span><span className="rounded-full bg-brand-soft px-2 py-0.5 text-[11px] tracking-normal">{g.items.length}</span><i className="h-px flex-1 bg-line" /></h2>}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
         {g.items.map((i, idx) => {
           const qty = lines.filter((l) => l.food_item_id === i.id).reduce((a, l) => a + l.quantity, 0)
           const key = `${i.id}:0`
@@ -171,6 +172,8 @@ export default function QrMenu() {
         ))}
         {!list.length && <div className="py-16 text-center"><UtensilsCrossed className="mx-auto mb-3 h-10 w-10 text-slate-300" strokeWidth={1.5} /><p className="text-sm font-semibold text-muted">{t('No dishes found')}</p></div>}
         <p className="pt-2 text-center text-[11px] text-muted/70">{t('Scan · Order · Enjoy')}</p>
+      </div>
+
       </div>
 
       {count > 0 && (

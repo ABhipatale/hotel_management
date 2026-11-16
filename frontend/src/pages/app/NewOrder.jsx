@@ -10,7 +10,7 @@ import { useToast } from '../../context/ToastContext'
 import { useI18n } from '../../i18n'
 import { kotConnection, kotPrefs, printKot } from '../../lib/kotSlip'
 import { catName, dishNames } from '../../lib/dishName'
-import { Button, Chips, Input, Modal, PageHeader, Select, Spinner } from '../../components/ui'
+import { Button, Chips, Input, Modal, Select, Spinner } from '../../components/ui'
 
 /** Waiter POS: pick table → add items → place order. Totals here are an estimate; the server prices the order. */
 export default function NewOrder() {
@@ -229,15 +229,14 @@ export default function NewOrder() {
 
   return (
     <>
-      <div className="hidden lg:block"><PageHeader title={editId ? t('Edit order') : t('New order')} /></div>
       {/* phones: title, "Order for" and the view controls all share the title line; the search box gets its own line */}
       <div className="mb-2 flex items-center gap-1.5 lg:hidden">
         <h1 className="shrink-0 text-[15px] font-extrabold tracking-tight">{editId ? t('Edit order') : t('New order')}</h1>
         <div className="min-w-0 flex-1">{editId ? <div className="truncate rounded-xl bg-brand-soft px-3 py-2.5 text-sm font-bold text-brand">{editing?.order_no}{editing?.table ? ` · ${t('Table {n}', { n: editing.table.number })}` : ''}</div> : orderSelect}</div>
         {viewControls}
       </div>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="min-w-0">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] min-[1180px]:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="@container min-w-0">
           <div className="lg:hidden">
             {/* fixed line (does not scroll): search bar + the first two categories */}
             <div className="mb-1.5 flex items-center gap-1">
@@ -250,7 +249,7 @@ export default function NewOrder() {
             <Chips rows={2} value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).slice(2).map((c) => [String(c.id), cn(c)])]} />
           </div>
           <div className="hidden lg:block">
-          <div className="mb-2 flex items-center gap-1.5"><div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} enterKeyHint="go" placeholder={t('Name or number')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>
+          <div className="mb-2 flex items-center gap-3"><h1 className="shrink-0 text-2xl font-extrabold tracking-tight">{editId ? t('Edit order') : t('New order')}</h1><div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} enterKeyHint="go" placeholder={t('Name or number')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>
               <div className="hidden items-center gap-1.5 lg:flex">{viewControls}</div>
             </div>
             <Chips rows={2} value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), cn(c)])]} />
@@ -289,7 +288,7 @@ export default function NewOrder() {
               })}
             </div>
           ) : (
-          <div className={asGrid ? 'grid grid-cols-2 gap-3 md:grid-cols-3' : 'grid gap-2.5 md:grid-cols-2'}>
+          <div className={asGrid ? 'grid grid-cols-2 gap-3 @[30rem]:grid-cols-3 @[44rem]:grid-cols-4 @[58rem]:grid-cols-5 @[72rem]:grid-cols-6' : 'grid gap-2.5 @[38rem]:grid-cols-2 @[58rem]:grid-cols-3 @[84rem]:grid-cols-4'}>
             {list.map((i) => {
               const n = qtyOf(i.id)
               const stepper = n > 0 && (
@@ -323,7 +322,7 @@ export default function NewOrder() {
           )}
           {!list.length && <p className="py-10 text-center text-sm text-muted">{t('No dishes found')}</p>}
         </div>
-        <div className="hidden lg:block"><div className="sticky top-20 h-[calc(100vh-8rem)] rounded-2xl border border-line bg-white p-4">{Cart}</div></div>
+        <div className="hidden lg:block lg:pt-2"><div className="sticky top-24 h-[calc(100vh-8.5rem)] rounded-2xl border border-line bg-white p-4 shadow-card">{Cart}</div></div>
       </div>
 
       {count > 0 && (

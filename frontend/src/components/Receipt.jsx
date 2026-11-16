@@ -62,6 +62,8 @@ export default function Receipt({ data, phone }) {
 
   return (
     <div>
+      {/* Only the receipt scrolls; Print / WhatsApp stay fixed below it, however long the bill is */}
+      <div id="receipt-scroll" className="max-h-[max(7rem,calc(88dvh-15.5rem))] overflow-y-auto overscroll-contain rounded-lg">
       <div id="receipt" className="mx-auto bg-white p-3 font-mono text-[12px] leading-snug text-black shadow-sm ring-1 ring-line" style={{ width, maxWidth: '100%' }}>
         <div className="text-center">
           {printer?.show_logo !== false && company.logo_url && <img src={company.logo_url} alt="" className="mx-auto mb-1 h-12 object-contain grayscale" />}
@@ -92,13 +94,13 @@ export default function Receipt({ data, phone }) {
         {bill.payments?.map((p) => <div key={p.id} className="flex justify-between"><span>{L.paid} ({L[p.method] || p.method})</span><span>{m(p.amount)}</span></div>)}
         <div className="mt-2 text-center font-bold">{receiptFooter(company, rl)}</div>
       </div>
+      </div>
 
       {/* Buttons wrap onto two rows on very narrow phones instead of overflowing the sheet */}
       <div className="mt-3 flex flex-wrap gap-2.5">
         <Button className="min-w-[8.5rem] flex-1" onClick={print}><Printer className="h-4 w-4" /> {t('Print')}</Button>
         <Button variant="secondary" className="min-w-[8.5rem] flex-1" onClick={whatsapp}><MessageCircle className="h-4 w-4" /> WhatsApp</Button>
       </div>
-      {canEscpos && <p className="mt-2 text-center text-xs text-muted">{t(conn === 'usb' ? 'Prints to your USB thermal printer' : 'Prints to your Bluetooth thermal printer')}</p>}
       {conn === 'network' && <p className="mt-2 text-center text-xs text-muted">{t('Network printers use the browser print dialog from this device.')}</p>}
     </div>
   )

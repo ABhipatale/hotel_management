@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   Armchair, BarChart3, Bell, Building2, ChefHat, Clock, CreditCard, Download, Images, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
-  Settings, ShoppingBag, Split, Store, Tag, Users, UtensilsCrossed, Wallet,
+  PanelLeftClose, PanelLeftOpen, Settings, ShoppingBag, Split, Store, Tag, Users, UtensilsCrossed, Wallet,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCounter } from '../context/CounterContext'
@@ -46,10 +46,11 @@ const TENANT_NAV = [
 
 /** Tenant logo (or initial) on a light tile so any logo reads clearly on the teal header / sidebar. */
 function Logo({ company, isSuperAdmin, size = 'h-11 w-11' }) {
+  const [bad, setBad] = useState(false) // a logo file that fails to load falls back to the initial letter
   const tile = `${size} shrink-0 rounded-2xl`
   if (isSuperAdmin) return <div className={`grid ${tile} place-items-center bg-ivory text-brand`}><Store className="h-5 w-5" strokeWidth={2.3} /></div>
-  return company?.logo_url
-    ? <img src={company.logo_url} alt="" decoding="async" className={`${tile} bg-white object-contain p-1`} />
+  return company?.logo_url && !bad
+    ? <img src={company.logo_url} alt="" decoding="async" onError={() => setBad(true)} className={`${tile} bg-white object-contain p-1`} />
     : <div className={`grid ${tile} place-items-center bg-ivory text-lg font-extrabold text-brand`}>{company?.name?.[0]}</div>
 }
 
@@ -58,8 +59,13 @@ export default function Layout() {
   const t = useT()
   const { multi, isOwner, selected } = useCounter()
   const [more, setMore] = useState(false)
+  // Tablet / desktop: the left menu can be hidden for a wider page. Remembered on this device.
+  const [side, setSide] = useState(() => { try { return localStorage.getItem('hms.sidebar') !== 'hidden' } catch { return true } })
+  const toggleSide = () => setSide((v) => { try { localStorage.setItem('hms.sidebar', v ? 'hidden' : 'shown') } catch { /* private mode */ } return !v })
   const nav = useNavigate()
   const loc = useLocation()
+  // With the sidebar hidden, a small bottom bar keeps the main pages one tap away (not on New order: its cart needs the room)
+  const navOnWide = !side && !loc.pathname.startsWith('/app/order/new')
 
   useEffect(() => { setMore(false) }, [loc.pathname])
 
@@ -145,14 +151,14 @@ export default function Layout() {
     <div className="flex min-h-full">
       <OrderAlertBanner banners={alerts.banners} onDismiss={alerts.dismiss} onOpen={(o) => { alerts.dismiss(o.id); alerts.clearUnseen(); nav('/app/orders') }} />
       {/* Desktop sidebar — Deep Teal */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-brand p-4 text-white lg:flex">
+      <aside className={`sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-brand p-4 text-white ${side ? 'lg:flex' : ''}`}>
         <div className="flex items-center gap-3 rounded-2xl bg-white/10 p-3 ring-1 ring-white/10">
           <Logo company={company} isSuperAdmin={isSuperAdmin} />
           <div className="min-w-0 leading-tight"><div className="truncate font-extrabold">{isSuperAdmin ? 'Hotel SaaS' : company?.name}</div><div className="text-xs text-white/60">{isSuperAdmin ? t('Platform admin') : company?.uid}</div></div>
         </div>
-        <nav className="mt-5 flex flex-1 flex-col gap-1 overflow-y-auto">
+        <nav className="mt-5 flex flex-1 flex-col gap-1 overflow-y-auto [@media(max-height:820px)]:mt-3 [@media(max-height:820px)]:gap-0.5">
           {items.map(({ to, icon: Icon, label, end }) => (
-            <NavLink key={to} to={to} end={end} className={({ isActive }) => `relative flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-bold transition ${isActive ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
+            <NavLink key={to} to={to} end={end} className={({ isActive }) => `relative flex items-center gap-3 rounded-2xl px-3.5 py-3 [@media(max-height:820px)]:py-2 text-sm font-bold transition ${isActive ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
               {({ isActive }) => (
                 <>
                   {isActive && <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-accent" />}
@@ -179,15 +185,18 @@ export default function Layout() {
         {/* App bar: Deep Teal on phones, clean white on desktop */}
         <header className="pt-[env(safe-area-inset-top)] sticky top-0 z-30 bg-brand text-white lg:bg-white! lg:text-ink! lg:ring-1 lg:ring-line">
           <div className="flex items-center gap-3 px-4 py-3 lg:px-8">
-            <div className="lg:hidden"><Logo company={company} isSuperAdmin={isSuperAdmin} /></div>
-            <div className="min-w-0 flex-1 leading-tight lg:hidden">
+            <button onClick={toggleSide} aria-label={side ? t('Hide menu') : t('Show menu')} title={side ? t('Hide menu') : t('Show menu')} className="hidden h-11 w-11 shrink-0 place-items-center rounded-xl bg-ivory text-brand ring-1 ring-line transition hover:bg-brand-soft active:scale-95 lg:grid">
+              {side ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
+            </button>
+            <div className={side ? 'lg:hidden' : ''}><Logo company={company} isSuperAdmin={isSuperAdmin} /></div>
+            <div className={`min-w-0 flex-1 leading-tight ${side ? 'lg:hidden' : ''}`}>
               <div className="truncate text-[17px] font-extrabold tracking-tight">{isSuperAdmin ? 'Hotel SaaS' : company?.name}</div>
-              <div className="truncate text-xs font-medium text-white/70">{t('Hi, {name}', { name: user?.name?.split(' ')[0] })} · <span className="capitalize">{roleText(user?.role)}</span></div>
+              <div className="truncate text-xs font-medium text-white/70 lg:text-muted">{t('Hi, {name}', { name: user?.name?.split(' ')[0] })} · <span className="capitalize">{roleText(user?.role)}</span></div>
             </div>
             <div className="hidden min-w-0 flex-1 lg:block"><CounterSwitch /></div>
             {!isSuperAdmin && multi && !isOwner && <CounterSwitch dark className="lg:hidden" />}
             {showBell && BellBtn}
-            <button onClick={() => setMore(true)} aria-label={t('Account menu')} className="lg:hidden"><Avatar name={user?.name} className="!bg-ivory !text-brand !ring-0" /></button>
+            <button onClick={() => setMore(true)} aria-label={t('Account menu')} className={side ? 'lg:hidden' : ''}><Avatar name={user?.name} className="!bg-ivory !text-brand !ring-0" /></button>
           </div>
           {/* Phones: the owner's counter pills sit under the app bar */}
           {!isSuperAdmin && multi && isOwner && <div className="px-4 pb-3 lg:hidden"><CounterSwitch dark /></div>}
@@ -205,14 +214,14 @@ export default function Layout() {
           </div>
         )}
 
-        <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 py-5 pb-36 sm:px-6 lg:px-8 lg:pb-8">
+        <main className={`mx-auto w-full min-w-0 flex-1 px-4 py-5 pb-36 sm:px-6 ${side ? 'max-w-7xl lg:px-8' : 'max-w-none lg:px-6'} ${navOnWide ? '' : 'lg:pb-8'}`}>
           <div key={`${loc.pathname}|${selected}`} className="animate-page"><Outlet /></div>
         </main>
       </div>
 
       {/* Bottom navigation (phones & small tablets): white bar, teal active icon, coral indicator + FAB */}
-      <nav aria-label={t('Primary')} className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] lg:hidden">
-        <div className="pointer-events-auto mx-auto flex max-w-md items-end rounded-[1.25rem] bg-white px-2 shadow-float ring-1 ring-line">
+      <nav aria-label={t('Primary')} className={`pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] ${navOnWide ? '' : 'lg:hidden'}`}>
+        <div className="pointer-events-auto mx-auto flex max-w-md items-end md:max-w-xl rounded-[1.25rem] bg-white px-2 shadow-float ring-1 ring-line">
           {/* Two equal-width groups keep the New Order button exactly centred, whatever the tab count */}
           <div className="flex min-w-0 flex-1">{left.map(tab)}</div>
           {canNew && (

@@ -59,7 +59,7 @@ export default function Reports() {
       </div>
 
       {error ? <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{error}</p> : loading ? <ListSkeleton /> : type === 'pnl' ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {[['Gross sales', data.sales], ...(gstOn ? [['GST collected', data.tax_collected], ['Net sales', data.net_sales]] : []), ['Expenses', data.expenses], ['Profit', data.profit]].map(([l, v]) => (
             <Card key={l}><div className="text-xs text-muted">{t(l)}</div><div className={`text-xl font-semibold ${l === 'Profit' && v < 0 ? 'text-rose-600' : ''}`}>{money(v)}</div></Card>
           ))}
