@@ -30,7 +30,9 @@ class PublicMenuController extends Controller
             'categories' => FoodCategory::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get(['id', 'name', 'name_mr']),
             'items' => FoodItem::with('variants:id,food_item_id,name,price')->where('is_available', true)
                 ->where(fn ($q) => $q->whereNull('branch_id')->orWhere('branch_id', $table->branch_id))
-                ->get(['id', 'category_id', 'name', 'name_mr', 'description', 'image_path', 'library_image_id', 'hide_library_image', 'price', 'discount_percent', 'is_veg', 'offer_text', 'gst_percent']),
+                ->get(['id', 'category_id', 'name', 'name_mr', 'description', 'image_path', 'library_image_id', 'hide_library_image', 'price', 'discount_percent', 'is_veg', 'offer_text', 'gst_percent'])
+                // Serialised here, inside the tenant context, so each dish's photo (own / library) follows the hotel's own settings
+                ->toArray(),
         ]);
     }
 

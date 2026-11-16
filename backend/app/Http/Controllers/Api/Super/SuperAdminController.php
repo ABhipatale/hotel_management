@@ -97,6 +97,7 @@ class SuperAdminController extends Controller
             'kot_enabled' => 'sometimes|boolean',            // kitchen order tickets (KOT) on/off
             'kot_print' => 'sometimes|boolean',              // + printed kitchen slip
             'multi_counter' => 'sometimes|boolean',          // several counters (each with its own tables, staff and books)
+            'business_type' => 'sometimes|in:restaurant,cafe', // restaurant = hotel / restaurant as always; cafe = quick counter sale + tokens
             'counters' => 'sometimes|array|max:20',
             'counters.*' => 'nullable|string|max:60',
             'offline_payment' => 'nullable|array',
@@ -128,6 +129,7 @@ class SuperAdminController extends Controller
             'use_library_images' => 'sometimes|boolean',
             'default_language' => 'sometimes|in:en,hi,mr',
             'multi_counter' => 'sometimes|boolean',
+            'business_type' => 'sometimes|in:restaurant,cafe',
             'kot_enabled' => 'sometimes|boolean',
             'kot_print' => 'sometimes|boolean',
             // this company's own subscription price; empty / null = use the platform default price

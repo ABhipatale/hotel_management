@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Img from '../../components/Img'
 import { useParams } from 'react-router-dom'
-import { CheckCircle2, ChefHat, Clock, Minus, Plus, Search, ShoppingCart, UtensilsCrossed } from 'lucide-react'
+import { Check, CheckCircle2, ChefHat, ChevronRight, Clock, Flame, Minus, Plus, Search, ShoppingCart, UtensilsCrossed } from 'lucide-react'
 import { api, errMsg } from '../../lib/api'
 import { applyBrand } from '../../lib/branding'
 import { money } from '../../lib/format'
-import { Button, Chips, Input, Modal, Spinner } from '../../components/ui'
+import { Button, Input, Modal, Spinner } from '../../components/ui'
 import LangSwitch from '../../components/LangSwitch'
 import { useI18n } from '../../i18n'
 import { catName, dishNames } from '../../lib/dishName'
@@ -21,6 +21,8 @@ export default function QrMenu() {
   const [error, setError] = useState('')
   const [cat, setCat] = useState('all')
   const [q, setQ] = useState('')
+  const [veg, setVeg] = useState(false)
+  const [logoBad, setLogoBad] = useState(false)
   const [cart, setCart] = useState({})
   const [pick, setPick] = useState(null)
   const [cartOpen, setCartOpen] = useState(false)
@@ -45,7 +47,14 @@ export default function QrMenu() {
     return () => clearInterval(t)
   }, [menu, loadOrders])
 
-  const list = useMemo(() => (menu?.items || []).filter((i) => (cat === 'all' || i.category_id === +cat) && (i.name.toLowerCase().includes(q.toLowerCase()) || (i.name_mr || '').toLowerCase().includes(q.toLowerCase()))), [menu, cat, q])
+  const list = useMemo(() => (menu?.items || []).filter((i) => (cat === 'all' || i.category_id === +cat) && (!veg || i.is_veg) && (i.name.toLowerCase().includes(q.toLowerCase()) || (i.name_mr || '').toLowerCase().includes(q.toLowerCase()))), [menu, cat, q, veg])
+  // "All": group dishes under their category heading; a single category / search: one flat list
+  const groups = useMemo(() => {
+    if (cat !== 'all' || q) return [{ id: 'x', name: '', items: list }]
+    const g = (menu?.categories || []).map((c) => ({ id: c.id, name: catName(c, lang), items: list.filter((i) => i.category_id === c.id) }))
+    const rest = list.filter((i) => !(menu?.categories || []).some((c) => c.id === i.category_id))
+    return [...g, ...(rest.length ? [{ id: 'o', name: t('Other'), items: rest }] : [])].filter((x) => x.items.length)
+  }, [menu, list, cat, q, lang, t])
   const lines = Object.values(cart)
   const count = lines.reduce((a, l) => a + l.quantity, 0)
   const gstOn = menu?.company?.gst_enabled !== false
@@ -77,44 +86,97 @@ export default function QrMenu() {
   if (!menu) return <Spinner />
   const { company } = menu
 
-  return (
-    <div className="mx-auto min-h-full max-w-xl pb-32">
-      <header className="sticky top-0 z-20 border-b border-line bg-white/95 px-4 py-3 backdrop-blur">
-        <div className="flex items-center gap-3">
-          {company.logo_url ? <img src={company.logo_url} alt="" decoding="async" className="h-11 w-11 rounded-xl object-cover" /> : <div className="grid h-11 w-11 place-items-center rounded-xl bg-brand font-bold text-white">{company.name[0]}</div>}
-          <div className="min-w-0 flex-1"><div className="truncate font-semibold">{company.name}</div><div className="text-xs text-muted">{t('Table {n}', { n: menu.table.number })}</div></div>
-          {orders.length > 0 && <button onClick={() => setTrackOpen(true)} className="flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-medium text-brand"><Clock className="h-3.5 w-3.5" />{t('My orders')}</button>}
-        </div>
-        <div className="mt-3"><LangSwitch className="w-full justify-between" /></div>
-        <div className="relative mt-3"><Search className="absolute left-3 top-3 h-4 w-4 text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Search dishes')} className="w-full rounded-xl border border-line bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand" /></div>
-        <div className="-mb-3 mt-3"><Chips value={cat} onChange={setCat} items={[['all', t('All')], ...menu.categories.map((c) => [String(c.id), catName(c, lang)])]} /></div>
-      </header>
+  const latest = orders[0]
+  const stepLabel = latest ? STEPS[Math.max(0, STEPS.findIndex(([x]) => x === latest.status))][1] : ''
 
-      <div className="space-y-3 p-4">
-        {list.map((i) => {
+  return (
+    <div className="mx-auto min-h-full max-w-xl bg-canvas pb-32">
+      {/* Compact header: logo, name, table and language in one row */}
+      <div className="relative overflow-hidden bg-brand px-4 pb-6 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
+        <div className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-white/10" />
+        <div className="relative flex items-center gap-3">
+          {company.logo_url && !logoBad ? <img src={company.logo_url} alt="" decoding="async" onError={() => setLogoBad(true)} className="h-12 w-12 shrink-0 rounded-xl bg-white object-contain p-1" /> : <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-ivory text-xl font-extrabold text-brand">{company.name[0]}</div>}
+          <div className="min-w-0 flex-1 leading-tight">
+            <h1 className="truncate text-lg font-extrabold tracking-tight">{company.name}</h1>
+            <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-white/80"><UtensilsCrossed className="h-3 w-3" />{t('Table {n}', { n: menu.table.number })}</span>
+          </div>
+          <LangSwitch tone="dark" className="shrink-0 [&_svg]:hidden" />
+        </div>
+      </div>
+
+      {/* Search floats over the hero edge; only the category bar sticks while scrolling */}
+      <div className="relative z-10 -mt-3.5 px-4">
+        <div className="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-lift ring-1 ring-line/70">
+          <div className="relative min-w-0 flex-1"><Search className="absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Search dishes')} className="min-h-11 w-full rounded-xl bg-canvas pl-10 pr-3 text-[16px] outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-brand" /></div>
+          <button onClick={() => setVeg(!veg)} aria-pressed={veg} className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl px-3 text-xs font-extrabold transition active:scale-95 ${veg ? 'bg-emerald-600 text-white' : 'bg-canvas text-ink'}`}><i className={`h-3.5 w-3.5 rounded-sm border-2 ${veg ? 'border-white bg-white/30' : 'border-emerald-600 bg-emerald-500'}`} />{t('Veg only')}</button>
+        </div>
+      </div>
+      <div className="sticky top-0 z-20 bg-canvas/90 px-4 pb-2 pt-2.5 backdrop-blur-md">
+        <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
+          {[['all', t('All')], ...menu.categories.map((c) => [String(c.id), catName(c, lang)])].map(([k, label]) => (
+            <button key={k} onClick={() => setCat(k)} aria-pressed={cat === k} className={`min-h-10 shrink-0 whitespace-nowrap rounded-full px-4 text-sm font-bold transition active:scale-95 ${cat === k ? 'bg-brand text-white shadow-card' : 'bg-white text-slate-600 ring-1 ring-line'}`}>{label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Live order status strip */}
+      {latest && (
+        <button onClick={() => setTrackOpen(true)} className="mx-4 mt-2 flex w-[calc(100%-2rem)] items-center gap-3 rounded-2xl bg-accent-soft px-4 py-3 text-left ring-1 ring-accent/20 transition active:scale-[.99]">
+          <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-white"><ChefHat className="h-[18px] w-[18px]" /></span>
+          <span className="min-w-0 flex-1 leading-tight"><span className="block text-sm font-extrabold text-ink">{t('My orders')} · {latest.order_no}</span><span className="text-xs font-semibold text-accent-dark">{t(stepLabel)}</span></span>
+          <Clock className="h-4 w-4 shrink-0 text-accent-dark" />
+        </button>
+      )}
+
+      <div className="space-y-4 px-4 pt-1">
+        {groups.map((g) => (
+          <section key={g.id} className="space-y-3">
+            {g.name && <h2 className="flex items-center gap-2 px-1 pt-2 text-[13px] font-extrabold uppercase tracking-wider text-brand"><span>{g.name}</span><span className="rounded-full bg-brand-soft px-2 py-0.5 text-[11px] tracking-normal">{g.items.length}</span><i className="h-px flex-1 bg-line" /></h2>}
+          <div className="grid grid-cols-2 gap-3">
+        {g.items.map((i, idx) => {
           const qty = lines.filter((l) => l.food_item_id === i.id).reduce((a, l) => a + l.quantity, 0)
+          const key = `${i.id}:0`
+          const off = +i.discount_percent > 0
+          const photo = i.image_url || (i.image_path ? `${location.origin}/storage/${i.image_path}` : null)
+          const names = dishNames(i, lang)
           return (
-            <div key={i.id} className="flex gap-3 rounded-2xl border border-line bg-white p-3 shadow-sm">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5"><i className={`h-3 w-3 shrink-0 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} /><span className="font-medium">{dishNames(i, lang).main}</span></div>
-                {dishNames(i, lang).sub && <div className="text-sm text-muted">{dishNames(i, lang).sub}</div>}
-                {i.offer_text && <div className="mt-0.5 text-xs font-medium text-emerald-600">{i.offer_text}</div>}
-                {i.description && <p className="mt-1 line-clamp-2 text-xs text-muted">{i.description}</p>}
-                <div className="mt-2 flex items-center gap-2"><b>{money(unit(i))}</b>{+i.discount_percent > 0 && <s className="text-xs text-muted">{money(i.price)}</s>}{i.variants.length > 0 && <span className="text-[11px] text-muted">· {t('{n} sizes', { n: i.variants.length + 1 })}</span>}</div>
+            <div key={i.id} style={{ animationDelay: `${Math.min(idx, 8) * 30}ms` }} className="animate-pop flex flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-card ring-1 ring-line/60">
+              <div className="relative">
+                {photo ? <Img src={photo} thumb className="aspect-[3/2] w-full object-cover" /> : <div className="grid aspect-[3/2] w-full place-items-center bg-gradient-to-br from-brand-soft to-ivory"><span className="text-4xl font-extrabold text-brand/25">{names.main?.[0]}</span></div>}
+                <span className="absolute left-2 top-2 grid h-5 w-5 place-items-center rounded-md bg-white/95 shadow-card"><i className={`grid h-3.5 w-3.5 place-items-center rounded-[3px] border-2 ${i.is_veg ? 'border-emerald-600' : 'border-rose-600'}`}><b className={`h-1.5 w-1.5 rounded-full ${i.is_veg ? 'bg-emerald-600' : 'bg-rose-600'}`} /></i></span>
+                {off && <span className="absolute right-2 top-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-extrabold text-white shadow-card">{Math.round(i.discount_percent)}% {t('OFF')}</span>}
               </div>
-              <div className="flex w-24 shrink-0 flex-col items-stretch gap-2">
-                {i.image_path ? <Img src={`${location.origin}/storage/${i.image_path}`} thumb className="h-24 w-24 rounded-2xl object-cover" /> : <div className="grid h-24 w-24 place-items-center rounded-2xl bg-brand-soft"><UtensilsCrossed className="h-7 w-7 text-brand/40" strokeWidth={1.6} /></div>}
-                <button onClick={() => (i.variants.length ? setPick(i) : add(i))} className={`min-h-11 w-full rounded-2xl border px-2 text-sm font-extrabold shadow-card transition active:scale-95 ${qty ? 'border-brand bg-brand text-white' : 'border-brand bg-white text-brand active:bg-brand-soft'}`}>{qty ? t('ADDED · {n}', { n: qty }) : t('ADD')}</button>
+              <div className="flex flex-1 flex-col p-3">
+                <div className="line-clamp-2 min-h-[2.4rem] text-[14px] font-extrabold leading-tight">{names.main}</div>
+                {names.sub && <div className="line-clamp-1 text-xs text-muted">{names.sub}</div>}
+                <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5"><b className="text-base text-brand">{money(unit(i))}</b>{off && <s className="text-[11px] text-muted">{money(i.price)}</s>}</div>
+                {i.variants.length > 0 && <div className="text-[11px] font-semibold text-muted">{t('{n} sizes', { n: i.variants.length + 1 })}</div>}
+                <div className="mt-auto pt-2.5">
+                  {qty > 0 && !i.variants.length ? (
+                    <div className="flex min-h-11 items-center justify-between rounded-xl bg-brand px-1 text-white">
+                      <button onClick={() => change(key, -1)} aria-label={t('Remove one')} className="grid h-10 w-10 place-items-center rounded-lg active:bg-white/15"><Minus className="h-4 w-4" strokeWidth={3} /></button>
+                      <b className="text-sm">{qty}</b>
+                      <button onClick={() => add(i)} aria-label={t('Add one')} className="grid h-10 w-10 place-items-center rounded-lg active:bg-white/15"><Plus className="h-4 w-4" strokeWidth={3} /></button>
+                    </div>
+                  ) : (
+                    <button onClick={() => (i.variants.length ? setPick(i) : add(i))} className={`min-h-11 w-full rounded-xl text-sm font-extrabold ring-1 transition active:scale-95 ${qty ? 'bg-brand text-white ring-brand' : 'bg-brand-soft text-brand ring-brand/20'}`}>{qty ? t('ADDED · {n}', { n: qty }) : t('ADD')}</button>
+                  )}
+                </div>
               </div>
             </div>
           )
         })}
-        {!list.length && <p className="py-12 text-center text-sm text-muted">{t('No dishes found')}</p>}
+          </div>
+          </section>
+        ))}
+        {!list.length && <div className="py-16 text-center"><UtensilsCrossed className="mx-auto mb-3 h-10 w-10 text-slate-300" strokeWidth={1.5} /><p className="text-sm font-semibold text-muted">{t('No dishes found')}</p></div>}
+        <p className="pt-2 text-center text-[11px] text-muted/70">{t('Scan · Order · Enjoy')}</p>
       </div>
 
       {count > 0 && (
-        <button onClick={() => setCartOpen(true)} className="fixed inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 mx-auto flex min-h-14 max-w-lg items-center justify-between gap-3 rounded-[1.25rem] bg-accent px-5 py-3.5 text-white shadow-float transition active:scale-[.98]">
-          <span className="flex items-center gap-2 whitespace-nowrap"><ShoppingCart className="h-5 w-5 shrink-0" />{count}<span className="hidden min-[360px]:inline">{t('item(s)')}</span></span><b className="whitespace-nowrap">{t('View cart')} · {money(total)}</b>
+        <button onClick={() => setCartOpen(true)} className="animate-pop fixed inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 mx-auto flex min-h-16 max-w-lg items-center justify-between gap-3 rounded-[1.25rem] bg-brand px-4 py-3 text-white shadow-float ring-1 ring-white/10 transition active:scale-[.98]">
+          <span className="flex items-center gap-3"><span className="relative grid h-11 w-11 place-items-center rounded-xl bg-white/15"><ShoppingCart className="h-5 w-5" /><span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-extrabold ring-2 ring-brand">{count}</span></span><span className="text-left leading-tight"><span className="block text-xs text-white/70">{t('View cart')}</span><b className="text-lg">{money(total)}</b></span></span>
+          <span className="flex items-center gap-1 rounded-xl bg-accent px-4 py-2.5 text-sm font-extrabold">{t('Place order')}<ChevronRight className="h-4 w-4" /></span>
         </button>
       )}
 
@@ -125,21 +187,29 @@ export default function QrMenu() {
       </Modal>
 
       <Modal open={cartOpen} onClose={() => setCartOpen(false)} title={t('Your cart')}>
-        <div className="space-y-3">
-          {lines.map((l) => (
-            <div key={l.key} className="flex items-center justify-between gap-3 text-sm">
-              <span className="min-w-0 flex-1 truncate">{l.name}</span>
-              <div className="flex items-center gap-2"><button onClick={() => change(l.key, -1)} className="grid h-7 w-7 place-items-center rounded-lg bg-slate-100"><Minus className="h-3.5 w-3.5" /></button><b className="w-5 text-center">{l.quantity}</b><button onClick={() => change(l.key, 1)} className="grid h-7 w-7 place-items-center rounded-lg bg-brand text-white"><Plus className="h-3.5 w-3.5" /></button></div>
-              <span className="w-20 text-right">{money(l.price * l.quantity * (1 - l.discount / 100))}</span>
-            </div>
-          ))}
-          <div className="grid grid-cols-2 gap-3 pt-2">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            {lines.map((l) => (
+              <div key={l.key} className="flex items-center gap-3 rounded-2xl bg-canvas p-3 ring-1 ring-line">
+                <div className="min-w-0 flex-1 leading-tight"><div className="truncate text-sm font-extrabold">{l.name}</div><div className="mt-0.5 text-sm font-bold text-brand">{money(l.price * l.quantity * (1 - l.discount / 100))}</div></div>
+                <div className="flex items-center rounded-xl bg-white p-0.5 shadow-card ring-1 ring-line">
+                  <button onClick={() => change(l.key, -1)} aria-label={t('Remove one')} className="grid h-10 w-10 place-items-center rounded-lg text-brand active:bg-brand-soft"><Minus className="h-4 w-4" strokeWidth={3} /></button>
+                  <b className="w-7 text-center">{l.quantity}</b>
+                  <button onClick={() => change(l.key, 1)} aria-label={t('Add one')} className="grid h-10 w-10 place-items-center rounded-lg bg-brand text-white active:bg-brand-dark"><Plus className="h-4 w-4" strokeWidth={3} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <Input label={t('Your name (optional)')} value={cust.customer_name} onChange={(e) => setCust({ ...cust, customer_name: e.target.value })} />
             <Input label={t('Mobile (optional)')} inputMode="tel" value={cust.customer_phone} onChange={(e) => setCust({ ...cust, customer_phone: e.target.value })} />
           </div>
           <Input label={t('Cooking instructions')} value={cust.notes} onChange={(e) => setCust({ ...cust, notes: e.target.value })} />
-          {error && <p className="text-sm text-rose-600">{t(error)}</p>}
-          <div className="flex justify-between border-t border-line pt-3 text-sm"><span className="text-muted">{gstOn ? t('Total incl. GST (final bill is calculated at billing)') : t('Total (final bill is calculated at billing)')}</span><b className="text-lg">{money(total)}</b></div>
+          {error && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-600">{t(error)}</p>}
+          <div className="rounded-2xl bg-brand-soft/70 p-4">
+            <div className="flex items-end justify-between"><span className="text-sm font-bold text-brand">{t('Total')}</span><b className="text-2xl text-brand">{money(total)}</b></div>
+            <p className="mt-1 text-xs text-muted">{gstOn ? t('Total incl. GST (final bill is calculated at billing)') : t('Total (final bill is calculated at billing)')}</p>
+          </div>
           <Button variant="accent" size="lg" className="w-full" loading={busy} onClick={place}>{t('Place order')}</Button>
         </div>
       </Modal>
@@ -147,14 +217,27 @@ export default function QrMenu() {
       <Modal open={trackOpen} onClose={() => setTrackOpen(false)} title={t('Your orders')}>
         {!orders.length ? <p className="py-6 text-center text-sm text-muted">{t('No active orders')}</p> : orders.map((o) => {
           const idx = Math.max(0, STEPS.findIndex(([s]) => s === o.status))
+          const done = o.status === 'ready' || o.status === 'served'
           return (
-            <div key={o.id} className="mb-4 rounded-2xl border border-line p-3">
-              <div className="mb-3 flex items-center justify-between"><b className="text-sm">{o.order_no}</b>{o.status === 'ready' || o.status === 'served' ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <ChefHat className="h-5 w-5 text-brand" />}</div>
-              <div className="mb-3 flex items-center">{STEPS.map(([s, l], i) => <div key={s} className="flex flex-1 flex-col items-center"><div className={`h-2 w-full ${i <= idx ? 'bg-brand' : 'bg-slate-200'} ${i === 0 ? 'rounded-l-full' : ''} ${i === STEPS.length - 1 ? 'rounded-r-full' : ''}`} /><span className={`mt-1 text-[10px] ${i === idx ? 'font-semibold text-brand' : 'text-muted'}`}>{t(l)}</span></div>)}</div>
-              <ul className="space-y-0.5 text-sm text-muted">{o.items.map((i) => <li key={i.id}>{i.quantity}× {i.name}{i.variant ? ` (${i.variant})` : ''}</li>)}</ul>
+            <div key={o.id} className="mb-4 overflow-hidden rounded-[1.25rem] ring-1 ring-line">
+              <div className={`flex items-center gap-3 px-4 py-3.5 ${done ? 'bg-emerald-600 text-white' : 'bg-brand text-white'}`}>
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-white/20">{done ? <CheckCircle2 className="h-5 w-5" /> : <ChefHat className="h-5 w-5" />}</span>
+                <div className="min-w-0 flex-1 leading-tight"><div className="text-[11px] font-semibold text-white/70">{o.order_no}</div><div className="text-base font-extrabold">{t(STEPS[idx][1])}</div></div>
+              </div>
+              <div className="flex items-start px-3 pt-4">
+                {STEPS.map(([s, l], i) => (
+                  <div key={s} className="relative flex flex-1 flex-col items-center">
+                    {i > 0 && <span className={`absolute right-1/2 top-[9px] h-1 w-full ${i <= idx ? 'bg-brand' : 'bg-slate-200'}`} />}
+                    <span className={`relative z-10 grid h-5 w-5 place-items-center rounded-full ring-4 ring-white ${i <= idx ? 'bg-brand text-white' : 'bg-slate-200'}`}>{i < idx && <Check className="h-3 w-3" strokeWidth={3.5} />}{i === idx && <span className="h-2 w-2 rounded-full bg-white" />}</span>
+                    <span className={`mt-1.5 text-center text-[10px] leading-tight ${i === idx ? 'font-extrabold text-brand' : 'text-muted'}`}>{t(l)}</span>
+                  </div>
+                ))}
+              </div>
+              <ul className="mt-3 space-y-1 border-t border-line bg-canvas/60 px-4 py-3 text-sm">{o.items.map((i) => <li key={i.id} className="flex gap-2"><b className="text-brand">{i.quantity}×</b><span>{i.name}{i.variant ? ` (${i.variant})` : ''}</span></li>)}</ul>
             </div>
           )
         })}
+        <Button variant="secondary" className="mt-1 w-full" onClick={() => setTrackOpen(false)}>{t('Order more')}</Button>
       </Modal>
     </div>
   )
