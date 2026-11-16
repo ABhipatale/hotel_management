@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import Img from '../../components/Img'
 import { useParams } from 'react-router-dom'
 import { Check, CheckCircle2, ChefHat, ChevronRight, Clock, Flame, Minus, Plus, Search, ShoppingCart, UtensilsCrossed } from 'lucide-react'
 import { api, errMsg } from '../../lib/api'
@@ -9,6 +8,16 @@ import { Button, Input, Modal, Spinner } from '../../components/ui'
 import LangSwitch from '../../components/LangSwitch'
 import { useI18n } from '../../i18n'
 import { catName, dishNames } from '../../lib/dishName'
+import { devUrl, thumbOf } from '../../lib/image'
+
+/** A dish photo (own or platform library). No photo, or one that fails to load, shows a soft tile with the dish's first letter. */
+function DishPhoto({ src, name }) {
+  const full = src ? devUrl(src) : null
+  const [url, setUrl] = useState(() => (full ? thumbOf(full) : null))
+  const [bad, setBad] = useState(false)
+  if (!full || bad) return <div className="grid aspect-square w-full place-items-center bg-gradient-to-br from-brand-soft to-ivory"><span className="text-3xl font-extrabold text-brand/25">{name?.[0]}</span></div>
+  return <img src={url} alt="" loading="lazy" decoding="async" onError={() => (url !== full ? setUrl(full) : setBad(true))} className="aspect-square w-full bg-brand-soft object-cover" />
+}
 
 const STEPS = [['pending', 'Received'], ['accepted', 'Accepted'], ['preparing', 'Cooking'], ['ready', 'Ready'], ['served', 'Served']]
 
@@ -55,6 +64,7 @@ export default function QrMenu() {
     const rest = list.filter((i) => !(menu?.categories || []).some((c) => c.id === i.category_id))
     return [...g, ...(rest.length ? [{ id: 'o', name: t('Other'), items: rest }] : [])].filter((x) => x.items.length)
   }, [menu, list, cat, q, lang, t])
+  const anyPhoto = (menu?.items || []).some((i) => i.image_url || i.image_path) // a menu without photos gets compact cards (no empty picture tiles)
   const lines = Object.values(cart)
   const count = lines.reduce((a, l) => a + l.quantity, 0)
   const gstOn = menu?.company?.gst_enabled !== false
@@ -133,7 +143,7 @@ export default function QrMenu() {
         {groups.map((g) => (
           <section key={g.id} className="space-y-3">
             {g.name && <h2 className="flex items-center gap-2 px-1 pt-2 text-[13px] font-extrabold uppercase tracking-wider text-brand"><span>{g.name}</span><span className="rounded-full bg-brand-soft px-2 py-0.5 text-[11px] tracking-normal">{g.items.length}</span><i className="h-px flex-1 bg-line" /></h2>}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 sm:gap-3 md:grid-cols-5 lg:grid-cols-6">
         {g.items.map((i, idx) => {
           const qty = lines.filter((l) => l.food_item_id === i.id).reduce((a, l) => a + l.quantity, 0)
           const key = `${i.id}:0`
@@ -141,26 +151,30 @@ export default function QrMenu() {
           const photo = i.image_url || (i.image_path ? `${location.origin}/storage/${i.image_path}` : null)
           const names = dishNames(i, lang)
           return (
-            <div key={i.id} onClick={() => (i.variants.length ? setPick(i) : add(i))} style={{ animationDelay: `${Math.min(idx, 8) * 30}ms` }} className={`animate-pop flex cursor-pointer select-none flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-card transition active:scale-[.98] ${qty > 0 ? 'ring-2 ring-brand' : 'ring-1 ring-line/60'}`}>
-              <div className="relative">
-                {photo ? <Img src={photo} thumb className="aspect-[3/2] w-full object-cover" /> : <div className="grid aspect-[3/2] w-full place-items-center bg-gradient-to-br from-brand-soft to-ivory"><span className="text-4xl font-extrabold text-brand/25">{names.main?.[0]}</span></div>}
-                <span className="absolute left-2 top-2 grid h-5 w-5 place-items-center rounded-md bg-white/95 shadow-card"><i className={`grid h-3.5 w-3.5 place-items-center rounded-[3px] border-2 ${i.is_veg ? 'border-emerald-600' : 'border-rose-600'}`}><b className={`h-1.5 w-1.5 rounded-full ${i.is_veg ? 'bg-emerald-600' : 'bg-rose-600'}`} /></i></span>
-                {off && <span className="absolute right-2 top-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-extrabold text-white shadow-card">{Math.round(i.discount_percent)}% {t('OFF')}</span>}
-              </div>
-              <div className="flex flex-1 flex-col p-3">
-                <div className="line-clamp-2 min-h-[2.4rem] text-[14px] font-extrabold leading-tight">{names.main}</div>
-                {names.sub && <div className="line-clamp-1 text-xs text-muted">{names.sub}</div>}
-                <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5"><b className="text-base text-brand">{money(unit(i))}</b>{off && <s className="text-[11px] text-muted">{money(i.price)}</s>}</div>
-                {i.variants.length > 0 && <div className="text-[11px] font-semibold text-muted">{t('{n} sizes', { n: i.variants.length + 1 })}</div>}
-                <div className="mt-auto pt-2.5" onClick={(e) => e.stopPropagation()}>
+            <div key={i.id} onClick={() => (i.variants.length ? setPick(i) : add(i))} style={{ animationDelay: `${Math.min(idx, 9) * 25}ms` }} className={`animate-pop flex cursor-pointer select-none flex-col overflow-hidden rounded-2xl bg-white shadow-card transition active:scale-[.97] ${qty > 0 ? 'ring-2 ring-brand' : 'ring-1 ring-line/60'}`}>
+              {anyPhoto && <div className="relative">
+                <DishPhoto src={photo} name={names.main} />
+                <span className="absolute left-1.5 top-1.5 grid h-[18px] w-[18px] place-items-center rounded-[5px] bg-white/95 shadow-card"><i className={`grid h-3 w-3 place-items-center rounded-[2px] border-[1.5px] ${i.is_veg ? 'border-emerald-600' : 'border-rose-600'}`}><b className={`h-1 w-1 rounded-full ${i.is_veg ? 'bg-emerald-600' : 'bg-rose-600'}`} /></i></span>
+                {off && <span className="absolute right-1.5 top-1.5 rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-extrabold leading-none text-white shadow-card">{Math.round(i.discount_percent)}% {t('OFF')}</span>}
+              </div>}
+              <div className="flex flex-1 flex-col p-2">
+                <div className="flex items-start gap-1">
+                  {!anyPhoto && <i className={`mt-[3px] grid h-3 w-3 shrink-0 place-items-center rounded-[2px] border-[1.5px] ${i.is_veg ? 'border-emerald-600' : 'border-rose-600'}`}><b className={`h-1 w-1 rounded-full ${i.is_veg ? 'bg-emerald-600' : 'bg-rose-600'}`} /></i>}
+                  <div className={`${anyPhoto ? 'line-clamp-2' : 'line-clamp-3'} text-[12.5px] font-extrabold leading-tight`}>{names.main}</div>
+                </div>
+                {/* the Marathi name sits right under the English one (Devanagari has built-in space above its letters, so pull it up) */}
+                {names.sub && <div className={`-mt-[2px] line-clamp-1 text-[10.5px] leading-tight text-muted ${anyPhoto ? '' : 'pl-4'}`}>{names.sub}</div>}
+                <div className="mt-auto flex flex-wrap items-baseline gap-x-1 pt-1.5"><b className="text-[13px] leading-tight text-brand">{money(unit(i))}</b>{off && <s className="text-[10px] text-muted">{money(i.price)}</s>}{off && !anyPhoto && <span className="rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-extrabold leading-none text-white">{Math.round(i.discount_percent)}% {t('OFF')}</span>}</div>
+                {i.variants.length > 0 && <div className="text-[10px] font-semibold text-muted">{t('{n} sizes', { n: i.variants.length + 1 })}</div>}
+                <div className="pt-2" onClick={(e) => e.stopPropagation()}>
                   {qty > 0 && !i.variants.length ? (
-                    <div className="flex min-h-11 items-center justify-between rounded-xl bg-brand px-1 text-white">
-                      <button onClick={() => change(key, -1)} aria-label={t('Remove one')} className="grid h-10 w-10 place-items-center rounded-lg active:bg-white/15"><Minus className="h-4 w-4" strokeWidth={3} /></button>
-                      <b className="text-sm">{qty}</b>
-                      <button onClick={() => add(i)} aria-label={t('Add one')} className="grid h-10 w-10 place-items-center rounded-lg active:bg-white/15"><Plus className="h-4 w-4" strokeWidth={3} /></button>
+                    <div className="flex h-9 items-center justify-between rounded-lg bg-brand text-white">
+                      <button onClick={() => change(key, -1)} aria-label={t('Remove one')} className="grid h-9 w-9 place-items-center rounded-lg active:bg-white/15"><Minus className="h-4 w-4" strokeWidth={3} /></button>
+                      <b className="text-[13px]">{qty}</b>
+                      <button onClick={() => add(i)} aria-label={t('Add one')} className="grid h-9 w-9 place-items-center rounded-lg active:bg-white/15"><Plus className="h-4 w-4" strokeWidth={3} /></button>
                     </div>
                   ) : (
-                    <button onClick={() => (i.variants.length ? setPick(i) : add(i))} className={`min-h-11 w-full rounded-xl text-sm font-extrabold ring-1 transition active:scale-95 ${qty ? 'bg-brand text-white ring-brand' : 'bg-brand-soft text-brand ring-brand/20'}`}>{qty ? t('ADDED · {n}', { n: qty }) : t('ADD')}</button>
+                    <button onClick={() => (i.variants.length ? setPick(i) : add(i))} className={`h-9 w-full rounded-lg text-[13px] font-extrabold ring-1 transition active:scale-95 ${qty ? 'bg-brand text-white ring-brand' : 'bg-brand-soft text-brand ring-brand/20'}`}>{qty ? t('ADDED · {n}', { n: qty }) : t('ADD')}</button>
                   )}
                 </div>
               </div>

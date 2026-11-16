@@ -1,3 +1,16 @@
+/**
+ * Photo links come from the server built on APP_URL. In local development that is often another port (localhost:8000)
+ * than the one the app runs on, so a stored photo would show as broken: use the same-origin /storage path instead.
+ * On the live site both are the same address, so nothing changes there.
+ */
+export function devUrl(url) {
+  try {
+    const u = new URL(url, location.origin)
+    const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1'
+    return local && u.origin !== location.origin && u.pathname.startsWith('/storage/') ? u.pathname + u.search : url
+  } catch { return url }
+}
+
 /** Thumbnail URL of an uploaded picture ("name.webp" -> "name-t.webp"); falls back to the original when none exists. */
 export const thumbOf = (url) => (url && /\.(webp|jpg)$/i.test(url) ? url.replace(/\.(webp|jpg)$/i, '-t.$1') : url)
 

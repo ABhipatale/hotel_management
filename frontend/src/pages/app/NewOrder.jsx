@@ -306,14 +306,14 @@ export default function NewOrder() {
                   {i.image_url ? <Img src={i.image_url} thumb className="h-28 w-full object-cover" /> : <div className="grid h-28 place-items-center bg-brand-soft"><UtensilsCrossed className="h-10 w-10 text-brand/40" strokeWidth={1.6} /></div>}
                   <div className="p-3">
                     <div className="flex items-center gap-1.5">{dot}<span className="truncate text-sm font-medium">{nm(i).main}</span></div>
-                    {nm(i).sub && <div className="truncate text-xs text-muted">{nm(i).sub}</div>}
+                    {nm(i).sub && <div className="-mt-1 truncate text-xs text-muted">{nm(i).sub}</div>}
                     <div className="mt-1 flex min-h-9 items-center justify-between gap-2 text-sm font-semibold text-brand"><span>{price}</span>{stepper}</div>
                   </div>
                 </div>
               ) : (
                 <div key={i.id} role="button" tabIndex={0} onClick={() => tapItem(i)} className={`flex h-[4.5rem] items-center gap-3 overflow-hidden rounded-2xl border bg-white text-left shadow-card transition active:scale-[.98] ${i.image_url && showImg ? 'pl-0 pr-4' : 'px-4'} ${n ? 'border-brand ring-2 ring-brand/20' : 'border-line/70'}`}>
                   {i.image_url && showImg ? <Img src={i.image_url} thumb className="h-full w-[4.5rem] shrink-0 object-cover" /> : dot}
-                  <div className="min-w-0 flex-1"><div className="flex items-center gap-1.5">{i.code != null && <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-md bg-brand px-1.5 text-[11px] font-extrabold leading-none text-white">{i.code}</span>}{i.image_url && showImg && dot}<span className="truncate text-[15px] font-semibold">{nm(i).main}</span></div>{i.name_mr && <div className="truncate text-xs text-muted">{i.name_mr}</div>}<div className="text-sm font-semibold text-brand">{price}</div></div>
+                  <div className="min-w-0 flex-1"><div className="flex items-center gap-1.5">{i.code != null && <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-md bg-brand px-1 text-[10px] font-extrabold leading-none text-white">{i.code}</span>}{i.image_url && showImg && dot}<span className="truncate text-[15px] font-semibold">{nm(i).main}</span></div>{i.name_mr && <div className="-mt-0.5 truncate text-xs text-muted">{i.name_mr}</div>}<div className="text-sm font-semibold text-brand">{price}</div></div>
                   {stepper || <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><Plus className="h-5 w-5" /></span>}
                 </div>
               )
