@@ -45,6 +45,9 @@ return [
     // Customer QR ordering: most orders that may wait for staff approval at one table at the same time (stops spam / pranks)
     'qr_max_pending' => (int) env('HMS_QR_MAX_PENDING', 3),
 
+    // Platform admin created by `db:seed` in PRODUCTION (never a default password): set both in .env, password 12+ characters.
+    'admin' => ['email' => env('ADMIN_EMAIL'), 'password' => env('ADMIN_PASSWORD')],
+
     // What happens after subscription expiry: read-only keeps data viewable; block denies all tenant access.
     'expiry_policy' => env('HMS_EXPIRY_POLICY', 'read_only'),
 ];

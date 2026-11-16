@@ -1,4 +1,5 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import ErrorBoundary from './components/ErrorBoundary'
 import { Fragment, lazy, Suspense } from 'react'
 import { I18nProvider, useI18n } from './i18n'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -70,6 +71,13 @@ function KotOnly({ children }) {
   return a.company?.kot_enabled && a.company?.kot_screen !== false ? children : <Navigate to={homeFor(a)} replace />
 }
 
+/** A crash on one screen must not trap the person there: going to another screen starts clean. */
+function Guarded({ children }) {
+  const { pathname } = useLocation()
+
+  return <ErrorBoundary key={pathname}>{children}</ErrorBoundary>
+}
+
 function Home() {
   const a = useAuth()
   if (a.loading) return <Spinner />
@@ -93,6 +101,7 @@ export default function App() {
           <CounterProvider>
           <LangKeyed>
           <Suspense fallback={<PageSkeleton />}>
+          <Guarded>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
@@ -126,6 +135,7 @@ export default function App() {
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Guarded>
           </Suspense>
           </LangKeyed>
           </CounterProvider>

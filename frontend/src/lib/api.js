@@ -71,6 +71,7 @@ api.interceptors.response.use(
 /** Human-readable message from a Laravel error response. */
 export function errMsg(err) {
   const d = err?.response?.data
+  if (err?.response?.status === 429 && /too many attempts/i.test(d?.message || '')) return tr('Too many requests. Please wait a moment and try again.')
   if (d?.errors) return tr(Object.values(d.errors).flat()[0])
   return tr(d?.message || err?.message || 'Something went wrong')
 }

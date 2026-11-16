@@ -18,6 +18,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('auth', fn (Request $r) => Limit::perMinute(10)->by($r->ip().'|'.strtolower((string) $r->input('email'))));
         RateLimiter::for('public-menu', fn (Request $r) => Limit::perMinute(60)->by($r->ip()));
         RateLimiter::for('public-order', fn (Request $r) => Limit::perMinute(10)->by($r->ip().'|'.$r->route('token')));
-        RateLimiter::for('api', fn (Request $r) => Limit::perMinute(240)->by($r->user()?->id ?: $r->ip()));
+        // per device (token), not per person: several tablets on one shared login must not block each other
+        RateLimiter::for('api', fn (Request $r) => Limit::perMinute(240)->by($r->user()?->currentAccessToken()?->id ? 'tok'.$r->user()->currentAccessToken()->id : ($r->user()?->id ?: $r->ip())));
     }
 }

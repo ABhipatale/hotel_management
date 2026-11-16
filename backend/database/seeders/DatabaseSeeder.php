@@ -35,11 +35,20 @@ class DatabaseSeeder extends Seeder
         // Single-plan product: Premium is the only plan offered.
         SubscriptionPlan::where('slug', '!=', 'premium')->update(['is_active' => false]);
 
-        Tenant::unscoped(function () {
-            User::firstOrCreate(['email' => 'admin@hms.test'], [
-                'name' => 'Platform Admin', 'password' => 'Admin@12345',
-            ])->forceFill(['role' => 'super_admin', 'company_id' => null])->save();
-        });
+        // The platform admin. Local / testing: the demo account. PRODUCTION: never a published password: only the account you give in
+        // the environment (ADMIN_EMAIL + ADMIN_PASSWORD, at least 12 characters), and nothing at all when they are not set.
+        [$adminEmail, $adminPassword] = app()->environment('production')
+            ? [config('hms.admin.email'), config('hms.admin.password')]
+            : ['admin@hms.test', 'Admin@12345'];
+        if ($adminEmail && $adminPassword && (! app()->environment('production') || strlen((string) $adminPassword) >= 12)) {
+            Tenant::unscoped(function () use ($adminEmail, $adminPassword) {
+                User::firstOrCreate(['email' => $adminEmail], [
+                    'name' => 'Platform Admin', 'password' => $adminPassword,
+                ])->forceFill(['role' => 'super_admin', 'company_id' => null])->save();
+            });
+        } elseif (app()->environment('production') && isset($this->command)) {
+            $this->command->warn('No platform admin created: set ADMIN_EMAIL and ADMIN_PASSWORD (12+ characters) to create one.');
+        }
 
         if (! app()->environment('production')) {
             $this->demo($premium);

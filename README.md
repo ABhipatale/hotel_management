@@ -20,7 +20,7 @@ npm install
 npm run dev                       # http://localhost:5173 (proxies /api and /storage to :8000)
 ```
 
-Seeded logins (non-production only):
+Seeded logins (local / testing only: **`db:seed` never creates these on a production server**. For a new live install set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (12+ characters) in `.env` first):
 
 | Role | Email | Password |
 |---|---|---|
