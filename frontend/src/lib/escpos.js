@@ -49,7 +49,7 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer }
   const when = `${dateIST(d)} ${timeIST(d)}`
   if (wide) two(`Bill: ${bill.bill_no}`, when)
   else { line(`Bill: ${bill.bill_no}`); line(when) }
-  if (table || waiter) two(table ? `Table: ${table}` : '', waiter ? `Staff: ${waiter}` : '')
+  if (table) line(`Table: ${table}`) // the waiter's name is not printed on the bill
 
   rule()
 
@@ -175,7 +175,7 @@ export async function printUsb(bytes, { delay = 0 } = {}) {
   } catch (e) { throw friendly(e) }
 }
 
-export async function printBluetooth(bytes, { delay = 0 } = {}) {
+export async function printBluetooth(bytes, { delay = 0, chunk = 100, settle = 1200 } = {}) {
   const send = async (device) => {
     const server = device.gatt.connected ? device.gatt : await device.gatt.connect()
     const services = await server.getPrimaryServices()
@@ -183,8 +183,8 @@ export async function printBluetooth(bytes, { delay = 0 } = {}) {
       const chars = await s.getCharacteristics()
       const w = chars.find((c) => c.properties.write || c.properties.writeWithoutResponse)
       if (w) {
-        await chunked((c) => (w.properties.writeWithoutResponse ? w.writeValueWithoutResponse(c) : w.writeValue(c)), bytes, 100, delay)
-        if (delay) await sleep(1200) // let the printer finish its buffer before the link is dropped
+        await chunked((c) => (w.properties.writeWithoutResponse ? w.writeValueWithoutResponse(c) : w.writeValue(c)), bytes, chunk, delay)
+        if (delay) await sleep(settle) // let the printer finish its buffer before the link is dropped
         server.disconnect()
         return
       }

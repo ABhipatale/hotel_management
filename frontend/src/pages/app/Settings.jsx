@@ -1,3 +1,4 @@
+import { kotPrefs } from '../../lib/kotSlip'
 import { useEffect, useState } from 'react'
 import { api, toFormData } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
@@ -42,6 +43,7 @@ export default function Settings() {
   }
   const savePrinter = async (e) => {
     e.preventDefault()
+    try { if (!localStorage.getItem('hms.kot.width') && p.paper_width) kotPrefs.setWidth(p.paper_width) } catch { /* ignore */ }
     try { await api.put('/printer', { paper_width: p.paper_width, connection: p.connection, ip_address: p.ip_address || null, port: p.port || null, use_escpos: !!p.use_escpos, show_logo: !!p.show_logo }); toast.success(t('Printer settings saved')) } catch (x) { toast.error(x) }
   }
   const ticket = async (e) => {

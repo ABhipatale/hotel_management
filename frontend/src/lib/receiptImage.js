@@ -25,6 +25,7 @@ export const receiptFooter = (company, lang) => {
 /** True when the bill contains characters a plain ESC/POS text printer would print as "?". */
 export function needsImage(data, lang) {
   if (lang === 'mr') return true
+  return true // English is drawn as a picture too: the same tight, aligned layout as Marathi (plain-text lines left big gaps)
   const { bill, company, table, waiter } = data
   const all = [company.name, company.address, company.bill_header, company.bill_footer, company.phone, table, waiter, ...bill.items.map((i) => i.name)].join('')
   return /[^\x20-\x7E\n]/.test(all) // eslint-disable-line no-control-regex
@@ -63,7 +64,7 @@ export async function buildReceiptImage({ bill, company, table, order_no, waiter
   ctx.fillRect(0, 0, W, canvas.height)
   ctx.fillStyle = '#000'
   ctx.textBaseline = 'alphabetic'
-  let y = 6
+  let y = 22 // small blank top margin so the printer never clips the first line
 
   const setFont = (size, bold) => { ctx.font = `${bold ? 700 : 400} ${size}px ${FONT}` }
   const wrap = (text, maxW) => {
@@ -131,7 +132,7 @@ export async function buildReceiptImage({ bill, company, table, order_no, waiter
   const when = `${dateIST(d)} ${timeIST(d)}`
   pair(`${L.bill}: ${bill.bill_no}`, '', base - 2)
   pair(`${L.date}: ${when}`, '', base - 2)
-  if (table || waiter) pair(table ? `${L.table}: ${table}` : '', waiter ? `${L.staff}: ${waiter}` : '', base - 2)
+  if (table) pair(`${L.table}: ${table}`, '', base - 2) // the waiter's name is not printed on the bill
   void order_no // the order number is not printed on the bill
   rule()
 

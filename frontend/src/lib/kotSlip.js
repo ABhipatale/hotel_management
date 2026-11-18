@@ -53,13 +53,13 @@ export async function drawKotCanvas(kot, company, { width = '80mm', lang = 'en' 
   const lines = kot.items || []
   const canvas = document.createElement('canvas')
   canvas.width = W
-  canvas.height = 900 + lines.length * 260
+  canvas.height = 930 + lines.length * 260
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
   ctx.fillStyle = '#fff'
   ctx.fillRect(0, 0, W, canvas.height)
   ctx.fillStyle = '#000'
   ctx.strokeStyle = '#000'
-  let y = Math.round(8 * k)
+  let y = Math.round(30 * k) // blank top margin: many printers clip the first rows of a picture
   const font = (size, bold = true) => { ctx.font = `${bold ? 700 : 400} ${Math.round(size * k)}px ${FONT}` }
   const wrap = (text, maxW) => {
     const out = []
@@ -85,11 +85,12 @@ export async function drawKotCanvas(kot, company, { width = '80mm', lang = 'en' 
     ctx.restore()
     y += Math.round(10 * k)
   }
-  const bar = (text, size, h) => { // white text on a black bar across the whole slip
-    ctx.fillStyle = '#000'; ctx.fillRect(0, y, W, Math.round(h * k))
-    ctx.fillStyle = '#fff'; font(size); ctx.textAlign = 'center'
-    ctx.fillText(text, W / 2, y + Math.round(h * k) / 2 + Math.round(size * k * 0.35))
-    ctx.fillStyle = '#000'; y += Math.round(h * k)
+  const bar = (text, size, h) => { // black text in an outlined box (no solid black: a solid block makes a thermal printer very slow)
+    const bh = Math.round(h * k)
+    ctx.lineWidth = Math.max(3, Math.round(4 * k)); ctx.strokeRect(pad + 2, y + 2, W - pad * 2 - 4, bh - 4)
+    ctx.fillStyle = '#000'; font(size); ctx.textAlign = 'center'
+    ctx.fillText(text, W / 2, y + bh / 2 + Math.round(size * k * 0.35))
+    y += bh
   }
 
   const isCancel = kot.type === 'cancel'
@@ -136,7 +137,7 @@ export async function drawKotCanvas(kot, company, { width = '80mm', lang = 'en' 
   const gap = Math.round(16 * k)
   const nameSize = 38
   lines.forEach((i, n) => {
-    if (n > 0) { ctx.save(); ctx.lineWidth = 2; ctx.setLineDash([Math.round(4 * k), Math.round(7 * k)]); ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - pad, y); ctx.stroke(); ctx.restore(); y += Math.round(10 * k) }
+    if (n > 0) y += Math.round(12 * k) // plain gap, no dotted line: dotted rows make a thermal printer slow down
     font(nameSize)
     const nameLines = wrap(i.name, W - pad * 2 - qb - gap)
     const nameH = Math.round(nameSize * k * 1.18)
@@ -168,7 +169,7 @@ export async function drawKotCanvas(kot, company, { width = '80mm', lang = 'en' 
     font(28)
     noteLines.forEach((ln, idx) => ctx.fillText(ln, pad + Math.round(12 * k), y + (idx + 1.9) * lh))
     y += h + Math.round(8 * k)
-    rule('dash')
+    y += Math.round(8 * k) // test: no dotted line
   }
 
   // 7. footer
@@ -210,5 +211,5 @@ export async function printKot(kot, company, lang = 'en') {
   const conn = kotConnection()
   if (!conn) throw new Error('Choose a printer first (Print settings).')
   const bytes = await buildKotSlip(kot, company, { width: kotPrefs.width(), lang })
-  conn === 'usb' ? await printUsb(bytes, { delay: 12 }) : await printBluetooth(bytes, { delay: 12 })
+  conn === 'usb' ? await printUsb(bytes, { delay: 12 }) : await printBluetooth(bytes, { delay: 5, chunk: 160, settle: 700 })
 }
