@@ -123,6 +123,28 @@ class KotTest extends TestCase
         $this->assertCount(2, $this->getJson('/api/orders?open=1', $owner)->json('0.kots'));
     }
 
+    public function test_serving_or_billing_an_order_removes_its_tickets_from_the_kitchen_board(): void
+    {
+        $this->switchKot(true, true);
+        $owner = $this->login('atithi@demo.test');
+        $chef = $this->staff($owner, 'chef2@x.test', 'chef');
+        $tables = $this->getJson('/api/tables', $owner)->json();
+
+        $a = $this->postJson('/api/orders', ['table_id' => $tables[0]['id'], 'items' => [$this->line($owner, 0)]], $owner)->assertCreated()->json();
+        $b = $this->postJson('/api/orders', ['table_id' => $tables[1]['id'], 'items' => [$this->line($owner, 1)]], $owner)->assertCreated()->json();
+        $this->assertCount(2, $this->getJson('/api/kots', $chef)->json());
+
+        // serving order A clears its ticket
+        $this->patchJson("/api/orders/{$a['id']}/status", ['status' => 'served'], $owner)->assertOk();
+        $board = collect($this->getJson('/api/kots', $chef)->json());
+        $this->assertCount(1, $board);
+        $this->assertSame($b['order_no'], $board[0]['order']['order_no']);
+
+        // billing order B clears its ticket too (it was still "new" in the kitchen)
+        $this->postJson("/api/orders/{$b['id']}/bill", [], $owner)->assertSuccessful();
+        $this->assertCount(0, $this->getJson('/api/kots', $chef)->json());
+    }
+
     public function test_editing_an_order_sends_only_the_difference_and_cancels_reach_the_kitchen(): void
     {
         $this->switchKot(true);

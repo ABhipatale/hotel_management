@@ -261,6 +261,9 @@ class OrderController extends Controller
         if ($d['status'] === 'cancelled' && $before !== 'pending') {
             \App\Models\AuditLog::record('order.cancel', 'order', $order->id, ['order_no' => $order->order_no, 'branch_id' => $order->branch_id, 'status_before' => $before, 'amount' => $amount, 'approved' => $approved]);
         }
+        if ($d['status'] === 'served') {
+            app(KotService::class)->closeTickets($order); // a served order's tickets leave the kitchen board
+        }
         if ($d['status'] === 'accepted') {
             app(KotService::class)->fireAll($order, $r->user()); // an approved customer (QR) order goes to the kitchen now
         }

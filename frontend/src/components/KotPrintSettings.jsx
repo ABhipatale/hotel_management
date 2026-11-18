@@ -3,6 +3,7 @@ import { useT } from '../i18n'
 import { useAuth } from '../context/AuthContext'
 import { kotPrefs } from '../lib/kotSlip'
 import SavedPrinter from './SavedPrinter'
+import { readyAlertOn, setReadyAlert } from '../lib/kotAlerts'
 import { Switch } from './ui'
 
 /** Kitchen-slip printing choices for THIS device: which printer, paper width, and when to print by itself. */
@@ -12,6 +13,7 @@ export default function KotPrintSettings({ where }) {
   const [width, setWidth] = useState(kotPrefs.width())
   const [auto, setAuto] = useState(kotPrefs.auto(where))
   const [mode, setMode] = useState(kotPrefs.orderMode(company?.kot_print_mode))
+  const [ready, setReady] = useState(readyAlertOn())
   const [kind, setKind] = useState(() => (navigator.bluetooth ? 'bluetooth' : 'usb'))
   return (
     <div className="space-y-4">
@@ -47,6 +49,12 @@ export default function KotPrintSettings({ where }) {
           onChange={(v) => { setAuto(v); kotPrefs.setAuto(where, v) }}
         />
       )}
+      <Switch
+        label={t('Show "KOT is ready" popup and beep')}
+        hint={t('Only on this device. Turn off if you do not want a notification when the kitchen finishes a ticket.')}
+        checked={ready}
+        onChange={(v) => { setReady(v); setReadyAlert(v) }}
+      />
     </div>
   )
 }

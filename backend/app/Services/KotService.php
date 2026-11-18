@@ -128,6 +128,15 @@ class KotService
         });
     }
 
+    /** The order was served or billed: its kitchen tickets are finished, so they leave the kitchen board (no order-status change). */
+    public function closeTickets(Order $order): void
+    {
+        if (! self::enabled()) {
+            return;
+        }
+        $order->kots()->whereIn('status', ['new', 'cooking', 'ready'])->update(['status' => 'served', 'served_at' => now()]);
+    }
+
     private function syncOrder(Kot $kot, string $status): void
     {
         $order = Order::with('table')->find($kot->order_id);

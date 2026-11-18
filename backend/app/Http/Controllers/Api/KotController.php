@@ -40,7 +40,7 @@ class KotController extends Controller
         if ($r->boolean('done')) {
             $q->whereIn('status', ['served', 'cancelled'])->where('kot_date', BizTime::today())->latest('id')->limit(100);
         } else {
-            $q->where(fn ($w) => $w->whereIn('status', ['new', 'cooking', 'ready'])->orWhere(fn ($x) => $x->where('status', 'served')->where('served_at', '>=', now()->subHour())))
+            $q->where(fn ($w) => $w->whereIn('status', ['new', 'cooking', 'ready'])->orWhere(fn ($x) => $x->where('status', 'served')->where('served_at', '>=', now()->subHour())->whereHas('order', fn ($o) => $o->whereNotIn('status', ['served', 'billed', 'paid']))))
                 ->orderBy('id');
         }
 

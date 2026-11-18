@@ -153,6 +153,7 @@ class OrderService
                 BillItem::create($r + ['bill_id' => $bill->id]);
             }
             $order->update(['status' => 'billed']);
+            app(KotService::class)->closeTickets($order); // a billed order's tickets leave the kitchen board
             $order->table?->update(['status' => 'billing']);
 
             return $bill->load('items');
