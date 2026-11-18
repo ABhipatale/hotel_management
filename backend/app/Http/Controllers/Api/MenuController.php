@@ -162,10 +162,10 @@ class MenuController extends Controller
         }
         if ($r->hasFile('image')) {
             $images = app(\App\Services\ImageService::class);
+            $d['image_path'] = $images->store($r->file('image'), 'food/'.Tenant::id()); // saved and checked first: if it fails, the old photo is still there
             if ($old = $existing?->image_path) {
                 $images->delete($old);
             }
-            $d['image_path'] = $images->store($r->file('image'), 'food/'.Tenant::id());
             $d['library_image_id'] = null;
             $d['hide_library_image'] = false;
         } elseif (! empty($d['library_image_id'])) {

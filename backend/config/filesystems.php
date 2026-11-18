@@ -40,7 +40,14 @@ return [
 
         'public' => [
             'driver' => 'local',
-            'root' => env('PUBLIC_DISK_ROOT', storage_path('app/public')),
+            // Where uploaded pictures are saved. 1) PUBLIC_DISK_ROOT in .env, if set. 2) On shared hosting (no storage link) the
+            // website's own "storage" folder next to index.php, so pictures are saved where the website serves them from.
+            // 3) Laravel's normal storage/app/public (with the usual `php artisan storage:link`).
+            'root' => env('PUBLIC_DISK_ROOT', (function () {
+                $web = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), '/').'/storage';
+
+                return $web !== '/storage' && is_dir($web) && ! is_link($web) ? $web : storage_path('app/public');
+            })()),
             'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
             'visibility' => 'public',
             'throw' => false,

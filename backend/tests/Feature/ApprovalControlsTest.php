@@ -188,7 +188,7 @@ class ApprovalControlsTest extends TestCase
         $this->patchJson('/api/orders/'.$o['id'].'/status', ['status' => 'preparing'], $waiter)->assertOk();
         $this->patchJson('/api/orders/'.$o['id'].'/status', ['status' => 'cancelled'], $waiter + ['X-Approval-Pin' => '4821'])->assertOk();
 
-        $r = $this->getJson('/api/reports/exceptions?from='.now()->toDateString().'&to='.now()->toDateString(), $owner)->assertOk();
+        $r = $this->getJson('/api/reports/exceptions?from='.\App\Support\BizTime::today().'&to='.\App\Support\BizTime::today(), $owner)->assertOk();
         $this->assertCount(1, $r->json('voids'));
         $this->assertSame('wrong table', $r->json('voids.0.reason'));
         $this->assertCount(1, $r->json('discounts'));

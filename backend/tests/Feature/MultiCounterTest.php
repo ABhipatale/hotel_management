@@ -116,7 +116,7 @@ class MultiCounterTest extends TestCase
             $o = $this->postJson('/api/orders', ['items' => [['food_item_id' => $dish['id'], 'quantity' => $qty]], 'generate_bill' => true], $h)->assertCreated()->json();
             $this->postJson("/api/bills/{$o['bill']['id']}/pay", ['payments' => [['method' => 'cash', 'amount' => $o['bill']['grand_total']]]], $h)->assertOk();
         }
-        $this->postJson('/api/expenses', ['category' => 'Gas', 'amount' => 5, 'expense_date' => now()->toDateString()], $b)->assertCreated();
+        $this->postJson('/api/expenses', ['category' => 'Gas', 'amount' => 5, 'expense_date' => \App\Support\BizTime::today()], $b)->assertCreated();
 
         $ov = $this->getJson('/api/counters/overview', $owner)->assertOk()->json();
         $by = collect($ov['counters'])->keyBy('id');

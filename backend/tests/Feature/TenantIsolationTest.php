@@ -280,7 +280,7 @@ class TenantIsolationTest extends TestCase
 
         $this->assertEqualsWithDelta($expected, $this->getJson('/api/dashboard', $a)->assertOk()->json('today_sales'), 0.01);
         $this->assertEquals(0, $this->getJson('/api/dashboard', $f)->assertOk()->json('today_sales'));
-        $this->getJson('/api/reports/payments?from='.now()->toDateString(), $a)->assertOk()->assertJsonPath('0.method', 'upi');
+        $this->getJson('/api/reports/payments?from='.\App\Support\BizTime::today(), $a)->assertOk()->assertJsonPath('0.method', 'upi');
     }
 
     public function test_single_premium_plan_unlocks_everything(): void

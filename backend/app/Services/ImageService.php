@@ -12,13 +12,19 @@ use Illuminate\Support\Str;
  */
 class ImageService
 {
-    /** @return string stored path of the main image (thumbnail, when made, is thumbPath($path)) */
+    /**
+     * @return string stored path of the main image (thumbnail, when made, is thumbPath($path)).
+     *
+     * A picture is only ever reported as saved when the file really exists, is not empty, and can be opened as an image.
+     * If the converter produces nothing for some photo (it happens with certain files on some servers), the picture is saved
+     * as JPEG instead, and as the original upload if even that fails. A real write failure (disk full, no permission) throws.
+     */
     public function store(UploadedFile $file, string $dir, int $max = 900, ?int $thumb = 360): string
     {
         $raw = (string) file_get_contents($file->getRealPath());
         $src = @imagecreatefromstring($raw);
         if (! $src) {
-            return $file->store($dir, 'public'); // unreadable / no GD: keep the original rather than fail
+            return $this->keepOriginal($file, $dir); // unreadable / no GD: keep the original rather than fail
         }
 
         try {
@@ -27,24 +33,60 @@ class ImageService
                 imagepalettetotruecolor($src);
             }
 
-            $webp = function_exists('imagewebp');
-            $ext = $webp ? 'webp' : 'jpg';
             $name = trim($dir, '/').'/'.Str::random(24);
-
-            $main = $this->encode($this->fit($src, $max), $webp);
-            $small = $thumb ? $this->encode($this->fit($src, $thumb), $webp, 70) : null;
+            $ext = function_exists('imagewebp') ? 'webp' : 'jpg';
+            $main = $this->encode($this->fit($src, $max), $ext === 'webp');
+            if (! $this->viewable($main) && $ext === 'webp') { // the WebP converter gave nothing: use JPEG
+                $ext = 'jpg';
+                $main = $this->encode($this->fit($src, $max), false);
+            }
+            if (! $this->viewable($main)) {
+                throw new \RuntimeException('The picture could not be converted.');
+            }
+            $small = $thumb ? $this->encode($this->fit($src, $thumb), $ext === 'webp', 70) : null;
         } catch (\Throwable $e) {
             report($e);
 
-            return $file->store($dir, 'public'); // GD could not process this picture: store it as it is, never fail the upload
+            return $this->keepOriginal($file, $dir); // GD could not process this picture: store it as it is, never fail the upload
         }
 
-        Storage::disk('public')->put("$name.$ext", $main);
-        if ($small !== null) {
-            Storage::disk('public')->put("$name-t.$ext", $small);
+        $this->write("$name.$ext", $main);
+        if ($small !== null && $this->viewable($small)) {
+            try {
+                $this->write("$name-t.$ext", $small);
+            } catch (\Throwable $e) {
+                report($e); // no thumbnail is fine: lists fall back to the full picture
+            }
         }
 
         return "$name.$ext";
+    }
+
+    /** True for real picture data (not empty, not garbage). */
+    protected function viewable(string $bytes): bool
+    {
+        return strlen($bytes) > 20 && @getimagesizefromstring($bytes) !== false;
+    }
+
+    /** Writes a file and proves it landed: a silent failure here used to leave a broken picture behind. */
+    protected function write(string $path, string $bytes): void
+    {
+        $disk = Storage::disk('public');
+        if (! $disk->put($path, $bytes) || $disk->size($path) < 1) {
+            $disk->delete($path);
+
+            throw new \RuntimeException('The picture could not be saved on the server (disk full or no permission).');
+        }
+    }
+
+    private function keepOriginal(UploadedFile $file, string $dir): string
+    {
+        $path = $file->store($dir, 'public');
+        if (! $path || Storage::disk('public')->size($path) < 1) {
+            throw new \RuntimeException('The picture could not be saved on the server (disk full or no permission).');
+        }
+
+        return $path;
     }
 
     public function delete(?string $path): void
@@ -85,7 +127,7 @@ class ImageService
         return $scaled ?: $src;
     }
 
-    private function encode($img, bool $webp, int $q = 78): string
+    protected function encode($img, bool $webp, int $q = 78): string
     {
         imagealphablending($img, false);
         imagesavealpha($img, true);

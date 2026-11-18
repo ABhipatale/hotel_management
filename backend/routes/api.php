@@ -53,6 +53,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('companies/{id}/counters', [SuperAdminController::class, 'counters']);
         Route::post('companies/{id}/counters', [SuperAdminController::class, 'storeCounter']);
         Route::put('companies/{id}/counters/{counterId}', [SuperAdminController::class, 'updateCounter']);
+        Route::get('library/check', [LibraryController::class, 'check']);
+        Route::post('library/repair', [LibraryController::class, 'repair']);
         Route::get('library', [LibraryController::class, 'adminIndex']);
         Route::post('library', [LibraryController::class, 'store']);
         Route::post('library/{id}', [LibraryController::class, 'update']); // POST for multipart

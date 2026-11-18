@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\FoodItem;
@@ -36,6 +37,62 @@ class LibraryController extends Controller
     public function adminIndex(Request $r)
     {
         return $this->list($r);
+    }
+
+    /**
+     * Finds library photos whose file is missing, empty or not a picture (so they show as a broken image everywhere).
+     * Platform admin: lists them so they can be uploaded again.
+     */
+    /** The folder the website really serves /storage/... from (null when it is the same place the app writes to). */
+    private function webRoot(): ?string
+    {
+        $web = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), '/').'/storage';
+        $real = $web !== '/storage' && is_dir($web) ? realpath($web) : false;
+        $disk = realpath(Storage::disk('public')->path(''));
+
+        return $real && $real !== $disk ? $real : null;
+    }
+
+    /** Where each photo is: ok (the website can show it), stranded (saved, but not in the website's folder), missing (nowhere). */
+    public function check()
+    {
+        $disk = Storage::disk('public');
+        $web = $this->webRoot();
+        $bad = [];
+        $rows = LibraryImage::orderBy('name')->get(['id', 'name', 'image_path']);
+        foreach ($rows as $i) {
+            $inDisk = $i->image_path && $disk->exists($i->image_path) && $disk->size($i->image_path) > 0;
+            $inWeb = $web ? ($i->image_path && is_file($web.'/'.$i->image_path) && filesize($web.'/'.$i->image_path) > 0) : $inDisk;
+            if ($inWeb) {
+                continue;
+            }
+            $bad[] = ['id' => $i->id, 'name' => $i->name, 'reason' => $inDisk ? 'stranded' : 'missing'];
+        }
+
+        return ['checked' => $rows->count(), 'broken' => $bad, 'stranded' => collect($bad)->where('reason', 'stranded')->count()];
+    }
+
+    /** Copy photos that were saved outside the website's folder into it (never deletes or overwrites anything). */
+    public function repair()
+    {
+        $web = $this->webRoot();
+        $disk = Storage::disk('public');
+        $copied = 0;
+        if ($web) {
+            foreach (LibraryImage::get(['image_path']) as $i) {
+                $path = (string) $i->image_path;
+                foreach ([$path, preg_replace('/(\.[^.]+)$/', '-t$1', $path)] as $f) {
+                    if ($f && $disk->exists($f) && ! is_file($web.'/'.$f)) {
+                        @mkdir(dirname($web.'/'.$f), 0775, true);
+                        if (@copy($disk->path($f), $web.'/'.$f)) {
+                            $copied++;
+                        }
+                    }
+                }
+            }
+        }
+
+        return ['copied' => $copied] + $this->check();
     }
 
     private function list(Request $r)
@@ -86,8 +143,9 @@ class LibraryController extends Controller
             $path = $this->images->store($file, 'library');
 
             if ($existing) {
-                $this->images->delete($existing->image_path);
-                $existing->update(['image_path' => $path]);
+                $old = $existing->image_path;
+                $existing->update(['image_path' => $path]);  // the record points at the new, saved photo first...
+                $this->images->delete($old);                  // ...and only then the old file goes
                 $out['replaced']++;
             } else {
                 LibraryImage::create([
@@ -110,12 +168,24 @@ class LibraryController extends Controller
             'aliases' => 'nullable|string|max:500',
             'image' => 'nullable|image|max:6144',
         ]);
+        $old = null;
         if ($r->hasFile('image')) {
-            $this->images->delete($img->image_path);
-            $d['image_path'] = $this->images->store($r->file('image'), 'library');
+            try {
+                $new = $this->images->store($r->file('image'), 'library'); // saved and checked BEFORE anything is changed or deleted
+            } catch (\Throwable $e) {
+                report($e);
+
+                return response()->json(['message' => 'The new photo could not be saved, so the old one was kept: '.mb_substr($e->getMessage(), 0, 200)], 500);
+            }
+            $old = $img->image_path;
+            $d['image_path'] = $new;
         }
         unset($d['image']);
         $img->update($d);
+        if ($old) {
+            $this->images->delete($old); // the old file goes last
+        }
+        LibraryImages::flush();
 
         return $img->refresh();
     }
