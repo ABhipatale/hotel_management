@@ -106,19 +106,39 @@ export async function drawKotCanvas(kot, company, { width = '80mm', lang = 'en' 
   }
   rule('thick')
 
+  // where it goes: table / parcel / takeaway / delivery
+  const t = kot.order?.table
+  const parcel = t && /^parcel\b/i.test(String(t.number))
+  const where = t ? (parcel ? `${mr ? 'पार्सल' : 'PARCEL'} ${String(t.number).replace(/^parcel\s*/i, '')}` : `${L.table} ${t.number}`) : (kot.order?.type === 'delivery' ? L.delivery : L.takeaway)
+
   // 2. the big ticket number (a cancelled ticket gets the STOP bar instead, so only one black bar is ever on the slip)
   if (isCancel) {
     bar(L.cancel, 34, 66)
     y += Math.round(6 * k)
     center(`${L.kot} #${kot.number}`, 64)
   } else {
-    bar(`${L.kot} #${kot.number}`, 70, 104)
+    // KOT number and table / parcel / takeaway side by side on ONE line, two outlined boxes (the font shrinks until both fit)
+    const kotTxt = `${L.kot} #${kot.number}`
+    let fs = 60
+    const fit = () => { font(fs); return ctx.measureText(kotTxt).width + ctx.measureText(where).width + Math.round(120 * k) }
+    while (fs > 22 && fit() > W - pad * 2 - Math.round(12 * k)) fs -= 2
+    font(fs)
+    const w1 = ctx.measureText(kotTxt).width + Math.round(40 * k)
+    const w2 = ctx.measureText(where).width + Math.round(40 * k)
+    const gapX = Math.round(10 * k)
+    const x0 = Math.round((W - (w1 + gapX + w2)) / 2)
+    const bh2 = Math.round(Math.max(fs * 1.5, 56 * k))
+    ctx.lineWidth = Math.max(3, Math.round(5 * k))
+    ctx.strokeRect(x0, y + 2, w1, bh2); ctx.strokeRect(x0 + w1 + gapX, y + 2, w2, bh2)
+    ctx.textAlign = 'center'
+    const ty = y + 2 + bh2 / 2 + Math.round(fs * 0.35)
+    ctx.fillText(kotTxt, x0 + w1 / 2, ty); ctx.fillText(where, x0 + w1 + gapX + w2 / 2, ty)
+    y += bh2 + Math.round(6 * k)
+    if (t?.section) center(t.section, 26, false)
   }
 
   // 3. where it goes: table (boxed) / takeaway / delivery
-  const t = kot.order?.table
-  const parcel = t && /^parcel\b/i.test(String(t.number))
-  const where = t ? (parcel ? `${mr ? 'पार्सल' : 'PARCEL'} ${String(t.number).replace(/^parcel\s*/i, '')}` : `${L.table} ${t.number}`) : (kot.order?.type === 'delivery' ? L.delivery : L.takeaway)
+  if (isCancel) {
   y += Math.round(12 * k)
   font(54)
   const bw = Math.min(W - pad * 2, ctx.measureText(where).width + Math.round(60 * k))
@@ -128,6 +148,7 @@ export async function drawKotCanvas(kot, company, { width = '80mm', lang = 'en' 
   ctx.textAlign = 'center'; ctx.fillText(where, W / 2, y + bh / 2 + Math.round(54 * k * 0.35))
   y += bh
   if (t?.section) center(t.section, 26, false)
+  }
 
   // 4. order details
   y += Math.round(6 * k)
@@ -196,6 +217,7 @@ export function buildKotText(kot, company, { width = '80mm' } = {}) {
   const spacing = (n) => push(ESC, 0x33, n)
   const size = (n) => push(GS, 0x21, n) // 0x00 normal, 0x01 tall, 0x11 tall + wide
   const bold = (on) => push(ESC, 0x45, on ? 1 : 0)
+  const lite = (on) => push(ESC, 0x47, on ? 1 : 0) // double-strike: a touch darker than normal, lighter than bold (printers only have on / off for bold)
   const align = (a) => push(ESC, 0x61, a)
   const wrap = (s, w) => { const o = []; let cur = ''; String(s).split(/\s+/).filter(Boolean).forEach((word) => { while (word.length > w) { if (cur) { o.push(cur); cur = '' } o.push(word.slice(0, w)); word = word.slice(w) } if (!cur) cur = word; else if ((cur + ' ' + word).length <= w) cur += ' ' + word; else { o.push(cur); cur = word } }); if (cur) o.push(cur); return o }
   const two = (l, r) => line(String(l).slice(0, cols - String(r).length - 1).padEnd(cols - String(r).length) + r)
@@ -204,33 +226,52 @@ export function buildKotText(kot, company, { width = '80mm' } = {}) {
   const where = t ? (parcel ? `PARCEL ${String(t.number).replace(/^parcel\s*/i, '')}` : `TABLE ${t.number}`) : (kot.order?.type === 'delivery' ? 'DELIVERY' : 'TAKEAWAY')
   const when = new Date(kot.created_at)
 
+  // a solid black band 3 dots tall: a clean line that takes no blank paper above or below it
+  const rb = (width === '58mm' ? 384 : 576) / 8
+  const dark = () => { push(GS, 0x76, 0x30, 0, rb & 255, rb >> 8, 3, 0); for (let i = 0; i < rb * 3; i++) out.push(0xff) }
+
+  // 1. shop name (small, centered, not bold)
   spacing(tight)
-  align(1); bold(true)
+  align(1)
   if (company?.name) wrap(company.name, cols).slice(0, 2).forEach(line)
-  spacing(tight + 28)
-  size(0x11); line(kot.type === 'cancel' ? 'STOP-CANCELLED' : `KOT #${kot.number}`); size(0)
-  if (kot.type === 'cancel') { size(0x11); line(`KOT #${kot.number}`); size(0) }
-  size(0x11); line(where); size(0)
-  spacing(tight); bold(false)
-  if (t?.section) line(t.section)
   align(0)
-  push(ESC, 0x4a, 4)
-  two(`Order: ${kot.order?.order_no || ''}`, timeIST(when))
-  two(kot.sender?.name ? `By: ${kot.sender.name}` : '', dateIST(when))
-  push(ESC, 0x4a, 6)
+  dark()
+
+  // 2. KOT number and table / parcel / takeaway on ONE line: wide letters, not bold (normal width when it would not fit)
+  if (kot.type === 'cancel') { align(1); size(0x10); line('STOP - CANCELLED'.slice(0, cols / 2)); size(0); align(0) }
+  const kotTxt = `KOT #${kot.number}`
+  const sec = t?.section ? ` (${t.section})` : ''
+  const head = kotTxt + ' '.repeat(Math.max(1, Math.floor(cols / 2) - kotTxt.length - where.length)) + where
+  // big, bold and clear: double width AND height (the most important line of the slip)
+  spacing(52); bold(true)
+  if (head.length <= cols / 2) { size(0x11); line(head); size(0) } else { align(1); size(0x11); line(kotTxt.slice(0, cols / 2)); line(where.slice(0, cols / 2)); size(0); align(0) }
+  bold(false); spacing(tight)
+  if (sec) line(sec.trim())
+  dark()
+
+  // 3. order details (on a narrow slip the date and time share a line, so nothing gets cut off)
+  line(`Order: ${kot.order?.order_no || ''}`)
+  two(dateIST(when), timeIST(when))
+  if (kot.sender?.name) line(`By: ${kot.sender.name}`.slice(0, cols))
+  dark()
+
+  // 4. dishes: every dish the SAME size: bold, double height, full width (long names wrap under the name)
   const lines = kot.items || []
-  lines.forEach((i, n) => {
-    if (n > 0) push(ESC, 0x4a, 6) // air between dishes (no dotted lines)
-    spacing(tight + 28); bold(true); size(0x01) // double height (full width): big enough to read, long names still fit
-    const rows = wrap(i.name, cols - 5)
-    line(`${String(i.quantity).padStart(2)}x ${rows[0] || ''}`)
-    rows.slice(1).forEach((r) => line(`    ${r}`))
+  lines.forEach((i) => {
+    const q = `${i.quantity}x`
+    const rows = wrap(i.name, cols - q.length - 1)
+    spacing(48); bold(true); size(0x01)
+    line(`${q} ${rows[0] || ''}`)
+    rows.slice(1).forEach((r) => line(' '.repeat(q.length + 1) + r))
     size(0); bold(false); spacing(tight)
-    if (i.variant) line(`    (${i.variant})`)
+    if (i.variant) line(`   (${i.variant})`)
   })
-  if (kot.note) { push(ESC, 0x4a, 6); bold(true); line('NOTE:'); size(0x01); wrap(kot.note, cols).forEach(line); size(0); bold(false) }
-  push(ESC, 0x4a, 6)
-  two(`Total items: ${lines.reduce((n, i) => n + Number(i.quantity), 0)}`, `Printed ${timeIST(new Date())}`)
+  push(ESC, 0x4a, 3)
+  dark()
+  if (kot.note) { push(ESC, 0x4a, 4); line('NOTE:'); lite(true); wrap(kot.note, cols).forEach(line); lite(false); push(ESC, 0x4a, 4); dark() }
+
+  // 5. footer
+  two(`Items: ${lines.reduce((n, i) => n + Number(i.quantity), 0)}`, `Printed ${timeIST(new Date())}`)
   if (textTune.bottom() > 0) push(ESC, 0x64, textTune.bottom())
   push(GS, 0x56, 0x42, 0x00)
   return new Uint8Array(out)
