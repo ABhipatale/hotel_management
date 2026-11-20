@@ -12,6 +12,9 @@ const put = (k, v) => { try { localStorage.setItem(k, v) } catch { /* private mo
 export const kotPrefs = {
   width: () => (get('hms.kot.width', '80mm') === '58mm' ? '58mm' : '80mm'),
   setWidth: (v) => put('hms.kot.width', v),
+  /** 'picture' (default) or 'text': the fast plain-text slip (English only; Marathi is always a picture) */
+  style: () => (get('hms.kot.style', 'picture') === 'text' ? 'text' : 'picture'),
+  setStyle: (v) => put('hms.kot.style', v === 'text' ? 'text' : 'picture'),
   /** print a slip automatically: on the kitchen screen when a ticket arrives, on the order screen when an order is placed */
   auto: (where) => get(`hms.kot.auto.${where}`, '0') === '1',
   setAuto: (where, on) => put(`hms.kot.auto.${where}`, on ? '1' : '0'),
@@ -114,7 +117,8 @@ export async function drawKotCanvas(kot, company, { width = '80mm', lang = 'en' 
 
   // 3. where it goes: table (boxed) / takeaway / delivery
   const t = kot.order?.table
-  const where = t ? `${L.table} ${t.number}` : (kot.order?.type === 'delivery' ? L.delivery : L.takeaway)
+  const parcel = t && /^parcel\b/i.test(String(t.number))
+  const where = t ? (parcel ? `${mr ? 'पार्सल' : 'PARCEL'} ${String(t.number).replace(/^parcel\s*/i, '')}` : `${L.table} ${t.number}`) : (kot.order?.type === 'delivery' ? L.delivery : L.takeaway)
   y += Math.round(12 * k)
   font(54)
   const bw = Math.min(W - pad * 2, ctx.measureText(where).width + Math.round(60 * k))
@@ -180,6 +184,55 @@ export async function drawKotCanvas(kot, company, { width = '80mm', lang = 'en' 
   return { canvas, W, H: Math.min(canvas.height, y) }
 }
 
+/** Fast plain-text slip: the printer's own letters (no picture to send), big bold dishes. English only. */
+export function buildKotText(kot, company, { width = '80mm' } = {}) {
+  const cols = width === '58mm' ? 32 : 48
+  const out = [ESC, 0x40, ESC, 0x33, 24]
+  const enc = new TextEncoder()
+  const push = (...b) => out.push(...b)
+  const txt = (s) => push(...enc.encode(String(s).replace(/[^\x20-\x7E\n]/g, '?')))
+  const line = (s = '') => txt(`${s}\n`)
+  const size = (n) => push(GS, 0x21, n) // 0x00 normal, 0x01 tall, 0x11 tall + wide
+  const bold = (on) => push(ESC, 0x45, on ? 1 : 0)
+  const align = (a) => push(ESC, 0x61, a)
+  const wrap = (s, w) => { const o = []; let cur = ''; String(s).split(/\s+/).filter(Boolean).forEach((word) => { while (word.length > w) { if (cur) { o.push(cur); cur = '' } o.push(word.slice(0, w)); word = word.slice(w) } if (!cur) cur = word; else if ((cur + ' ' + word).length <= w) cur += ' ' + word; else { o.push(cur); cur = word } }); if (cur) o.push(cur); return o }
+  const two = (l, r) => line(String(l).slice(0, cols - String(r).length - 1).padEnd(cols - String(r).length) + r)
+  const t = kot.order?.table
+  const parcel = t && /^parcel\b/i.test(String(t.number))
+  const where = t ? (parcel ? `PARCEL ${String(t.number).replace(/^parcel\s*/i, '')}` : `TABLE ${t.number}`) : (kot.order?.type === 'delivery' ? 'DELIVERY' : 'TAKEAWAY')
+  const when = new Date(kot.created_at)
+
+  push(ESC, 0x64, 1)
+  align(1); bold(true)
+  if (company?.name) wrap(company.name, cols).slice(0, 2).forEach(line)
+  size(0x11); line(kot.type === 'cancel' ? 'STOP - CANCELLED' : `KOT #${kot.number}`); size(0)
+  if (kot.type === 'cancel') { size(0x11); line(`KOT #${kot.number}`); size(0) }
+  size(0x11); line(where); size(0)
+  bold(false)
+  if (t?.section) line(t.section)
+  align(0)
+  line('-'.repeat(cols))
+  two(`Order: ${kot.order?.order_no || ''}`, timeIST(when))
+  two(kot.sender?.name ? `By: ${kot.sender.name}` : '', dateIST(when))
+  line('='.repeat(cols))
+  const lines = kot.items || []
+  lines.forEach((i) => {
+    bold(true); size(0x01) // double height (full width): big enough to read, and long names still fit
+    const qty = String(i.quantity).padStart(2)
+    const rows = wrap(i.name, cols - 4)
+    line(`${qty} ${rows[0] || ''}`)
+    rows.slice(1).forEach((r) => line(`   ${r}`))
+    size(0); bold(false)
+    if (i.variant) line(`   (${i.variant})`)
+    line()
+  })
+  if (kot.note) { line('-'.repeat(cols)); bold(true); line('NOTE:'); size(0x01); wrap(kot.note, cols).forEach(line); size(0); bold(false) }
+  line('-'.repeat(cols))
+  two(`Total items: ${lines.reduce((n, i) => n + Number(i.quantity), 0)}`, `Printed ${timeIST(new Date())}`)
+  push(ESC, 0x64, 5, GS, 0x56, 0x42, 0x00)
+  return new Uint8Array(out)
+}
+
 /** @returns {Promise<Uint8Array>} ESC/POS raster bytes for one ticket */
 export async function buildKotSlip(kot, company, opts = {}) {
   const { canvas, W, H } = await drawKotCanvas(kot, company, opts)
@@ -210,6 +263,7 @@ export async function buildKotSlip(kot, company, opts = {}) {
 export async function printKot(kot, company, lang = 'en') {
   const conn = kotConnection()
   if (!conn) throw new Error('Choose a printer first (Print settings).')
-  const bytes = await buildKotSlip(kot, company, { width: kotPrefs.width(), lang })
-  conn === 'usb' ? await printUsb(bytes, { delay: 12 }) : await printBluetooth(bytes, { delay: 5, chunk: 160, settle: 700 })
+  const plain = kotPrefs.style() === 'text' && lang !== 'mr' && !/[^\x20-\x7E\n]/.test(JSON.stringify([company?.name, kot.note, kot.order?.table?.section, kot.sender?.name, (kot.items || []).map((i) => [i.name, i.variant])]))
+  const bytes = plain ? buildKotText(kot, company, { width: kotPrefs.width() }) : await buildKotSlip(kot, company, { width: kotPrefs.width(), lang })
+  conn === 'usb' ? await printUsb(bytes, { delay: 4 }) : await printBluetooth(bytes, { delay: 5, chunk: 160, settle: 700 })
 }

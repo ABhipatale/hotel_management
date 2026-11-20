@@ -10,7 +10,7 @@ import CounterSwitch from './CounterSwitch'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useT } from '../i18n'
-import { dateKey, today } from '../lib/format'
+import { tableText, dateKey, today } from '../lib/format'
 import { useOrderAlerts } from '../lib/orderAlerts'
 import { useKotReadyAlerts } from '../lib/kotAlerts'
 import OrderAlertBanner from './OrderAlertBanner'
@@ -82,7 +82,7 @@ export default function Layout() {
 
   // Kitchen tickets (only when KOT is on): tell the waiter / captain / owner the moment a dish is ready
   const toastKot = useToast()
-  useKotReadyAlerts(!isSuperAdmin && !!company?.kot_enabled && company?.kot_screen !== false && (can('orders.create') || can('billing.manage')), (k) => toastKot.success(t('KOT #{n} is ready{where}', { n: k.number, where: k.table ? ` — ${t('Table {n}', { n: k.table })}` : '' })), selected)
+  useKotReadyAlerts(!isSuperAdmin && !!company?.kot_enabled && company?.kot_screen !== false && (can('orders.create') || can('billing.manage')), (k) => toastKot.success(t('KOT #{n} is ready{where}', { n: k.number, where: k.table ? ` — ${tableText(t, k.table)}` : '' })), selected)
 
   const doLogout = async () => { await logout(); nav('/login') }
 

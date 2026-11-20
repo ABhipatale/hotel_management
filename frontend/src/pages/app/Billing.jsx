@@ -3,7 +3,7 @@ import { Banknote, Smartphone } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
-import { dt, money, today } from '../../lib/format'
+import { tableText, dt, money, today } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
 import { useT } from '../../i18n'
 import Receipt from '../../components/Receipt'
@@ -47,7 +47,7 @@ export default function Billing() {
           rows={data}
           columns={[
             { header: t('Bill'), key: 'bill_no' },
-            { header: t('For'), render: (b) => (b.order?.table?.number ? t('Table {n}', { n: b.order.table.number }) : b.order?.type === 'delivery' ? t('Delivery') : t('Walk-in')) },
+            { header: t('For'), render: (b) => (b.order?.table?.number ? tableText(t, b.order.table.number) : b.order?.type === 'delivery' ? t('Delivery') : t('Walk-in')) },
             { header: t('Time'), render: (b) => dt(b.created_at) },
             { header: t('Total'), render: (b) => <b>{money(b.grand_total)}</b> },
             { header: t('Status'), render: (b) => <Badge tone={statusTone(b.status)}>{t(b.status[0].toUpperCase() + b.status.slice(1))}</Badge> },
@@ -82,11 +82,12 @@ function PayModal({ bill, onClose, onPaid }) {
   const [upi, setUpi] = useState('')
   const [ref, setRef] = useState('')
   const [tendered, setTendered] = useState('')
+  const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
 
   // Every time a bill is opened: the whole amount in cash (change it with one tap)
   useEffect(() => {
-    if (bill) { setCash(Number(bill.grand_total).toFixed(2)); setUpi(''); setRef(''); setTendered('') }
+    if (bill) { setCash(Number(bill.grand_total).toFixed(2)); setUpi(''); setRef(''); setTendered(''); setName(bill.order?.customer_name || '') }
   }, [bill?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!bill) return null
@@ -106,7 +107,7 @@ function PayModal({ bill, onClose, onPaid }) {
       const payments = []
       if (cents(cash) > 0) payments.push({ method: 'cash', amount: Number(cash) })
       if (cents(upi) > 0) payments.push({ method: 'upi', amount: Number(upi), reference: ref || undefined })
-      const r = await api.post(`/bills/${bill.id}/pay`, { payments })
+      const r = await api.post(`/bills/${bill.id}/pay`, { payments, customer_name: name.trim() || undefined })
       toast.success(t('Payment received'))
       onPaid(r.data)
     } catch (e) { toast.error(e) } finally { setBusy(false) }
@@ -142,6 +143,7 @@ function PayModal({ bill, onClose, onPaid }) {
           </div>
         </div>
 
+        {bill.order && bill.order.type !== 'dine_in' && <Input label={t('Customer name (optional)')} placeholder={t('Name for the takeaway / parcel')} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />}
         {cents(upi) > 0 && <Input label={t('UPI reference / transaction ID (optional)')} value={ref} onChange={(e) => setRef(e.target.value)} />}
         {cents(cash) > 0 && (
           <>

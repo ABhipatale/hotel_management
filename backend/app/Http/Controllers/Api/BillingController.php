@@ -78,7 +78,11 @@ class BillingController extends Controller
             'payments.*.method' => 'required|in:cash,upi',
             'payments.*.amount' => 'required|numeric|min:0.01',
             'payments.*.reference' => 'nullable|string|max:80',
+            'customer_name' => 'nullable|string|max:120',   // takeaway / parcel: asked at checkout, printed on the bill
         ]);
+        if (! empty($d['customer_name'])) {
+            $bill->order?->update(['customer_name' => trim($d['customer_name'])]);
+        }
         $bill = $this->orders->pay($bill, $d['payments'], $r->user());
         AuditLog::record('bill.pay', 'bill', $bill->id, ['total' => $bill->grand_total]);
 
@@ -130,6 +134,7 @@ class BillingController extends Controller
             'table' => $bill->order?->table?->number,
             'order_no' => $bill->order?->order_no,
             'waiter' => $bill->order?->waiter?->name,
+            'customer_name' => $bill->order?->customer_name,
         ];
     }
 }

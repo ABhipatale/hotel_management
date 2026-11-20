@@ -8,7 +8,7 @@ import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContaine
 import { useAuth } from '../../context/AuthContext'
 import { useApi } from '../../lib/useApi'
 import { useI18n } from '../../i18n'
-import { ago, istHour, money, num, today, TZ } from '../../lib/format'
+import { tableText, ago, istHour, money, num, today, TZ } from '../../lib/format'
 import { Badge, Card, ErrorNote, SectionTitle, Spinner, Stat, statusTone } from '../../components/ui'
 
 // Chart palette = the three theme colours + two neutral tints
@@ -161,7 +161,7 @@ export default function Dashboard() {
                 <Link key={o.id} to="/app/orders" className="flex items-center gap-3 rounded-[1.25rem] border border-line/70 bg-white p-3.5 shadow-card transition active:scale-[.985]">
                   <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${o.source === 'qr' ? 'bg-accent-soft text-accent-dark' : 'bg-brand-soft text-brand'}`}>{o.source === 'qr' ? <QrCode className="h-5 w-5" /> : <ShoppingBag className="h-5 w-5" />}</span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-extrabold">{o.table ? t('Table {n}', { n: o.table.number }) : lbl(t, o.type)}</div>
+                    <div className="truncate text-sm font-extrabold">{o.table ? tableText(t, o.table.number) : lbl(t, o.type)}</div>
                     <div className="truncate text-xs text-muted">{t('{n} item(s)', { n: o.items.length })} · {t('{time} ago', { time: ago(o.created_at) })}</div>
                   </div>
                   <Badge tone={statusTone(o.status)}>{lbl(t, o.status)}</Badge>

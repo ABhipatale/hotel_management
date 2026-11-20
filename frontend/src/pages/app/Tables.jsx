@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import { useT } from '../../i18n'
+import { isParcel, tableText } from '../../lib/format'
 import { Button, Chips, Empty, Input, Modal, PageHeader, Select, Spinner } from '../../components/ui'
 
 const STATUSES = ['available', 'occupied', 'reserved', 'preparing', 'ready', 'billing', 'paid']
@@ -45,7 +46,7 @@ export default function Tables() {
   const ask = useConfirm()
   const { data, loading, reload } = useApi('/tables', { poll: 10000 })
   const [filter, setFilter] = useState('all')
-  const [adding, setAdding] = useState(false)
+  const [adding, setAdding] = useState(null) // null | 'table' | 'parcel'
   const [sel, setSel] = useState(null)
   const [qr, setQr] = useState(null)
   const manage = can('tables.manage')
@@ -84,25 +85,25 @@ export default function Tables() {
   if (loading) return <Spinner />
   return (
     <>
-      <PageHeader title={tx('Tables')} sub={`${tx('{busy} busy · {free} free', { busy: busyCount, free: (data?.length || 0) - busyCount })}${can('orders.create') ? ` · ${tx('Tap a table to take its order')}` : ''}`} actions={manage && <Button size="sm" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> {tx('Add')}</Button>} />
+      <PageHeader title={tx('Tables')} sub={`${tx('{busy} busy · {free} free', { busy: busyCount, free: (data?.length || 0) - busyCount })}${can('orders.create') ? ` · ${tx('Tap a table to take its order')}` : ''}`} actions={manage && <div className="flex gap-2"><Button size="sm" onClick={() => setAdding('table')}><Plus className="h-4 w-4" /> {tx('Add')}</Button>{company?.parcel_enabled && <Button size="sm" variant="secondary" onClick={() => setAdding('parcel')}><Plus className="h-4 w-4" /> {tx('Parcel')}</Button>}</div>} />
 
       <Chips value={filter} onChange={setFilter} items={[['all', tx('All ({n})', { n: data.length })], ...STATUSES.map((s) => [s, `${tx(cap(s))}${counts[s] ? ` (${counts[s]})` : ''}`])]} />
 
       {!rows.length ? <Empty icon={Users} title={tx('No tables here')} hint={manage ? tx('Add your first table to start taking orders.') : tx('Ask the owner to add tables.')} /> : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
-          {rows.map((t, i) => {
+          {[...rows.filter((x) => !isParcel(x.number)), ...rows.filter((x) => isParcel(x.number))].map((t, i) => {
             const l = LOOK[t.status]
             return (
               <div key={t.id} role="button" tabIndex={0} onClick={() => tap(t)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tap(t) } }} style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }} className={`animate-pop relative cursor-pointer select-none overflow-hidden rounded-[1.25rem] border-2 p-3.5 text-left shadow-sm transition active:scale-[.96] ${l.card} ${l.text}`}>
                 <div className="flex min-h-8 items-center justify-between gap-1 text-[11px] font-semibold">
-                  <span className="flex min-w-0 items-center gap-1 whitespace-nowrap opacity-70" title={tx('{n} seater', { n: t.capacity })} aria-label={tx('{n} seater', { n: t.capacity })}><Users className="h-3.5 w-3.5 shrink-0" />{t.capacity}</span>
+                  <span className="flex min-w-0 items-center gap-1 whitespace-nowrap opacity-70" title={tx('{n} seater', { n: t.capacity })} aria-label={tx('{n} seater', { n: t.capacity })}><Users className="h-3.5 w-3.5 shrink-0" />{isParcel(t.number) ? tx('Parcel') : t.capacity}</span>
                   <span className="flex shrink-0 items-center gap-1">
                     {t.open_orders > 0 && <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] opacity-90">{tx(t.open_orders > 1 ? '{n} orders' : '{n} order', { n: t.open_orders })}</span>}
                     {/* small button: status, section, QR code, delete */}
                     <button type="button" aria-label={tx('Table options')} title={tx('Table options')} onClick={(e) => { e.stopPropagation(); setSel(t) }} onKeyDown={(e) => e.stopPropagation()} className="grid h-8 w-8 place-items-center rounded-full bg-white/80 text-slate-700 shadow-sm transition hover:bg-white active:scale-90"><MoreHorizontal className="h-4 w-4" /></button>
                   </span>
                 </div>
-                <div className="mt-3 text-4xl font-extrabold tracking-tight">T{t.number}</div>
+                <div className="mt-3 text-4xl font-extrabold tracking-tight">{isParcel(t.number) ? `P${String(t.number).replace(/^parcel\s*/i, '')}` : `T${t.number}`}</div>
                 <div className="mb-3 min-h-4 truncate text-[11px] font-bold opacity-70">{t.section || ''}</div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ${l.pill}`}>{stLabel(t.status)}</span>
@@ -114,7 +115,7 @@ export default function Tables() {
         </div>
       )}
 
-      <Modal open={!!sel} onClose={() => setSel(null)} title={tx('Table {n}', { n: sel?.number ?? '' })}>
+      <Modal open={!!sel} onClose={() => setSel(null)} title={tableText(tx, sel?.number ?? '')}>
         {sel && (
           <div className="space-y-5">
             <div className="flex items-center gap-2 text-sm text-muted"><span className={`h-2.5 w-2.5 rounded-full ${LOOK[sel.status].dot}`} /><span className="capitalize">{tx('{status} · {n} seats', { status: stLabel(sel.status), n: sel.capacity })}</span></div>
@@ -127,7 +128,7 @@ export default function Tables() {
             {manage && <SectionField key={sel.id} table={sel} onSaved={(section) => { setSel({ ...sel, section }); reload() }} />}
             {manage && (
               <div className="flex gap-2">
-                {hasFeature('qr') && company?.qr_enabled !== false && <Button variant="secondary" className="flex-1" onClick={() => { const t = sel; setSel(null); showQr(t) }}><QrCode className="h-4 w-4" /> {tx('QR code')}</Button>}
+                {!isParcel(sel.number) && hasFeature('qr') && company?.qr_enabled !== false && <Button variant="secondary" className="flex-1" onClick={() => { const t = sel; setSel(null); showQr(t) }}><QrCode className="h-4 w-4" /> {tx('QR code')}</Button>}
                 <Button variant="ghost" onClick={() => remove(sel)}><Trash2 className="h-4 w-4 text-rose-600" /></Button>
               </div>
             )}
@@ -150,7 +151,7 @@ export default function Tables() {
         )}
       </Modal>
 
-      <AddTable open={adding} onClose={() => setAdding(false)} onDone={() => { setAdding(false); reload() }} />
+      <AddTable open={!!adding} kind={adding} onClose={() => setAdding(null)} onDone={() => { setAdding(null); reload() }} />
     </>
   )
 }
@@ -171,26 +172,26 @@ function SectionField({ table, onSaved }) {
   )
 }
 
-function AddTable({ open, onClose, onDone }) {
+function AddTable({ open, kind, onClose, onDone }) {
   const tx = useT()
   const toast = useToast()
   const { data: staff } = useApi('/staff', { skip: !open })
   const [f, setF] = useState({ number: '', section: '', capacity: 4, waiter_id: '' })
   const submit = async (e) => {
     e.preventDefault()
-    try { await api.post('/tables', { ...f, section: f.section || null, waiter_id: f.waiter_id || null }); toast.success(tx('Table added')); setF({ number: '', section: '', capacity: 4, waiter_id: '' }); onDone() } catch (x) { toast.error(x) }
+    try { await api.post('/tables', { ...f, kind: kind === 'parcel' ? 'parcel' : 'table', capacity: kind === 'parcel' ? 1 : f.capacity, section: f.section || null, waiter_id: f.waiter_id || null }); toast.success(tx(kind === 'parcel' ? 'Parcel added' : 'Table added')); setF({ number: '', section: '', capacity: 4, waiter_id: '' }); onDone() } catch (x) { toast.error(x) }
   }
   return (
-    <Modal open={open} onClose={onClose} title={tx('Add table')}>
+    <Modal open={open} onClose={onClose} title={tx(kind === 'parcel' ? 'Add parcel' : 'Add table')}>
       <form onSubmit={submit} className="space-y-3">
-        <Input label={tx('Table number')} required inputMode="numeric" value={f.number} onChange={(e) => setF({ ...f, number: e.target.value })} />
-        <Input label={tx('Section / area (optional)')} placeholder={tx('e.g. Garden, AC hall, First floor')} value={f.section} onChange={(e) => setF({ ...f, section: e.target.value })} />
-        <Input label={tx('Seats')} type="number" min="1" required value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value })} />
-        <Select label={tx('Assigned waiter')} value={f.waiter_id} onChange={(e) => setF({ ...f, waiter_id: e.target.value })}>
+        <Input label={tx(kind === 'parcel' ? 'Parcel number (e.g. 1 for Parcel 1)' : 'Table number')} required inputMode="numeric" value={f.number} onChange={(e) => setF({ ...f, number: e.target.value })} />
+        {kind !== 'parcel' && <Input label={tx('Section / area (optional)')} placeholder={tx('e.g. Garden, AC hall, First floor')} value={f.section} onChange={(e) => setF({ ...f, section: e.target.value })} />}
+        {kind !== 'parcel' && <Input label={tx('Seats')} type="number" min="1" required value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value })} />}
+        {kind !== 'parcel' && <Select label={tx('Assigned waiter')} value={f.waiter_id} onChange={(e) => setF({ ...f, waiter_id: e.target.value })}>
           <option value="">{tx('Unassigned')}</option>
           {staff?.filter((s) => s.role === 'waiter' || s.role === 'captain').map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </Select>
-        <Button type="submit" size="lg" className="w-full">{tx('Add table')}</Button>
+        </Select>}
+        <Button type="submit" size="lg" className="w-full">{tx(kind === 'parcel' ? 'Add parcel' : 'Add table')}</Button>
       </form>
     </Modal>
   )

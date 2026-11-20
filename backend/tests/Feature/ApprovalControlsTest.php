@@ -186,7 +186,7 @@ class ApprovalControlsTest extends TestCase
         $this->deleteJson('/api/bills/'.$bill['id'], ['reason' => 'wrong table'], $owner)->assertNoContent();
         $o = $this->order($waiter, 3);
         $this->patchJson('/api/orders/'.$o['id'].'/status', ['status' => 'preparing'], $waiter)->assertOk();
-        $this->patchJson('/api/orders/'.$o['id'].'/status', ['status' => 'cancelled'], $waiter + ['X-Approval-Pin' => '4821'])->assertOk();
+        $this->patchJson('/api/orders/'.$o['id'].'/status', ['status' => 'cancelled', 'reason' => 'Customer left'], $waiter + ['X-Approval-Pin' => '4821'])->assertOk();
 
         $r = $this->getJson('/api/reports/exceptions?from='.\App\Support\BizTime::today().'&to='.\App\Support\BizTime::today(), $owner)->assertOk();
         $this->assertCount(1, $r->json('voids'));
@@ -195,6 +195,7 @@ class ApprovalControlsTest extends TestCase
         $this->assertEquals(40.0, (float) $r->json('totals.discounts'));
         $this->assertCount(1, $r->json('cancellations'));
         $this->assertSame('Wally', $r->json('cancellations.0.by'));
+        $this->assertSame('Customer left', $r->json('cancellations.0.reason')); // the reason is saved and shown
         $this->assertEquals(720.0, (float) $r->json('totals.cancellations'));
 
         $this->getJson('/api/reports/exceptions', $waiter)->assertForbidden();                              // a waiter has no reports

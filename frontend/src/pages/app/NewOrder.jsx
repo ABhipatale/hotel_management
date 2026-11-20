@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Hash, ImageOff, Printer, Image as ImageIcon, LayoutGrid, List, Minus, Plus, Search, ShoppingCart, Trash2, UtensilsCrossed } from 'lucide-react'
 import { api, isNetworkError } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
-import { money } from '../../lib/format'
+import { tableText, money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useI18n } from '../../i18n'
@@ -27,7 +27,8 @@ export default function NewOrder() {
   const gstOn = company?.gst_enabled !== false
   const { data: items, loading } = useApi('/menu/items')
   const { data: cats } = useApi('/menu/categories')
-  const { data: tables } = useApi('/tables')
+  const { data: allTables } = useApi('/tables')
+  const tables = company?.parcel_enabled ? allTables : allTables?.filter((x) => x.kind !== 'parcel') // parcel counters are an option the platform admin switches on
   // Edit mode (?edit=<order id>): the order's dishes are loaded into the cart and saved back until the order is paid
   const editId = params.get('edit')
   const { data: editing, loading: loadingEdit } = useApi(`/orders/${editId}`, { skip: !editId })
@@ -189,9 +190,14 @@ export default function NewOrder() {
             <option value="takeaway">{t('Walk-in / Takeaway')}</option>
             <option value="delivery">{t('Delivery')}</option>
           </optgroup>
-          {tables?.length > 0 && (
+          {tables?.some((x) => x.kind !== 'parcel') && (
             <optgroup label={t('Dine-in tables')}>
-              {tables.map((tb) => <option key={tb.id} value={`t:${tb.id}`}>{tb.section ? `${tb.section} · ` : ''}{t('Table {n} · {status}', { n: tb.number, status: t(tb.status === 'available' ? 'Free' : tb.status[0].toUpperCase() + tb.status.slice(1)) })}</option>)}
+              {tables.filter((x) => x.kind !== 'parcel').map((tb) => <option key={tb.id} value={`t:${tb.id}`}>{tb.section ? `${tb.section} · ` : ''}{`${tableText(t, tb.number)} · ${t(tb.status === 'available' ? 'Free' : tb.status[0].toUpperCase() + tb.status.slice(1))}`}</option>)}
+            </optgroup>
+          )}
+          {tables?.some((x) => x.kind === 'parcel') && (
+            <optgroup label={t('Parcels')}>
+              {tables.filter((x) => x.kind === 'parcel').map((tb) => <option key={tb.id} value={`t:${tb.id}`}>{tb.section ? `${tb.section} · ` : ''}{`${tableText(t, tb.number)} · ${t(tb.status === 'available' ? 'Free' : tb.status[0].toUpperCase() + tb.status.slice(1))}`}</option>)}
             </optgroup>
           )}
         </Select>
@@ -251,9 +257,14 @@ export default function NewOrder() {
                 <option value="takeaway">{t('Walk-in / Takeaway')}</option>
                 <option value="delivery">{t('Delivery')}</option>
               </optgroup>
-              {tables?.length > 0 && (
+              {tables?.some((x) => x.kind !== 'parcel') && (
                 <optgroup label={t('Dine-in tables')}>
-                  {tables.map((tb) => <option key={tb.id} value={`t:${tb.id}`}>{t('Table {n} · {status}', { n: tb.number, status: t(tb.status === 'available' ? 'Free' : tb.status[0].toUpperCase() + tb.status.slice(1)) })}</option>)}
+                  {tables.filter((x) => x.kind !== 'parcel').map((tb) => <option key={tb.id} value={`t:${tb.id}`}>{`${tableText(t, tb.number)} · ${t(tb.status === 'available' ? 'Free' : tb.status[0].toUpperCase() + tb.status.slice(1))}`}</option>)}
+                </optgroup>
+              )}
+              {tables?.some((x) => x.kind === 'parcel') && (
+                <optgroup label={t('Parcels')}>
+                  {tables.filter((x) => x.kind === 'parcel').map((tb) => <option key={tb.id} value={`t:${tb.id}`}>{`${tableText(t, tb.number)} · ${t(tb.status === 'available' ? 'Free' : tb.status[0].toUpperCase() + tb.status.slice(1))}`}</option>)}
                 </optgroup>
               )}
             </Select>
@@ -278,13 +289,13 @@ export default function NewOrder() {
               ))}
             </div>
             {/* the other categories: two lines that scroll sideways */}
-            <Chips rows={2} value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).slice(2).map((c) => [String(c.id), cn(c)])]} />
+            <Chips rows={(cats || []).length < 6 ? 1 : 2} value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).slice(2).map((c) => [String(c.id), cn(c)])]} />
           </div>
           <div className="hidden lg:block">
           <div className="mb-2 flex items-center gap-3"><h1 className="shrink-0 text-2xl font-extrabold tracking-tight">{editId ? t('Edit order') : t('New order')}</h1><div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} enterKeyHint="go" placeholder={t('Name or number')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>
               <div className="hidden items-center gap-1.5 lg:flex">{viewControls}</div>
             </div>
-            <Chips rows={2} value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), cn(c)])]} />
+            <Chips rows={(cats || []).length <= 8 ? 1 : 2} value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), cn(c)])]} />
           </div>
           {exact && (
             <button type="button" onClick={() => quickAdd(exact)} className="animate-pop mb-3 flex w-full items-center gap-3 rounded-2xl bg-brand p-3 text-left text-white shadow-float active:scale-[.98]">

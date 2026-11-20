@@ -114,6 +114,9 @@ class OrderController extends Controller
         if (! $table && ($d['type'] ?? 'dine_in') === 'dine_in') {
             $d['type'] = 'takeaway';
         }
+        if ($table?->kind === 'parcel') {
+            $d['type'] = 'takeaway'; // a parcel counter is never a dine-in order
+        }
         $withBill = $r->boolean('generate_bill');
         abort_if($withBill && ! $r->user()->hasPermission('billing.manage'), 403, 'You cannot generate bills.');
 
@@ -147,7 +150,7 @@ class OrderController extends Controller
 
         if (KotService::enabled()) {
             // the ticket this order just sent to the kitchen (so the app can print its slip)
-            $order->setAttribute('kot', \App\Models\Kot::with('items')->where('order_id', $order->id)->where('type', 'new')->latest('id')->first());
+            $order->setAttribute('kot', \App\Models\Kot::with('items', 'order:id,order_no,table_id,type,notes,waiter_id', 'order.table:id,number,section', 'sender:id,name,role')->where('order_id', $order->id)->where('type', 'new')->latest('id')->first());
         }
 
         return response()->json($order, 201);
@@ -168,7 +171,7 @@ class OrderController extends Controller
         }
         $order->load('bill.items', 'items', 'table');
         if (KotService::enabled()) {
-            $order->setAttribute('kot', \App\Models\Kot::with('items')->where('order_id', $order->id)->where('type', 'new')->latest('id')->first());
+            $order->setAttribute('kot', \App\Models\Kot::with('items', 'order:id,order_no,table_id,type,notes,waiter_id', 'order.table:id,number,section', 'sender:id,name,role')->where('order_id', $order->id)->where('type', 'new')->latest('id')->first());
         }
         $order->setAttribute('duplicate', true);
 
@@ -237,7 +240,7 @@ class OrderController extends Controller
     public function updateStatus(Request $r, int $id)
     {
         $order = Order::with('table')->findOrFail($id);
-        $d = $r->validate(['status' => ['required', Rule::in(['accepted', 'preparing', 'ready', 'served', 'cancelled'])]]);
+        $d = $r->validate(['status' => ['required', Rule::in(['accepted', 'preparing', 'ready', 'served', 'cancelled'])], 'reason' => 'nullable|string|min:3|max:120']);
 
         // Cancelling after billing needs billing rights.
         if ($d['status'] === 'cancelled') {
@@ -258,8 +261,8 @@ class OrderController extends Controller
         }
 
         $order->update(['status' => $d['status']]);
-        if ($d['status'] === 'cancelled' && $before !== 'pending') {
-            \App\Models\AuditLog::record('order.cancel', 'order', $order->id, ['order_no' => $order->order_no, 'branch_id' => $order->branch_id, 'status_before' => $before, 'amount' => $amount, 'approved' => $approved]);
+        if ($d['status'] === 'cancelled' && ($before !== 'pending' || ! empty($d['reason']))) {
+            \App\Models\AuditLog::record('order.cancel', 'order', $order->id, ['order_no' => $order->order_no, 'branch_id' => $order->branch_id, 'status_before' => $before, 'amount' => $amount, 'approved' => $approved, 'reason' => $d['reason'] ?? null]);
         }
         if ($d['status'] === 'served') {
             app(KotService::class)->closeTickets($order); // a served order's tickets leave the kitchen board

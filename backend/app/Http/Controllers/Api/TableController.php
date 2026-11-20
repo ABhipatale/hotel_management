@@ -28,15 +28,24 @@ class TableController extends Controller
     {
         $branch = $this->branch($r);
         $plan = $r->attributes->get('plan');
-        if ($plan?->max_tables !== null && HotelTable::withoutGlobalScope('branch')->count() >= $plan->max_tables) {
+        $isParcel = $r->input('kind') === 'parcel';
+        abort_if($isParcel && ! Tenant::company()?->parcel_enabled, 403, 'Parcel counters are not enabled for this hotel. Ask the platform admin to switch them on.');
+        if (! $isParcel && $plan?->max_tables !== null && HotelTable::withoutGlobalScope('branch')->where('kind', '!=', 'parcel')->count() >= $plan->max_tables) { // parcel counters are not tables: they do not use the plan's table limit
             return response()->json(['message' => "Your plan allows up to {$plan->max_tables} tables. Please upgrade.", 'code' => 'limit_reached'], 402);
         }
         $data = $r->validate([
+            'kind' => 'nullable|in:table,parcel',
             'number' => ['required', 'string', 'max:20', Rule::unique('hotel_tables')->where('company_id', Tenant::id())->where('branch_id', $branch)],
             'capacity' => 'required|integer|min:1|max:50',
             'section' => 'nullable|string|max:60',
             'waiter_id' => ['nullable', 'integer'],
         ]);
+        if ($isParcel) {
+            // "3" and "Parcel 3" both become "Parcel 3" (the name carries the label everywhere: orders, kitchen slip, bill)
+            $data['number'] = 'Parcel '.trim(preg_replace('/^parcel\s*/i', '', $data['number']));
+            abort_if(HotelTable::where('branch_id', $branch)->where('number', $data['number'])->exists(), 422, $data['number'].' already exists.');
+        }
+        $data['kind'] = $isParcel ? 'parcel' : 'table';
         $this->checkWaiter($data['waiter_id'] ?? null);
 
         $table = HotelTable::create($data + ['branch_id' => $branch]);

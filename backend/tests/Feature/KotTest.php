@@ -145,6 +145,33 @@ class KotTest extends TestCase
         $this->assertCount(0, $this->getJson('/api/kots', $chef)->json());
     }
 
+    public function test_parcel_counters_take_takeaway_orders_and_the_customer_name_is_asked_at_checkout(): void
+    {
+        $this->switchKot(true, true);
+        $owner = $this->login('atithi@demo.test');
+        $this->postJson('/api/tables', ['kind' => 'parcel', 'number' => '9', 'capacity' => 1], $owner)->assertForbidden(); // off unless the platform admin enables it
+        \App\Models\Company::query()->update(['parcel_enabled' => true]);
+        $p1 = $this->postJson('/api/tables', ['kind' => 'parcel', 'number' => '1', 'capacity' => 1], $owner)->assertCreated()->json();
+        $p2 = $this->postJson('/api/tables', ['kind' => 'parcel', 'number' => 'Parcel 2', 'capacity' => 1], $owner)->assertCreated()->json();
+        $this->assertSame('Parcel 1', $p1['number']);
+        $this->assertSame('Parcel 2', $p2['number']);
+        $this->assertSame('parcel', $p1['kind']);
+        $this->postJson('/api/tables', ['kind' => 'parcel', 'number' => '1', 'capacity' => 1], $owner)->assertStatus(422); // no duplicate
+
+        // two parcel orders are open at once, each is a takeaway, and the kitchen slip says which parcel it is
+        $a = $this->postJson('/api/orders', ['table_id' => $p1['id'], 'type' => 'dine_in', 'items' => [$this->line($owner, 0)]], $owner)->assertCreated()->json();
+        $b = $this->postJson('/api/orders', ['table_id' => $p2['id'], 'items' => [$this->line($owner, 1)]], $owner)->assertCreated()->json();
+        $this->assertSame('takeaway', $a['type']);
+        $this->assertSame('Parcel 1', $a['kot']['order']['table']['number']);
+        $this->assertNotSame($a['id'], $b['id']);
+
+        // checkout: the customer's name is saved on the order and comes back on the bill
+        $bill = $this->postJson("/api/orders/{$a['id']}/bill", [], $owner)->assertCreated()->json();
+        $paid = $this->postJson("/api/bills/{$bill['id']}/pay", ['customer_name' => 'Ramesh', 'payments' => [['method' => 'cash', 'amount' => $bill['grand_total']]]], $owner)->assertSuccessful();
+        $this->assertSame('Ramesh', $paid->json('customer_name'));
+        $this->assertSame('Parcel 1', $paid->json('table'));
+    }
+
     public function test_editing_an_order_sends_only_the_difference_and_cancels_reach_the_kitchen(): void
     {
         $this->switchKot(true);
@@ -274,6 +301,8 @@ class KotTest extends TestCase
         $table = $this->getJson('/api/tables', $owner)->json('0.id');
         $order = $this->postJson('/api/orders', ['table_id' => $table, 'items' => [$this->line($owner, 0)]], $owner)->assertCreated()->json();
         $this->assertNotEmpty($order['kot']);
+        $tbl = $this->getJson('/api/tables', $owner)->json('0.number');
+        $this->assertSame($tbl, $order['kot']['order']['table']['number']); // the slip prints "TABLE n", not "takeaway"
         $this->postJson('/api/kots/'.$order['kot']['id'].'/printed', [], $owner)->assertOk();
 
         // switching the screen back on restores the kitchen

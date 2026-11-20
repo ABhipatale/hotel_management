@@ -3,6 +3,7 @@
 // Used when the app is in Marathi, or whenever the bill holds non-English text (e.g. a Marathi business name).
 
 import { dateIST, timeIST } from './format'
+import { billStyle } from './billLang'
 
 const ESC = 0x1b
 const GS = 0x1d
@@ -11,6 +12,10 @@ export const LABELS = {
   en: { bill: 'Bill', date: 'Date', table: 'Table', staff: 'Staff', item: 'ITEM', qty: 'QTY', rate: 'RATE', amt: 'AMT', items: 'Items', totalQty: 'Qty', subtotal: 'Subtotal', discount: 'Discount', gst: 'GST', total: 'TOTAL', paid: 'Paid', cash: 'cash', upi: 'upi', thanks: 'Thank you! Visit again.', phone: 'Ph', gstin: 'GSTIN' },
   mr: { bill: 'बिल क्र.', date: 'दिनांक', table: 'टेबल', staff: 'वेटर', item: 'वस्तू', qty: 'नग', rate: 'दर', amt: 'रक्कम', items: 'एकूण वस्तू', totalQty: 'एकूण नग', subtotal: 'उप-एकूण', discount: 'सूट', gst: 'जीएसटी', total: 'एकूण', paid: 'भरले', cash: 'रोख', upi: 'UPI', thanks: 'धन्यवाद! पुन्हा भेट द्या.', phone: 'फोन', gstin: 'GSTIN' },
 }
+/** "Table: 5" for a table, "Parcel 2" for a parcel counter (Marathi: पार्सल 2). */
+export const tableLine = (L, lang, table) => (/^parcel\b/i.test(String(table)) ? `${lang === 'mr' ? 'पार्सल' : 'Parcel'} ${String(table).replace(/^parcel\s*/i, '')}` : `${L.table}: ${table}`)
+/** The customer's name (takeaway / parcel, asked at checkout). */
+export const customerLine = (lang, name) => `${lang === 'mr' ? 'ग्राहक' : 'Customer'}: ${name}`
 export const receiptLabels = (lang) => LABELS[lang === 'mr' ? 'mr' : 'en']
 
 /** Dish name on the bill: Marathi name in Marathi mode (when the dish has one), otherwise as billed. */
@@ -25,7 +30,7 @@ export const receiptFooter = (company, lang) => {
 /** True when the bill contains characters a plain ESC/POS text printer would print as "?". */
 export function needsImage(data, lang) {
   if (lang === 'mr') return true
-  return true // English is drawn as a picture too: the same tight, aligned layout as Marathi (plain-text lines left big gaps)
+  if (billStyle.get() !== 'text') return true // English is drawn as a picture too: the same tight, aligned layout as Marathi (this device can choose fast plain text instead)
   const { bill, company, table, waiter } = data
   const all = [company.name, company.address, company.bill_header, company.bill_footer, company.phone, table, waiter, ...bill.items.map((i) => i.name)].join('')
   return /[^\x20-\x7E\n]/.test(all) // eslint-disable-line no-control-regex
@@ -46,13 +51,13 @@ async function loadFonts() {
 }
 
 /** @returns {Promise<Uint8Array>} ESC/POS bytes: raster bands + feed + cut */
-export async function buildReceiptImage({ bill, company, table, order_no, waiter, printer }, lang = 'en') {
+export async function buildReceiptImage({ bill, company, table, order_no, waiter, printer, customer_name: data_customer }, lang = 'en') {
   await loadFonts()
   const L = receiptLabels(lang)
   const wide = printer?.paper_width !== '58mm'
   const W = wide ? 576 : 384 // printable dots (8 dots per mm)
   const pad = 4
-  const base = wide ? 24 : 22
+  const base = wide ? 30 : 27 // a little bigger so the bill is easy to read
   const lh = Math.round(base * 1.4)
   const gstOn = company.gst_enabled !== false
 
@@ -121,31 +126,32 @@ export async function buildReceiptImage({ bill, company, table, order_no, waiter
 
   // ── header ──
   centered(company.name || '', wide ? 40 : 34, true)
-  if (company.bill_header) centered(company.bill_header, base - 2)
-  if (company.address) centered(company.address, base - 2)
-  if (company.phone) centered(`${L.phone}: ${company.phone}`, base - 2)
-  if (gstOn && company.gst_number) centered(`${L.gstin}: ${company.gst_number}`, base - 2)
+  if (company.bill_header) centered(company.bill_header, base - 1)
+  if (company.address) centered(company.address, base - 1)
+  if (company.phone) centered(`${L.phone}: ${company.phone}`, base - 1)
+  if (gstOn && company.gst_number) centered(`${L.gstin}: ${company.gst_number}`, base - 1)
   rule('double')
 
   // ── bill details ──
   const d = new Date(bill.created_at)
   const when = `${dateIST(d)} ${timeIST(d)}`
-  pair(`${L.bill}: ${bill.bill_no}`, '', base - 2)
-  pair(`${L.date}: ${when}`, '', base - 2)
-  if (table) pair(`${L.table}: ${table}`, '', base - 2) // the waiter's name is not printed on the bill
+  pair(`${L.bill}: ${bill.bill_no}`, '', base - 1)
+  pair(`${L.date}: ${when}`, '', base - 1)
+  if (table) pair(tableLine(L, lang, table), '', base - 1) // the waiter's name is not printed on the bill
+  if (data_customer) pair(customerLine(lang, data_customer), '', base - 1)
   void order_no // the order number is not printed on the bill
   rule()
 
   // ── items table ──
   const qtyW = wide ? 64 : 56
-  const rateW = wide ? 110 : 0
-  const amtW = wide ? 120 : 104
+  const rateW = wide ? 120 : 0
+  const amtW = wide ? 132 : 112
   const nameW = W - pad * 2 - qtyW - rateW - amtW - 8
   const xQty = W - pad - amtW - rateW
   const xRate = W - pad - amtW
   const xAmt = W - pad
-  setFont(base - 2, true)
-  y += Math.round((base - 2) * 1.3)
+  setFont(base - 1, true)
+  y += Math.round((base - 1) * 1.3)
   ctx.textAlign = 'left'; ctx.fillText(L.item, pad, y)
   ctx.textAlign = 'right'; ctx.fillText(L.qty, xQty, y)
   if (wide) ctx.fillText(L.rate, xRate, y)
@@ -168,7 +174,7 @@ export async function buildReceiptImage({ bill, company, table, order_no, waiter
     y += 5
   })
   rule()
-  pair(`${L.items}: ${bill.items.length}`, `${L.totalQty}: ${qty}`, base - 2)
+  pair(`${L.items}: ${bill.items.length}`, `${L.totalQty}: ${qty}`, base - 1)
   rule()
 
   // ── totals ──
@@ -185,7 +191,7 @@ export async function buildReceiptImage({ bill, company, table, order_no, waiter
   // ── footer ──
   y += 10
   centered(receiptFooter(company, lang), base, true)
-  y += 12
+  if (wide) y += 90 // 80 mm printers: blank bottom margin, the cutter sits below the print head and would cut through the last line (58 mm was already fine)
 
   // ── canvas -> 1-bit raster bands ──
   const H = Math.min(canvas.height, y)
@@ -208,7 +214,7 @@ export async function buildReceiptImage({ bill, company, table, order_no, waiter
       }
     }
   }
-  bytes.push(ESC, 0x64, 3) // feed 3 lines
+  bytes.push(ESC, 0x64, wide ? 4 : 3) // feed 4 lines (80 mm) / 3 lines (58 mm, as before)
   bytes.push(GS, 0x56, 0x42, 0x00) // partial cut (ignored by printers without a cutter)
   return new Uint8Array(bytes)
 }

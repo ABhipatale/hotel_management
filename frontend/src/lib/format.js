@@ -34,3 +34,8 @@ export const STATUS_STYLE = {
   billing: 'bg-orange-50 border-orange-200 text-orange-700',
   paid: 'bg-slate-50 border-slate-200 text-slate-600',
 }
+
+/** A parcel counter is stored as "Parcel 1", "Parcel 2"... in the table list. */
+export const isParcel = (n) => /^parcel\b/i.test(String(n ?? ''))
+/** "Table 5" for a table, "Parcel 2" for a parcel counter (translated). `t` is the translate function. */
+export const tableText = (t, n) => (isParcel(n) ? t('Parcel {n}', { n: String(n).replace(/^parcel\s*/i, '') }) : t('Table {n}', { n }))

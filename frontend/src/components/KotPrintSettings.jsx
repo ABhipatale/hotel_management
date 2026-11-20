@@ -14,6 +14,7 @@ export default function KotPrintSettings({ where }) {
   const [auto, setAuto] = useState(kotPrefs.auto(where))
   const [mode, setMode] = useState(kotPrefs.orderMode(company?.kot_print_mode))
   const [ready, setReady] = useState(readyAlertOn())
+  const [style, setStyle] = useState(kotPrefs.style())
   const [kind, setKind] = useState(() => (navigator.bluetooth ? 'bluetooth' : 'usb'))
   return (
     <div className="space-y-4">
@@ -49,6 +50,15 @@ export default function KotPrintSettings({ where }) {
           onChange={(v) => { setAuto(v); kotPrefs.setAuto(where, v) }}
         />
       )}
+      <div>
+        <div className="mb-1 text-sm font-bold">{t('Slip printing')}</div>
+        <div className="grid grid-cols-2 gap-2">
+          {[['picture', 'Neat picture'], ['text', 'Fast text']].map(([k2, l]) => (
+            <button key={k2} type="button" aria-pressed={style === k2} onClick={() => { setStyle(k2); kotPrefs.setStyle(k2) }} className={`min-h-11 rounded-xl text-sm font-bold ring-1 transition active:scale-95 ${style === k2 ? 'bg-brand text-white ring-brand' : 'bg-white text-slate-600 ring-line'}`}>{t(l)}</button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted">{t('Fast text prints much quicker on a slow printer. Marathi slips are always a picture.')}</p>
+      </div>
       <Switch
         label={t('Show "KOT is ready" popup and beep')}
         hint={t('Only on this device. Turn off if you do not want a notification when the kitchen finishes a ticket.')}

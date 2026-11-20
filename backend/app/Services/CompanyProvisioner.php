@@ -41,6 +41,7 @@ class CompanyProvisioner
                 'gst_enabled' => (bool) ($data['gst_enabled'] ?? true),
                 'qr_enabled' => (bool) ($data['qr_enabled'] ?? true),
                 'multi_counter' => (bool) ($data['multi_counter'] ?? false),
+                'parcel_enabled' => (bool) ($data['parcel_enabled'] ?? false),
                 'business_type' => $data['business_type'] ?? 'restaurant',
                 'kot_enabled' => (bool) ($data['kot_enabled'] ?? false),
                 'kot_screen' => ! ($data['kot_enabled'] ?? false) || ($data['kot_screen'] ?? true),

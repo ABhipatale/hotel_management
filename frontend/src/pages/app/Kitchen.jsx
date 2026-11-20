@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { tableText } from '../../lib/format'
 import { BellRing, ChefHat, Check, Flame, Printer, Settings2, StickyNote, Volume2, VolumeX } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
@@ -26,7 +27,7 @@ function Ticket({ k, col, onMove, onPrint, canPrint, tick }) {
   const m = mins(k.created_at) // `tick` re-renders this every 30 s
   void tick
   const cancel = k.type === 'cancel'
-  const where = k.order?.table ? `${t('Table {n}', { n: k.order.table.number })}${k.order.table.section ? ` · ${k.order.table.section}` : ''}` : t(k.order?.type === 'delivery' ? 'Delivery' : 'Takeaway')
+  const where = k.order?.table ? `${tableText(t, k.order.table.number)}${k.order.table.section ? ` · ${k.order.table.section}` : ''}` : t(k.order?.type === 'delivery' ? 'Delivery' : 'Takeaway')
   return (
     <Card className={`flex flex-col !p-0 overflow-hidden ${cancel ? 'ring-2 ring-rose-500' : ''}`}>
       <div className={`flex items-center justify-between px-4 py-2.5 text-white ${cancel ? 'bg-rose-600' : col.tone}`}>
@@ -119,7 +120,7 @@ export default function Kitchen() {
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {done.map((k) => (
               <Card key={k.id} className="!p-4">
-                <div className="flex items-center justify-between"><b>#{k.number} · {k.order?.table ? t('Table {n}', { n: k.order.table.number }) : t('Takeaway')}</b><Badge tone={k.status === 'cancelled' ? 'red' : 'green'}>{t(k.status === 'cancelled' ? 'Cancelled' : 'Served')}</Badge></div>
+                <div className="flex items-center justify-between"><b>#{k.number} · {k.order?.table ? tableText(t, k.order.table.number) : t('Takeaway')}</b><Badge tone={k.status === 'cancelled' ? 'red' : 'green'}>{t(k.status === 'cancelled' ? 'Cancelled' : 'Served')}</Badge></div>
                 <div className="mt-2 text-sm text-slate-600">{k.items.map((i) => `${i.quantity}× ${i.name}`).join(', ')}</div>
               </Card>
             ))}

@@ -3,14 +3,14 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ChefHat, Pencil, Plus, QrCode, StickyNote } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
-import { ago, money, today } from '../../lib/format'
+import { tableText, ago, money, today } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import { useApproval } from '../../context/ApprovalContext'
 import { useCounter } from '../../context/CounterContext'
 import { useT } from '../../i18n'
-import { Badge, Button, Card, Chips, Empty, PageHeader, Spinner, statusTone } from '../../components/ui'
+import { Badge, Button, Card, Chips, Empty, Input, Modal, PageHeader, Spinner, statusTone } from '../../components/ui'
 
 const TABS = [['open', 'Open'], ['all', 'All today']]
 const lbl = (t, s) => t(String(s).replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()))
@@ -26,6 +26,17 @@ export default function Orders() {
   const [tab, setTab] = useState('open')
   const { data, loading, reload } = useApi('/orders', { params: tab === 'open' ? { open: 1 } : { date: today() }, poll: 8000 })
 
+  // cancelling asks WHY first (saved with who cancelled it; shown in Reports > Discounts & voids)
+  const [cancelFor, setCancelFor] = useState(null)
+  const [why, setWhy] = useState('')
+  const REASONS = ['Customer cancelled', 'Wrong order', 'Dish not available', 'Duplicate order', 'Customer left']
+  const confirmCancel = async () => {
+    const reason = why.trim()
+    if (reason.length < 3) return
+    const o = cancelFor
+    setCancelFor(null); setWhy('')
+    try { await approve((pin) => api.patch(`/orders/${o.id}/status`, { status: 'cancelled', reason }, pin ? { headers: { 'X-Approval-Pin': pin } } : undefined)); reload() } catch (e) { if (!e.cancelled) toast.error(e) }
+  }
   const setStatus = async (o, status) => {
     // cancelling an order the kitchen already started may need the owner's approval PIN (asked here when the server wants it)
     try { await approve((pin) => api.patch(`/orders/${o.id}/status`, { status }, pin ? { headers: { 'X-Approval-Pin': pin } } : undefined)); reload() } catch (e) { if (!e.cancelled) toast.error(e) }
@@ -48,7 +59,7 @@ export default function Orders() {
             <Card key={o.id} interactive={editable} onClick={editable ? (e) => { if (!e.target.closest('button, a')) nav(`/app/order/new?edit=${o.id}`) } : undefined} className={`flex flex-col ${o.waiter?.role === 'captain' ? 'border-l-[6px] border-[#7C3AED]' : ''}`}>
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="flex items-center gap-2 font-semibold">{o.table ? t('Table {n}', { n: o.table.number }) : lbl(t, o.type)}{o.table?.section && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{o.table.section}</span>} {o.source === 'qr' && <QrCode className="h-3.5 w-3.5 text-brand" />}</div>
+                  <div className="flex items-center gap-2 font-semibold">{o.table ? tableText(t, o.table.number) : lbl(t, o.type)}{o.table?.section && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{o.table.section}</span>} {o.source === 'qr' && <QrCode className="h-3.5 w-3.5 text-brand" />}</div>
                   {allCounters && nameOf(o.branch_id) && <span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-canvas px-2.5 py-0.5 text-[11px] font-bold text-slate-600"><i className="h-2 w-2 rounded-full" style={{ background: colorOf(o.branch_id) }} />{nameOf(o.branch_id)}</span>}
                   <div className="text-xs text-muted">{o.order_no} · {t('{time} ago', { time: ago(o.created_at) })}{o.waiter && o.waiter.role !== 'captain' ? ` · ${o.waiter.name}` : ''}</div>
                   {o.waiter?.role === 'captain' && <div className="mt-1"><span className="inline-flex items-center rounded-full bg-[#EDE9FE] px-2.5 py-1 text-[11px] font-bold text-[#5B21B6]">{t('Captain')}: {o.waiter.name}</span></div>}
@@ -86,13 +97,25 @@ export default function Orders() {
                   ? <Link to={`/app/billing?pay=${o.bill.id}&from=orders`} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-accent px-3.5 text-xs font-extrabold text-white shadow-card active:scale-95">{t('Collect {amount}', { amount: money(o.bill.grand_total) })}</Link>
                   : <Badge tone="blue">{t('Bill {no}', { no: o.bill.bill_no })} · {money(o.bill.grand_total)}</Badge>)}
                 {!['paid', 'cancelled'].includes(o.status) && o.bill?.status !== 'paid' && can('orders.create') && <Link to={`/app/order/new?edit=${o.id}`}><Button size="sm" variant="secondary"><Pencil className="h-3.5 w-3.5" /> {t('Edit')}</Button></Link>}
-                {['pending', 'accepted', 'preparing'].includes(o.status) && <Button size="sm" variant="ghost" onClick={async () => (await ask({ title: t('Cancel this order?'), message: t('The order will be cancelled and removed from the open list.'), confirmText: t('Cancel order'), cancelText: t('Keep order') })) && setStatus(o, 'cancelled')}>{t('Cancel')}</Button>}
+                {['pending', 'accepted', 'preparing'].includes(o.status) && <Button size="sm" variant="ghost" onClick={() => { setWhy(''); setCancelFor(o) }}>{t('Cancel')}</Button>}
               </div>
             </Card>
             )
           })}
         </div>
       )}
+      <Modal open={!!cancelFor} onClose={() => setCancelFor(null)} title={t('Why is this order cancelled?')}>
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {REASONS.map((r) => <button key={r} type="button" onClick={() => setWhy(t(r))} className={`min-h-10 rounded-full px-3.5 text-[13px] font-semibold ring-1 transition active:scale-95 ${why === t(r) ? 'bg-brand text-white ring-brand' : 'bg-white text-slate-600 ring-line'}`}>{t(r)}</button>)}
+          </div>
+          <Input label={t('Reason')} value={why} onChange={(e) => setWhy(e.target.value)} maxLength={120} placeholder={t('Type the reason')} />
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" onClick={() => setCancelFor(null)}>{t('Keep order')}</Button>
+            <Button variant="danger" disabled={why.trim().length < 3} onClick={confirmCancel}>{t('Cancel order')}</Button>
+          </div>
+        </div>
+      </Modal>
     </>
   )
 }

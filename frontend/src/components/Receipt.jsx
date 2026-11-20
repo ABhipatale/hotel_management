@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { MessageCircle, Printer } from 'lucide-react'
 import { buildReceipt, printBluetooth, printUsb, savedPrinter } from '../lib/escpos'
-import { buildReceiptImage, needsImage, receiptFooter, receiptLabels, receiptName } from '../lib/receiptImage'
+import { buildReceiptImage, customerLine, needsImage, receiptFooter, receiptLabels, receiptName, tableLine } from '../lib/receiptImage'
 import { billLang } from '../lib/billLang'
 import { dateIST, timeIST } from '../lib/format'
 import { useToast } from '../context/ToastContext'
@@ -42,8 +42,8 @@ export default function Receipt({ data, phone }) {
     try {
       const picture = needsImage(data, rl)
       const bytes = picture ? await buildReceiptImage(data, rl) : buildReceipt(data)
-      const opts = { delay: picture ? 12 : 0 }
-      conn === 'usb' ? await printUsb(bytes, opts) : await printBluetooth(bytes, opts)
+      // a picture bill is a lot of data: bigger pieces and shorter pauses keep it quick (same pacing as the kitchen slip)
+      conn === 'usb' ? await printUsb(bytes, { delay: picture ? 4 : 0 }) : await printBluetooth(bytes, picture ? { delay: 5, chunk: 160, settle: 700 } : { delay: 0 })
       toast.success(t('Sent to printer'))
     } catch (e) {
       // Never open the system print dialog behind the user's back: show why it failed instead.
@@ -76,7 +76,8 @@ export default function Receipt({ data, phone }) {
         </div>
         <hr className="my-1.5 border-t-2 border-double border-black" />
         <div className="flex flex-wrap justify-between gap-x-2"><span className="break-all">{L.bill}: {bill.bill_no}</span><span>{dateIST(d)} {timeIST(d)}</span></div>
-        {table && <div className="flex justify-between gap-x-2"><span>{`${L.table}: ${table}`}</span></div>}
+        {table && <div className="flex justify-between gap-x-2"><span>{tableLine(L, rl, table)}</span></div>}
+        {data.customer_name && <div>{customerLine(rl, data.customer_name)}</div>}
         <hr className="my-1.5 border-dashed border-black" />
         <div className="flex gap-1 font-bold"><span className="flex-1">{L.item}</span><span className="w-8 text-right">{L.qty}</span><span className="w-16 text-right">{L.amt}</span></div>
         <hr className="my-1 border-dashed border-black" />

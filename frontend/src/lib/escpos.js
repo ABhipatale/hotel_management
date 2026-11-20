@@ -9,7 +9,7 @@ const GS = 0x1d
 
 const enc = new TextEncoder()
 
-export function buildReceipt({ bill, company, table, order_no, waiter, printer }) {
+export function buildReceipt({ bill, company, table, order_no, waiter, printer, customer_name }) {
   const wide = printer?.paper_width !== '58mm'
   const cols = wide ? 48 : 32
   const out = []
@@ -49,7 +49,8 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer }
   const when = `${dateIST(d)} ${timeIST(d)}`
   if (wide) two(`Bill: ${bill.bill_no}`, when)
   else { line(`Bill: ${bill.bill_no}`); line(when) }
-  if (table) line(`Table: ${table}`) // the waiter's name is not printed on the bill
+  if (table) line(/^parcel\b/i.test(String(table)) ? String(table) : `Table: ${table}`) // the waiter's name is not printed on the bill
+  if (customer_name) line(`Customer: ${customer_name}`)
 
   rule()
 
@@ -175,21 +176,29 @@ export async function printUsb(bytes, { delay = 0 } = {}) {
   } catch (e) { throw friendly(e) }
 }
 
+// The Bluetooth link is kept for a short while after a print, so the NEXT print skips the slow connect + service search
+// (the slowest part of a small print). It is dropped after 45 s idle so the printer is free for other devices.
+const btLink = { device: null, char: null, timer: null }
+const dropLink = () => { clearTimeout(btLink.timer); try { btLink.device?.gatt?.disconnect() } catch { /* ignore */ } btLink.device = null; btLink.char = null }
+
 export async function printBluetooth(bytes, { delay = 0, chunk = 100, settle = 1200 } = {}) {
   const send = async (device) => {
-    const server = device.gatt.connected ? device.gatt : await device.gatt.connect()
-    const services = await server.getPrimaryServices()
-    for (const s of services) {
-      const chars = await s.getCharacteristics()
-      const w = chars.find((c) => c.properties.write || c.properties.writeWithoutResponse)
-      if (w) {
-        await chunked((c) => (w.properties.writeWithoutResponse ? w.writeValueWithoutResponse(c) : w.writeValue(c)), bytes, chunk, delay)
-        if (delay) await sleep(settle) // let the printer finish its buffer before the link is dropped
-        server.disconnect()
-        return
+    let w = btLink.device === device && device.gatt.connected ? btLink.char : null
+    if (!w) {
+      const server = device.gatt.connected ? device.gatt : await device.gatt.connect()
+      const services = await server.getPrimaryServices()
+      for (const s of services) {
+        const chars = await s.getCharacteristics()
+        w = chars.find((c) => c.properties.write || c.properties.writeWithoutResponse) || null
+        if (w) break
       }
+      if (!w) throw new Error('No writable printer characteristic found')
+      btLink.device = device; btLink.char = w
     }
-    throw new Error('No writable printer characteristic found')
+    await chunked((c) => (w.properties.writeWithoutResponse ? w.writeValueWithoutResponse(c) : w.writeValue(c)), bytes, chunk, delay)
+    if (delay) await sleep(settle) // let the printer finish its buffer
+    clearTimeout(btLink.timer)
+    btLink.timer = setTimeout(dropLink, 45000)
   }
   try {
     const device = await btDevice(false)
@@ -197,7 +206,7 @@ export async function printBluetooth(bytes, { delay = 0, chunk = 100, settle = 1
       await send(device)
     } catch (e) {
       // A dropped connection: reconnect the SAME remembered printer once; never re-open the chooser
-      if (e?.name === 'NetworkError') { try { device.gatt.disconnect() } catch { /* ignore */ } await send(device) } else throw e
+      if (e?.name === 'NetworkError' || btLink.device) { dropLink(); try { device.gatt.disconnect() } catch { /* ignore */ } await send(device) } else throw e
     }
   } catch (e) { throw friendly(e) }
 }

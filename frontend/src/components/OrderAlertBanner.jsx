@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { tableText } from '../lib/format'
 import { BellRing, X } from 'lucide-react'
 import { useT } from '../i18n'
 
@@ -20,7 +21,7 @@ export default function OrderAlertBanner({ banners, onOpen, onDismiss }) {
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-white"><BellRing className="h-5 w-5" /></span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-base font-extrabold leading-tight">
-                {o.table ? t('Table {n}', { n: o.table }) : t('New order')}{o.section ? ` · ${o.section}` : ''}
+                {o.table ? tableText(t, o.table) : t('New order')}{o.section ? ` · ${o.section}` : ''}
               </span>
               <span className="block truncate text-xs font-semibold text-muted">{who(o)} · {t('{n} item(s)', { n: o.items_count })}</span>
               <span className="block truncate text-xs text-slate-600">{o.items.join(', ')}</span>
