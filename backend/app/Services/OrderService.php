@@ -160,6 +160,21 @@ class OrderService
         });
     }
 
+    /** Sets the extra (whole-bill) discount of an unpaid bill, replacing an earlier one. Item discounts and tax stay as they are. */
+    public function setBillDiscount(Bill $bill, float $extra): Bill
+    {
+        return DB::transaction(function () use ($bill, $extra) {
+            $bill = Bill::lockForUpdate()->findOrFail($bill->id);
+            abort_if($bill->status !== 'unpaid', 422, 'Bill is not payable.');
+            $itemDiscount = round((float) $bill->items()->sum('discount'), 2);
+            $extra = max(0.0, min($extra, round((float) $bill->subtotal - $itemDiscount, 2)));
+            $discount = round($itemDiscount + $extra, 2);
+            $bill->update(['discount' => $discount, 'grand_total' => round((float) $bill->subtotal - $discount + (float) $bill->tax, 2)]);
+
+            return $bill->load('items');
+        });
+    }
+
     /** What the (not cancelled) dishes of an order add up to, before any discount: the base for the staff discount limit. */
     public function grossSubtotal(Order $order): float
     {

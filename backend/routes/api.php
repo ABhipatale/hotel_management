@@ -159,6 +159,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         });
         Route::middleware('perm:billing.manage')->group(function () {
             Route::post('bills/{id}/pay', [BillingController::class, 'pay']);
+            Route::post('bills/{id}/discount', [BillingController::class, 'discount']);
             Route::delete('bills/{id}', [BillingController::class, 'void']);
         });
 
@@ -180,6 +181,13 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
             Route::post('suppliers', [OperationsController::class, 'storeSupplier']);
             Route::get('purchases', [OperationsController::class, 'purchases']);
             Route::post('purchases', [OperationsController::class, 'storePurchase']);
+        });
+
+        // Reports → Entries: the owner can correct or delete any order / bill / payment (checked in the controller, always audit-logged)
+        Route::middleware(['perm:reports.view', 'feature:reports'])->group(function () {
+            Route::get('entries', [\App\Http\Controllers\Api\EntriesController::class, 'index']);
+            Route::patch('entries/{id}', [\App\Http\Controllers\Api\EntriesController::class, 'update']);
+            Route::delete('entries/{id}', [\App\Http\Controllers\Api\EntriesController::class, 'destroy']);
         });
 
         // Reports (basic = 'reports', advanced types need the advanced plan)

@@ -22,6 +22,7 @@ class BillingController extends Controller
     public function index(Request $r)
     {
         $q = Bill::with('order:id,order_no,table_id,type', 'order.table:id,number', 'payments:id,bill_id,method,amount')
+            ->withSum('items as item_discount', 'discount')
             ->when($this->branchScope($r), fn ($q, $b) => $q->where('branch_id', $b));
         if ($r->user()->role === 'waiter') {
             $q->whereHas('order', fn ($o) => $o->where('waiter_id', $r->user()->id));
@@ -63,6 +64,38 @@ class BillingController extends Controller
             : []);
 
         return response()->json($bill, 201);
+    }
+
+    /** Discount on the Collect-payment screen: same limit and approval rules as a discount given when the bill is made. */
+    public function discount(Request $r, int $id)
+    {
+        $bill = Bill::with('order')->findOrFail($id);
+        abort_if($bill->status !== 'unpaid', 422, 'Bill is not payable.');
+        $d = $r->validate(['amount' => 'required|numeric|min:0|max:10000000']);
+        $extra = round((float) $d['amount'], 2);
+        $current = max(0.0, round((float) $bill->discount - (float) $bill->items()->sum('discount'), 2));
+        abort_if($extra > round((float) $bill->subtotal - (float) $bill->items()->sum('discount'), 2) + 0.005, 422, 'Discount cannot be more than the bill.');
+
+        $approved = null;
+        if ($extra > 0 && abs($extra - $current) > 0.004) {
+            if ($r->user()->role === 'owner') {
+                $approved = 'owner';
+            } else {
+                $limit = (float) (Tenant::company()?->staff_discount_percent ?? 10);
+                $base = $bill->order ? $this->orders->grossSubtotal($bill->order) : (float) $bill->subtotal;
+                $approved = ($base > 0 && $extra <= round($base * $limit / 100, 2) + 0.005)
+                    ? 'within limit'
+                    : app(ApprovalService::class)->require($r, 'A discount above '.rtrim(rtrim(number_format($limit, 2), '0'), '.').'%');
+            }
+        }
+
+        $bill = $this->orders->setBillDiscount($bill, $extra);
+        $bill->loadSum('items as item_discount', 'discount');
+        if ($approved) {
+            AuditLog::record('bill.generate', 'bill', $bill->id, ['bill_no' => $bill->bill_no, 'order_no' => $bill->order?->order_no, 'branch_id' => $bill->branch_id, 'subtotal' => (float) $bill->subtotal, 'extra_discount' => $extra, 'approved' => $approved]);
+        }
+
+        return $bill;
     }
 
     public function show(int $id)

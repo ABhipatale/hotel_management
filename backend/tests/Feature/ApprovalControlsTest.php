@@ -106,6 +106,49 @@ class ApprovalControlsTest extends TestCase
         $this->assertSame(['within limit', 'owner'], AuditLog::where('action', 'bill.generate')->orderBy('id')->get()->map(fn ($l) => $l->meta['approved'])->all());
     }
 
+    public function test_discount_on_the_collect_payment_screen(): void
+    {
+        $owner = $this->login('atithi@demo.test');
+        $waiter = $this->waiter($owner);
+        $this->setPin($owner);
+        $bill = $this->postJson('/api/orders/'.$this->order($waiter)['id'].'/bill', [], $waiter)->assertCreated()->json();   // 240.00
+        $url = '/api/bills/'.$bill['id'].'/discount';
+
+        $this->postJson($url, ['amount' => 24], $waiter)->assertOk()->assertJsonPath('grand_total', fn ($v) => abs($v - ($bill['grand_total'] - 24)) < 0.01);   // within 10%: no PIN
+        $this->postJson($url, ['amount' => 100], $waiter)->assertForbidden();                                                  // above the limit: PIN needed
+        $r = $this->postJson($url, ['amount' => 100], $waiter + ['X-Approval-Pin' => '4821'])->assertOk()->json();
+        $this->assertEqualsWithDelta($bill['grand_total'] - 100, (float) $r['grand_total'], 0.01);                             // replaces, not adds
+        $this->postJson($url, ['amount' => 0], $owner)->assertOk();                                                            // removed
+        $this->assertEqualsWithDelta((float) $bill['grand_total'], (float) \App\Models\Bill::withoutGlobalScopes()->find($bill['id'])->grand_total, 0.01);
+        $this->postJson($url, ['amount' => 100000], $owner)->assertStatus(422);                                                // more than the bill
+    }
+
+    public function test_owner_can_edit_and_delete_entries_nobody_else(): void
+    {
+        $owner = $this->login('atithi@demo.test');
+        $waiter = $this->waiter($owner);
+        $bill = $this->postJson('/api/orders/'.$this->order($waiter)['id'].'/bill', [], $waiter)->assertCreated()->json();
+        $total = (float) $bill['grand_total'];
+        $this->postJson('/api/bills/'.$bill['id'].'/pay', ['payments' => [['method' => 'cash', 'amount' => $total]]], $waiter)->assertOk();
+        $orderId = $bill['order_id'];
+
+        $this->getJson('/api/entries', $waiter)->assertForbidden();
+        $this->deleteJson('/api/entries/'.$orderId, [], $waiter)->assertForbidden();
+
+        $row = collect($this->getJson('/api/entries', $owner)->assertOk()->json())->firstWhere('id', $orderId);
+        $this->assertSame('cash', $row['payments'][0]['method']);
+
+        $this->patchJson('/api/entries/'.$orderId, ['payments' => [['method' => 'upi', 'amount' => 1]]], $owner)->assertStatus(422);   // must add up
+        $this->patchJson('/api/entries/'.$orderId, ['date' => '2026-11-01', 'payments' => [['method' => 'upi', 'amount' => $total - 40], ['method' => 'cash', 'amount' => 40]]], $owner)->assertNoContent();
+        $this->assertSame('2026-11-01', \App\Models\Order::withoutGlobalScopes()->find($orderId)->created_at->setTimezone('Asia/Kolkata')->toDateString());
+
+        $this->deleteJson('/api/entries/'.$orderId, [], $owner)->assertNoContent();
+        $this->assertNull(\App\Models\Order::withoutGlobalScopes()->find($orderId));
+        $this->assertSame(0, \App\Models\Bill::withoutGlobalScopes()->where('id', $bill['id'])->count());
+        $this->assertSame(0, \App\Models\Payment::withoutGlobalScopes()->where('bill_id', $bill['id'])->count());
+        $this->assertNotNull(AuditLog::where('action', 'entry.delete')->first());
+    }
+
     public function test_wrong_pins_are_throttled(): void
     {
         $owner = $this->login('atithi@demo.test');

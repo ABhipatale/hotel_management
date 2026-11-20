@@ -6,6 +6,7 @@ import { useApi } from '../../lib/useApi'
 import { tableText, dt, money, today } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
 import { useT } from '../../i18n'
+import { useApproval } from '../../context/ApprovalContext'
 import Receipt from '../../components/Receipt'
 import { Badge, Button, Chips, Input, Modal, PageHeader, ListSkeleton, statusTone, Table } from '../../components/ui'
 
@@ -62,7 +63,7 @@ export default function Billing() {
       )}
 
       <Modal open={!!receipt} onClose={() => { setReceipt(null); if (back.current) { const to = back.current; back.current = null; nav(to) } }} title={t('Receipt')}>{receipt && <Receipt data={receipt} />}</Modal>
-      <PayModal bill={paying} onClose={() => { setPaying(null); back.current = null }} onPaid={(r) => { setPaying(null); reload(); setReceipt(r) }} />
+      <PayModal bill={paying} onBill={setPaying} onClose={() => { setPaying(null); back.current = null }} onPaid={(r) => { setPaying(null); reload(); setReceipt(r) }} />
     </>
   )
 }
@@ -74,21 +75,28 @@ const fix = (paise) => (Math.max(paise, 0) / 100).toFixed(2)
  * Collect payment: only Cash and UPI. One customer may pay part in cash and part online —
  * type either amount and the other fills in with what is left, so the two always add up to the bill.
  */
-function PayModal({ bill, onClose, onPaid }) {
+function PayModal({ bill, onBill, onClose, onPaid }) {
   const toast = useToast()
+  const approve = useApproval()
   const t = useT()
   const total = bill ? Number(bill.grand_total) : 0
   const [cash, setCash] = useState('')
   const [upi, setUpi] = useState('')
   const [ref, setRef] = useState('')
-  const [tendered, setTendered] = useState('')
+  const [disc, setDisc] = useState('')
+  const [discBusy, setDiscBusy] = useState(false)
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
 
   // Every time a bill is opened: the whole amount in cash (change it with one tap)
   useEffect(() => {
-    if (bill) { setCash(Number(bill.grand_total).toFixed(2)); setUpi(''); setRef(''); setTendered(''); setName(bill.order?.customer_name || '') }
+    if (bill) { setCash(Number(bill.grand_total).toFixed(2)); setUpi(''); setRef(''); setDisc(''); setName(bill.order?.customer_name || '') }
   }, [bill?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The total changed (a discount was applied): the whole amount in cash again
+  useEffect(() => {
+    if (bill) { setCash(Number(bill.grand_total).toFixed(2)); setUpi('') }
+  }, [bill?.grand_total]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!bill) return null
 
@@ -98,8 +106,19 @@ function PayModal({ bill, onClose, onPaid }) {
   const balanced = remaining === 0 && paid > 0
   const onCash = (v) => { setCash(v); setUpi(due - cents(v) > 0 ? fix(due - cents(v)) : '') }
   const onUpi = (v) => { setUpi(v); setCash(due - cents(v) > 0 ? fix(due - cents(v)) : '') }
-  const preset = (c, u) => { setCash(c ? fix(c) : ''); setUpi(u ? fix(u) : ''); setTendered('') }
-  const change = cents(cash) > 0 && tendered ? Math.max(0, Number(tendered) - Number(cash || 0)) : 0
+  const preset = (c, u) => { setCash(c ? fix(c) : ''); setUpi(u ? fix(u) : '') }
+
+  // Discount on the whole bill: the server works out the new total (a big one asks for the owner's PIN), then the amounts are re-filled
+  const applyDiscount = async () => {
+    setDiscBusy(true)
+    try {
+      const r = await approve((pin) => api.post(`/bills/${bill.id}/discount`, { amount: Number(disc) || 0 }, pin ? { headers: { 'X-Approval-Pin': pin } } : undefined))
+      onBill({ ...bill, ...r.data })
+      toast.success(Number(disc) > 0 ? t('Discount applied') : t('Discount removed'))
+    } catch (e) { if (!e.cancelled) toast.error(e) } finally { setDiscBusy(false) }
+  }
+  const itemDisc = Number(bill.item_discount || 0)
+  const extraDisc = Math.max(0, Number(bill.discount || 0) - itemDisc)
 
   const pay = async () => {
     setBusy(true)
@@ -143,14 +162,14 @@ function PayModal({ bill, onClose, onPaid }) {
           </div>
         </div>
 
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <Input label={extraDisc > 0 ? t('Discount (₹) · {amount} given', { amount: money(extraDisc) }) : t('Discount (₹)')} type="number" min="0" step="0.01" inputMode="decimal" value={disc} placeholder="0" onChange={(e) => setDisc(e.target.value)} />
+          </div>
+          <Button type="button" variant="secondary" size="lg" loading={discBusy} disabled={disc === '' && extraDisc === 0} onClick={applyDiscount}>{t('Apply')}</Button>
+        </div>
         {bill.order && bill.order.type !== 'dine_in' && <Input label={t('Customer name (optional)')} placeholder={t('Name for the takeaway / parcel')} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />}
         {cents(upi) > 0 && <Input label={t('UPI reference / transaction ID (optional)')} value={ref} onChange={(e) => setRef(e.target.value)} />}
-        {cents(cash) > 0 && (
-          <>
-            <Input label={t('Cash received (optional)')} type="number" min="0" inputMode="decimal" value={tendered} onChange={(e) => setTendered(e.target.value)} hint={t('Enter what the customer handed over to see the change.')} />
-            {change > 0 && <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{t('Return change:')} <b>{money(change)}</b></div>}
-          </>
-        )}
 
         {remaining !== 0 && <p className="text-center text-xs font-medium text-accent-dark">{remaining > 0 ? t('{amount} still to be collected', { amount: money(remaining / 100) }) : t('Amounts exceed the bill by {amount}', { amount: money(Math.abs(remaining) / 100) })}</p>}
 
