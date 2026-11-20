@@ -137,7 +137,9 @@ function PayModal({ bill, onBill, onClose, onPaid }) {
   )
 
   return (
-    <Modal open onClose={onClose} title={t('Collect {amount}', { amount: money(total) })}>
+    <Modal open onClose={onClose} title={t('Collect {amount}', { amount: money(total) })} footer={
+      <Button variant="accent" className="w-full" size="lg" disabled={!balanced} loading={busy} onClick={pay}>{t('Confirm payment · {amount}', { amount: money(total) })}</Button>
+    }>
       <div className="space-y-4">
         <div className="grid grid-cols-3 gap-2 text-center">
           {[['Bill', money(total), ''], ['Paying', money(paid / 100), ''], [remaining < 0 ? 'Extra' : 'Remaining', money(Math.abs(remaining) / 100), remaining === 0 ? 'text-brand' : 'text-accent-dark']].map(([l, v, c]) => (
@@ -173,7 +175,6 @@ function PayModal({ bill, onBill, onClose, onPaid }) {
 
         {remaining !== 0 && <p className="text-center text-xs font-medium text-accent-dark">{remaining > 0 ? t('{amount} still to be collected', { amount: money(remaining / 100) }) : t('Amounts exceed the bill by {amount}', { amount: money(Math.abs(remaining) / 100) })}</p>}
 
-        <Button variant="accent" className="w-full" size="lg" disabled={!balanced} loading={busy} onClick={pay}>{t('Confirm payment · {amount}', { amount: money(total) })}</Button>
       </div>
     </Modal>
   )

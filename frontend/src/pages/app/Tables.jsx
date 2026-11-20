@@ -85,7 +85,7 @@ export default function Tables() {
   if (loading) return <Spinner />
   return (
     <>
-      <PageHeader title={tx('Tables')} sub={`${tx('{busy} busy · {free} free', { busy: busyCount, free: (data?.length || 0) - busyCount })}${can('orders.create') ? ` · ${tx('Tap a table to take its order')}` : ''}`} actions={manage && <div className="flex gap-2"><Button size="sm" onClick={() => setAdding('table')}><Plus className="h-4 w-4" /> {tx('Add')}</Button>{company?.parcel_enabled && <Button size="sm" variant="secondary" onClick={() => setAdding('parcel')}><Plus className="h-4 w-4" /> {tx('Parcel')}</Button>}</div>} />
+      <PageHeader title={tx('Tables')} actions={manage && <div className="flex gap-2"><Button size="sm" onClick={() => setAdding('table')}><Plus className="h-4 w-4" /> {tx('Add')}</Button>{company?.parcel_enabled && <Button size="sm" variant="secondary" onClick={() => setAdding('parcel')}><Plus className="h-4 w-4" /> {tx('Parcel')}</Button>}</div>} />
 
       <Chips value={filter} onChange={setFilter} items={[['all', tx('All ({n})', { n: data.length })], ...STATUSES.map((s) => [s, `${tx(cap(s))}${counts[s] ? ` (${counts[s]})` : ''}`])]} />
 

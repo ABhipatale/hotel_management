@@ -68,6 +68,9 @@ export default function Layout() {
   const loc = useLocation()
   // With the sidebar hidden, a small bottom bar keeps the main pages one tap away (not on New order: its cart needs the room)
   const navOnWide = !side && !loc.pathname.startsWith('/app/order/new')
+  // Menu and New order: slim top bar on wide screens (menu button, search, bell, profile) so the dishes get the room
+  const compactBar = loc.pathname.startsWith('/app/order/new') || loc.pathname.startsWith('/app/menu')
+  const posPage = loc.pathname.startsWith('/app/order/new') // New order uses the whole width and height on wide screens
 
   useEffect(() => { setMore(false) }, [loc.pathname])
 
@@ -186,22 +189,22 @@ export default function Layout() {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* App bar: Deep Teal on phones, clean white on desktop */}
         <header className="pt-[env(safe-area-inset-top)] sticky top-0 z-30 bg-brand text-white lg:bg-white! lg:text-ink! lg:ring-1 lg:ring-line">
-          <div className="flex items-center gap-3 px-4 py-3 lg:px-8">
+          <div className={`flex items-center gap-3 px-4 py-3 lg:px-8 ${compactBar ? 'lg:py-2' : ''}`}>
             <button onClick={toggleSide} aria-label={side ? t('Hide menu') : t('Show menu')} title={side ? t('Hide menu') : t('Show menu')} className="hidden h-11 w-11 shrink-0 place-items-center rounded-xl bg-ivory text-brand ring-1 ring-line transition hover:bg-brand-soft active:scale-95 lg:grid">
               {side ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
             </button>
-            <div className={side ? 'lg:hidden' : ''}><Logo company={company} isSuperAdmin={isSuperAdmin} /></div>
-            <div className={`min-w-0 flex-1 leading-tight ${side ? 'lg:hidden' : ''}`}>
-              <div className="truncate text-[17px] font-extrabold tracking-tight">{isSuperAdmin ? 'Hotel SaaS' : company?.name}</div>
-              <div className="truncate text-xs font-medium text-white/70 lg:text-muted">{t('Hi, {name}', { name: user?.name?.split(' ')[0] })} · <span className="capitalize">{roleText(user?.role)}</span></div>
+            <div className={`${posPage ? 'hidden lg:hidden' : ''} ${side || compactBar ? 'lg:hidden' : ''}`}><Logo company={company} isSuperAdmin={isSuperAdmin} /></div>
+            <div className={`min-w-0 flex-1 leading-tight ${posPage ? 'hidden' : ''} ${side || compactBar ? 'lg:hidden' : ''}`}>
+              <div className="hidden truncate text-[17px] font-extrabold tracking-tight lg:block">{isSuperAdmin ? 'Hotel SaaS' : company?.name}</div>
+              <div className={`truncate text-sm font-semibold text-white/90 lg:text-xs lg:font-medium lg:text-muted ${!isSuperAdmin && multi ? 'hidden lg:block' : ''}`}>{t('Hi, {name}', { name: user?.name?.split(' ')[0] })} · <span className="capitalize">{roleText(user?.role)}</span></div>
+              {!isSuperAdmin && multi && <div className="lg:hidden"><CounterSwitch compact dark /></div>}
             </div>
-            <div className="hidden min-w-0 flex-1 lg:block"><CounterSwitch /></div>
-            {!isSuperAdmin && multi && !isOwner && <CounterSwitch dark className="lg:hidden" />}
+            {posPage && <div id="topbar-phone" className="min-w-0 flex-1 lg:hidden" />}
+            {compactBar && <div id="topbar-search" className="hidden min-w-0 flex-1 lg:block" />}
+            <div className={`hidden min-w-0 lg:block ${compactBar ? 'shrink-0' : 'flex-1'}`}><CounterSwitch /></div>
             {showBell && BellBtn}
-            <button onClick={() => setMore(true)} aria-label={t('Account menu')} className={side ? 'lg:hidden' : ''}><Avatar name={user?.name} className="!bg-ivory !text-brand !ring-0" /></button>
+            <button onClick={() => setMore(true)} aria-label={t('Account menu')} className={side && !compactBar ? 'lg:hidden' : ''}><Avatar name={user?.name} className="!bg-ivory !text-brand !ring-0" /></button>
           </div>
-          {/* Phones: the owner's counter pills sit under the app bar */}
-          {!isSuperAdmin && multi && isOwner && <div className="px-4 pb-3 lg:hidden"><CounterSwitch dark /></div>}
         </header>
 
         {!isSuperAdmin && <OfflineBar />}
@@ -218,7 +221,7 @@ export default function Layout() {
           </div>
         )}
 
-        <main className={`mx-auto w-full min-w-0 flex-1 px-4 py-5 pb-36 sm:px-6 ${side ? 'max-w-7xl lg:px-8' : 'max-w-none lg:px-6'} ${navOnWide ? '' : 'lg:pb-8'}`}>
+        <main className={`mx-auto w-full min-w-0 flex-1 px-4 py-5 pb-36 sm:px-6 ${posPage ? 'max-w-none lg:px-3 lg:py-2' : side ? 'max-w-7xl lg:px-8' : 'max-w-none lg:px-6'} ${navOnWide ? '' : 'lg:pb-8'}`}>
           <div key={`${loc.pathname}|${selected}`} className="animate-page"><Outlet /></div>
         </main>
       </div>

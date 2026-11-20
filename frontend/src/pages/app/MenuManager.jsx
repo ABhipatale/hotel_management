@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import Img from '../../components/Img'
+import { createPortal } from 'react-dom'
+import { useTopbarSlot } from '../../lib/topbarSearch'
 import LibraryPicker from '../../components/LibraryPicker'
 import { compressImage } from '../../lib/image'
-import { ArrowDown, ArrowUp, ChevronsUp, Download, ImageIcon, Pencil, Plus, Trash2, Upload, UtensilsCrossed } from 'lucide-react'
+import { Search, ArrowDown, ArrowUp, ChevronsUp, Download, ImageIcon, Pencil, Plus, Trash2, Upload, UtensilsCrossed } from 'lucide-react'
 import { api, toFormData } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { money } from '../../lib/format'
@@ -88,8 +90,11 @@ export default function MenuManager() {
   const [csvFile, setCsvFile] = useState(null)
   const [csvBusy, setCsvBusy] = useState(false)
   const [csvRes, setCsvRes] = useState(null)
+  const [q, setQ] = useState('')
+  const slot = useTopbarSlot() // wide screens: the search box lives in the top bar
 
-  const rows = (items || []).filter((i) => cat === 'all' || i.category_id === +cat)
+  const qs = q.trim().toLowerCase()
+  const rows = (items || []).filter((i) => (cat === 'all' || i.category_id === +cat) && (!qs || i.name.toLowerCase().includes(qs) || (i.name_mr || '').toLowerCase().includes(qs) || String(i.code) === qs))
   // New dishes are pre-filled with the next free product number (the owner can change it)
   const nextCode = Math.max(0, ...(items || []).map((i) => Number(i.code) || 0)) + 1
   const open = (i) => { setImage(null); setEdit(i ? { ...i, code: i.code ?? '', name_mr: i.name_mr ?? '', stock: i.stock ?? '', variants: i.variants.map((v) => ({ name: v.name, price: v.price })) } : { ...BLANK, code: nextCode, category_id: cats?.[0]?.id || '' }) }
@@ -130,7 +135,9 @@ export default function MenuManager() {
   if (loading) return <Spinner />
   return (
     <>
+      {slot && createPortal(<div className="relative"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Name or number')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>, slot)}
       <PageHeader title={t('Menu')} sub={t('Categories, dishes, variants and prices')} actions={<><Button variant="secondary" onClick={() => { setCsvRes(null); setCsvFile(null); setCsvOpen(true) }}><Upload className="h-4 w-4" /> {t('Import CSV')}</Button><Button variant="secondary" onClick={() => setCatModal(true)}>{t('Categories')}</Button><Button onClick={() => open()}><Plus className="h-4 w-4" /> {t('Add dish')}</Button></>} />
+      <div className="mb-3 lg:hidden"><div className="relative"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Name or number')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div></div>
       <Chips value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), catName(c, lang)])]} />
 
       {!rows.length ? <Empty title={t('No dishes yet')} action={<Button onClick={() => open()}>{t('Add your first dish')}</Button>} /> : (

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Img from '../../components/Img'
+import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTopbarSlot } from '../../lib/topbarSearch'
 import { Hash, ImageOff, Printer, Image as ImageIcon, LayoutGrid, List, Minus, Plus, Search, ShoppingCart, Trash2, UtensilsCrossed } from 'lucide-react'
 import { api, isNetworkError } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
@@ -18,6 +20,8 @@ import { Button, Chips, Input, Modal, Select, Spinner } from '../../components/u
 /** Waiter POS: pick table → add items → place order. Totals here are an estimate; the server prices the order. */
 export default function NewOrder() {
   const [params] = useSearchParams()
+  const slot = useTopbarSlot() // wide screens: the search box lives in the top bar
+  const phoneSlot = useTopbarSlot('topbar-phone') // phones: the table chooser and the view buttons live in the top bar
   const nav = useNavigate()
   const toast = useToast()
   const { t, lang } = useI18n()
@@ -233,22 +237,28 @@ export default function NewOrder() {
     </div>
   )
 
+  const searchBox = (
+    <div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} enterKeyHint="go" placeholder={t('Name or number')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>
+  )
   const viewControls = (
     <>
-      {/* icon button that opens the native chooser: Picture cards / Compact list / Number grid */}
+      {/* one icon button that opens the native chooser: Picture cards / Compact list / Compact list without pictures / Number grid */}
       <label className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-line bg-white text-brand">
-        {mode === 'grid' ? <LayoutGrid className="h-5 w-5" /> : mode === 'list' ? <List className="h-5 w-5" /> : <Hash className="h-5 w-5" />}
-        <select aria-label={t('View')} title={t('View')} value={mode} onChange={(e) => setView(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0">
+        {mode === 'grid' ? <LayoutGrid className="h-5 w-5" /> : mode === 'list' ? (showImg ? <List className="h-5 w-5" /> : <ImageOff className="h-5 w-5" />) : <Hash className="h-5 w-5" />}
+        <select
+          aria-label={t('View')} title={t('View')} value={mode === 'list' && !showImg ? 'list-text' : mode}
+          onChange={(e) => {
+            const v = e.target.value
+            if (v === 'list' || v === 'list-text') { setView('list'); if ((v === 'list') !== showImg) toggleImg() } else setView(v)
+          }}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        >
           <option value="grid">{t('Picture cards')}</option>
           <option value="list">{t('Compact list')}</option>
+          <option value="list-text">{t('Compact list, no pictures')}</option>
           <option value="numbers">{t('Number grid')}</option>
         </select>
       </label>
-      {mode === 'list' && (
-        <button type="button" aria-pressed={showImg} aria-label={showImg ? t('Hide pictures') : t('Show pictures')} title={showImg ? t('Hide pictures') : t('Show pictures')} onClick={toggleImg} className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border transition active:scale-90 ${showImg ? 'border-brand bg-brand text-white' : 'border-line bg-white text-muted'}`}>
-          {showImg ? <ImageIcon className="h-5 w-5" /> : <ImageOff className="h-5 w-5" />}
-        </button>
-      )}
     </>
   )
   const orderSelect = (
@@ -272,8 +282,14 @@ export default function NewOrder() {
 
   return (
     <>
+      {slot && createPortal(<div className="flex items-center gap-3"><h1 className="shrink-0 text-xl font-extrabold tracking-tight">{editId ? t('Edit order') : t('New order')}</h1><div className="min-w-0 flex-1"><div className="relative"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} enterKeyHint="go" placeholder={t('Name or number')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div></div><div className="flex shrink-0 items-center gap-1.5">{viewControls}</div></div>, slot)}
       {/* phones: title, "Order for" and the view controls all share the title line; the search box gets its own line */}
-      <div className="mb-2 flex items-center gap-1.5 lg:hidden">
+      {phoneSlot && createPortal(
+        <div className="flex items-center gap-1.5">
+          <div className="min-w-0 flex-1">{editId ? <div className="truncate rounded-xl bg-white/90 px-3 py-2.5 text-sm font-bold text-brand">{editing?.order_no}{editing?.table ? ` · ${t('Table {n}', { n: editing.table.number })}` : ''}</div> : orderSelect}</div>
+          {viewControls}
+        </div>, phoneSlot)}
+      <div className={`mb-2 flex items-center gap-1.5 lg:hidden ${phoneSlot ? 'hidden!' : ''}`}>
         <h1 className="shrink-0 text-[15px] font-extrabold tracking-tight">{editId ? t('Edit order') : t('New order')}</h1>
         <div className="min-w-0 flex-1">{editId ? <div className="truncate rounded-xl bg-brand-soft px-3 py-2.5 text-sm font-bold text-brand">{editing?.order_no}{editing?.table ? ` · ${t('Table {n}', { n: editing.table.number })}` : ''}</div> : orderSelect}</div>
         {viewControls}
@@ -292,7 +308,7 @@ export default function NewOrder() {
             <Chips rows={(cats || []).length < 6 ? 1 : 2} value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).slice(2).map((c) => [String(c.id), cn(c)])]} />
           </div>
           <div className="hidden lg:block">
-          <div className="mb-2 flex items-center gap-3"><h1 className="shrink-0 text-2xl font-extrabold tracking-tight">{editId ? t('Edit order') : t('New order')}</h1><div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} enterKeyHint="go" placeholder={t('Name or number')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>
+          <div className={`mb-2 flex items-center gap-3 ${slot ? 'hidden' : ''}`}><h1 className="shrink-0 text-2xl font-extrabold tracking-tight">{editId ? t('Edit order') : t('New order')}</h1>{slot ? <div className="min-w-0 flex-1" /> : searchBox}
               <div className="hidden items-center gap-1.5 lg:flex">{viewControls}</div>
             </div>
             <Chips rows={(cats || []).length <= 8 ? 1 : 2} value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), cn(c)])]} />
@@ -365,7 +381,7 @@ export default function NewOrder() {
           )}
           {!list.length && <p className="py-10 text-center text-sm text-muted">{t('No dishes found')}</p>}
         </div>
-        <div className="hidden lg:block lg:pt-2"><div className="sticky top-24 h-[calc(100vh-8.5rem)] rounded-2xl border border-line bg-white p-4 shadow-card">{Cart}</div></div>
+        <div className="hidden lg:block"><div className="sticky top-[4.25rem] h-[calc(100vh-5rem)] rounded-2xl border border-line bg-white p-4 shadow-card">{Cart}</div></div>
       </div>
 
       {count > 0 && (

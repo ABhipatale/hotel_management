@@ -186,7 +186,8 @@ export const statusTone = (s) =>
 /* ───────────────────────── Overlays ───────────────────────── */
 /** Bottom sheet on phones, centred dialog on larger screens. */
 /** `wide`: roomy dialog; `full`: fills the screen on tablets/desktops (bottom sheet on phones as usual). */
-export function Modal({ open, onClose, title, children, wide, full }) {
+/** `footer` (optional): a pinned bottom bar (e.g. the main action button) that never scrolls away; only the content above it scrolls. */
+export function Modal({ open, onClose, title, children, wide, full, footer }) {
   const t = useT()
   useEffect(() => {
     if (!open) return
@@ -203,16 +204,17 @@ export function Modal({ open, onClose, title, children, wide, full }) {
     <div role="dialog" aria-modal="true" className="animate-fade fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-3 backdrop-blur-sm sm:items-center sm:p-6" onMouseDown={onClose}>
       <div
         onMouseDown={(e) => e.stopPropagation()}
-        className={cx('animate-sheet mb-[max(env(safe-area-inset-bottom),0px)] w-full overflow-y-auto overscroll-contain rounded-[1.25rem] bg-white px-4 pb-7 pt-3 shadow-float sm:px-6 sm:animate-pop sm:pt-6', full ? 'max-h-[94dvh] sm:h-[94dvh] sm:max-w-[min(96vw,1280px)]' : cx('max-h-[88dvh]', wide ? 'sm:max-w-2xl' : 'sm:max-w-md'))}
+        className={cx('animate-sheet mb-[max(env(safe-area-inset-bottom),0px)] w-full overscroll-contain rounded-[1.25rem] bg-white px-4 pt-3 shadow-float sm:px-6 sm:animate-pop sm:pt-6', footer ? 'flex flex-col overflow-hidden pb-4' : 'overflow-y-auto pb-7', full ? 'max-h-[94dvh] sm:h-[94dvh] sm:max-w-[min(96vw,1280px)]' : cx('max-h-[88dvh]', wide ? 'sm:max-w-2xl' : 'sm:max-w-md'))}
       >
-        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden" />
-        <div className="mb-5 flex items-center justify-between gap-3 border-b border-line pb-4">
+        <div className="mx-auto mb-3 h-1.5 w-10 shrink-0 rounded-full bg-slate-200 sm:hidden" />
+        <div className="mb-5 flex shrink-0 items-center justify-between gap-3 border-b border-line pb-4">
           <h3 className="text-xl font-extrabold tracking-tight">{tx(t, title)}</h3>
           <button onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 active:scale-95" aria-label={t('Close')}>
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="space-y-1 [&_form]:space-y-4">{children}</div>
+        <div className={cx('space-y-1 [&_form]:space-y-4', footer && 'min-h-0 flex-1 overflow-y-auto overscroll-contain')}>{children}</div>
+        {footer && <div className="shrink-0 border-t border-line bg-white pt-3">{footer}</div>}
       </div>
     </div>,
     document.body,
