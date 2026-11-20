@@ -172,6 +172,15 @@ class KotTest extends TestCase
         $this->assertSame('Parcel 1', $paid->json('table'));
     }
 
+    public function test_an_owner_can_clear_the_bill_header(): void
+    {
+        $owner = $this->login('atithi@demo.test');
+        $this->postJson('/api/company', ['bill_header' => 'Rahul patil'], $owner)->assertOk();
+        $this->assertSame('Rahul patil', $this->getJson('/api/company', $owner)->json('bill_header'));
+        $this->postJson('/api/company', ['bill_header' => ''], $owner)->assertOk(); // the screen now sends an empty value when the field was cleared
+        $this->assertNull($this->getJson('/api/company', $owner)->json('bill_header'));
+    }
+
     public function test_editing_an_order_sends_only_the_difference_and_cancels_reach_the_kitchen(): void
     {
         $this->switchKot(true);

@@ -7,6 +7,13 @@ export const billLang = {
   set: (v) => { try { v === 'auto' ? localStorage.removeItem(KEY) : localStorage.setItem(KEY, v) } catch { /* private mode */ } },
 }
 
+// Paper width of THE PRINTER ON THIS DEVICE. The hotel's printer setting is one value for everybody, but a hotel can have a 58 mm and an
+// 80 mm printer on different phones: a bill laid out for the wrong width wraps and looks broken. 'auto' = use the hotel's setting.
+export const devicePaper = {
+  get: () => { try { const v = localStorage.getItem('hms.paper'); return v === '58mm' || v === '80mm' ? v : 'auto' } catch { return 'auto' } },
+  set: (v) => { try { v === 'auto' ? localStorage.removeItem('hms.paper') : localStorage.setItem('hms.paper', v) } catch { /* private mode */ } },
+}
+
 // How an ENGLISH bill is sent to a thermal printer on THIS device: 'picture' (neat layout, slower) or 'text' (the printer's own letters: fastest).
 // Marathi and any bill with non-English letters is always a picture.
 export const billStyle = {

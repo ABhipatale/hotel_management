@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { MessageCircle, Printer } from 'lucide-react'
 import { buildReceipt, printBluetooth, printUsb, savedPrinter } from '../lib/escpos'
 import { buildReceiptImage, customerLine, needsImage, receiptFooter, receiptLabels, receiptName, tableLine } from '../lib/receiptImage'
-import { billLang } from '../lib/billLang'
+import { billLang, devicePaper } from '../lib/billLang'
 import { dateIST, timeIST } from '../lib/format'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
@@ -16,10 +16,13 @@ const m = (n) => Number(n).toFixed(2)
  * In Marathi (or when the bill holds non-English text) the thermal receipt is sent as a picture, because a plain
  * ESC/POS printer cannot print Devanagari; English bills stay as fast, crisp text.
  */
-export default function Receipt({ data, phone }) {
+export default function Receipt({ data: hotelData, phone }) {
   const toast = useToast()
   const { t, lang } = useI18n()
   const { hasFeature, company: shop } = useAuth()
+  // this device's own paper width (if set) wins over the hotel-wide printer setting
+  const paper = devicePaper.get()
+  const data = paper === 'auto' ? hotelData : { ...hotelData, printer: { ...(hotelData.printer || {}), paper_width: paper } }
   const { bill, company, printer, table, waiter } = data
   // Receipt language: Marathi when the shop's default language is Marathi or the app is in Marathi, unless this device
   // chose otherwise with the English / मराठी buttons below (remembered on this device).

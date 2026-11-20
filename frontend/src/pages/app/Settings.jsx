@@ -35,7 +35,10 @@ export default function Settings() {
     e.preventDefault()
     const { logo_url, logo_path, icon_url, icon_path, brand_color, id, uid, slug, status, created_at, updated_at, deleted_at, settings, business_name, ...rest } = f
     try {
-      const { data } = await api.post('/company', toFormData({ ...rest, logo, icon, remove_icon: removeIcon || undefined }))
+      const body = toFormData({ ...rest, logo, icon, remove_icon: removeIcon || undefined })
+      // toFormData skips empty values, so a field the owner CLEARED (e.g. the bill header) was never sent and the old text stayed: send those as empty
+      ;['phone', 'email', 'address', 'city', 'state', 'pin_code', 'gst_number', 'bill_header', 'bill_footer'].forEach((k) => { if (k in rest && !rest[k] && !body.has(k)) body.append(k, '') })
+      const { data } = await api.post('/company', body)
       setF(data); setLogo(null); setIcon(null); setRemoveIcon(false)
       toast.success(t('Branding updated'))
       await refresh()

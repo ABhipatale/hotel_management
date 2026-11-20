@@ -1,6 +1,6 @@
 // Kitchen slip (KOT) for thermal printers. Drawn on a canvas and sent as a picture so Marathi dish names print correctly
 // (a plain ESC/POS printer has no Devanagari font), with big bold dishes that are easy to read in a hot kitchen.
-import { printBluetooth, printUsb, savedPrinter } from './escpos'
+import { printBluetooth, printUsb, savedPrinter, textTune } from './escpos'
 import { dateIST, timeIST } from './format'
 
 const ESC = 0x1b
@@ -187,11 +187,13 @@ export async function drawKotCanvas(kot, company, { width = '80mm', lang = 'en' 
 /** Fast plain-text slip: the printer's own letters (no picture to send), big bold dishes. English only. */
 export function buildKotText(kot, company, { width = '80mm' } = {}) {
   const cols = width === '58mm' ? 32 : 48
-  const out = [ESC, 0x40, ESC, 0x33, 24]
+  const out = [ESC, 0x40, ESC, 0x4d, 0] // Font A: 32 / 48 letters per line, so everything lines up
   const enc = new TextEncoder()
   const push = (...b) => out.push(...b)
   const txt = (s) => push(...enc.encode(String(s).replace(/[^\x20-\x7E\n]/g, '?')))
   const line = (s = '') => txt(`${s}\n`)
+  const tight = textTune.spacing()
+  const spacing = (n) => push(ESC, 0x33, n)
   const size = (n) => push(GS, 0x21, n) // 0x00 normal, 0x01 tall, 0x11 tall + wide
   const bold = (on) => push(ESC, 0x45, on ? 1 : 0)
   const align = (a) => push(ESC, 0x61, a)
@@ -202,34 +204,35 @@ export function buildKotText(kot, company, { width = '80mm' } = {}) {
   const where = t ? (parcel ? `PARCEL ${String(t.number).replace(/^parcel\s*/i, '')}` : `TABLE ${t.number}`) : (kot.order?.type === 'delivery' ? 'DELIVERY' : 'TAKEAWAY')
   const when = new Date(kot.created_at)
 
-  push(ESC, 0x64, 1)
+  spacing(tight)
   align(1); bold(true)
   if (company?.name) wrap(company.name, cols).slice(0, 2).forEach(line)
-  size(0x11); line(kot.type === 'cancel' ? 'STOP - CANCELLED' : `KOT #${kot.number}`); size(0)
+  spacing(tight + 28)
+  size(0x11); line(kot.type === 'cancel' ? 'STOP-CANCELLED' : `KOT #${kot.number}`); size(0)
   if (kot.type === 'cancel') { size(0x11); line(`KOT #${kot.number}`); size(0) }
   size(0x11); line(where); size(0)
-  bold(false)
+  spacing(tight); bold(false)
   if (t?.section) line(t.section)
   align(0)
-  line('-'.repeat(cols))
+  push(ESC, 0x4a, 4)
   two(`Order: ${kot.order?.order_no || ''}`, timeIST(when))
   two(kot.sender?.name ? `By: ${kot.sender.name}` : '', dateIST(when))
-  line('='.repeat(cols))
+  push(ESC, 0x4a, 6)
   const lines = kot.items || []
-  lines.forEach((i) => {
-    bold(true); size(0x01) // double height (full width): big enough to read, and long names still fit
-    const qty = String(i.quantity).padStart(2)
-    const rows = wrap(i.name, cols - 4)
-    line(`${qty} ${rows[0] || ''}`)
-    rows.slice(1).forEach((r) => line(`   ${r}`))
-    size(0); bold(false)
-    if (i.variant) line(`   (${i.variant})`)
-    line()
+  lines.forEach((i, n) => {
+    if (n > 0) push(ESC, 0x4a, 6) // air between dishes (no dotted lines)
+    spacing(tight + 28); bold(true); size(0x01) // double height (full width): big enough to read, long names still fit
+    const rows = wrap(i.name, cols - 5)
+    line(`${String(i.quantity).padStart(2)}x ${rows[0] || ''}`)
+    rows.slice(1).forEach((r) => line(`    ${r}`))
+    size(0); bold(false); spacing(tight)
+    if (i.variant) line(`    (${i.variant})`)
   })
-  if (kot.note) { line('-'.repeat(cols)); bold(true); line('NOTE:'); size(0x01); wrap(kot.note, cols).forEach(line); size(0); bold(false) }
-  line('-'.repeat(cols))
+  if (kot.note) { push(ESC, 0x4a, 6); bold(true); line('NOTE:'); size(0x01); wrap(kot.note, cols).forEach(line); size(0); bold(false) }
+  push(ESC, 0x4a, 6)
   two(`Total items: ${lines.reduce((n, i) => n + Number(i.quantity), 0)}`, `Printed ${timeIST(new Date())}`)
-  push(ESC, 0x64, 5, GS, 0x56, 0x42, 0x00)
+  if (textTune.bottom() > 0) push(ESC, 0x64, textTune.bottom())
+  push(GS, 0x56, 0x42, 0x00)
   return new Uint8Array(out)
 }
 

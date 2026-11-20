@@ -7,6 +7,14 @@ import { dateIST, timeIST } from './format'
 const ESC = 0x1b
 const GS = 0x1d
 
+/** Fast-text tuning for THIS device (every printer spaces its lines a little differently): line spacing in dots and blank lines left below the last line. */
+const num = (k, d, lo, hi) => { try { const v = Number(localStorage.getItem(k)); return localStorage.getItem(k) === null || Number.isNaN(v) ? d : Math.min(hi, Math.max(lo, v)) } catch { return d } }
+export const textTune = {
+  spacing: () => num('hms.text.spacing', 24, 12, 48),
+  bottom: () => num('hms.text.bottom', 0, 0, 8),
+  set: (k, v) => { try { localStorage.setItem(`hms.text.${k}`, String(v)) } catch { /* private mode */ } },
+}
+
 const enc = new TextEncoder()
 
 export function buildReceipt({ bill, company, table, order_no, waiter, printer, customer_name }) {
@@ -16,7 +24,20 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer, 
   const push = (...b) => out.push(...b)
   const text = (s) => out.push(...enc.encode(String(s).replace(/[^\x20-\x7E\n]/g, '?')))
   const line = (s = '') => text(s + '\n')
-  const rule = (ch = '-') => line(ch.repeat(cols))
+  // Rules: a line of "_" letters. It sits at the bottom of its row, so it touches the line above with no gap. (Some printers print "-" and "="
+  // as blank, and underlined blanks as nothing, so "_" is the one that works everywhere.) '=' is the same line in bold = a heavier rule.
+  // The dark line is a solid black band exactly 3 dots tall (a tiny picture: ~150 bytes). Unlike a line of "_" letters it takes NO blank row, so there is no
+  // empty paper above or below it (the printer clamps the line spacing of letter rows, so letters can never get closer than a full row).
+  const dark = () => {
+    const rb = (wide ? 576 : 384) / 8
+    push(GS, 0x76, 0x30, 0, rb & 255, rb >> 8, 3, 0)
+    for (let i = 0; i < rb * 3; i++) out.push(0xff)
+  }
+  const rule = (ch = '-') => {
+    if (ch === '=') push(ESC, 0x45, 1)
+    line('_'.repeat(cols))
+    if (ch === '=') push(ESC, 0x45, 0)
+  }
   const two = (l, r) => line(String(l).slice(0, cols - String(r).length - 1).padEnd(cols - String(r).length) + r)
   const money = (n) => Number(n).toFixed(2)
   const center = (s) => { push(ESC, 0x61, 1); line(s); push(ESC, 0x61, 0) }
@@ -25,16 +46,18 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer, 
   const size = (n) => push(GS, 0x21, n) // 0x00 normal, 0x01 tall, 0x11 tall + wide
 
   push(ESC, 0x40) // init
-  push(ESC, 0x33, 22) // tight line spacing (the printer default leaves a visible gap between lines)
+  push(ESC, 0x4d, 0) // Font A (12x24): exactly 32 letters per line on 58 mm and 48 on 80 mm, so the columns below line up (many printers start in the narrow Font B)
+  const spacing = (n) => push(ESC, 0x33, n) // line spacing in dots; big letters need more, or the lines touch
+  const tight = textTune.spacing()
+  spacing(tight) // tight (the printer default leaves a visible gap between lines); adjustable in Settings
+
+  rule() // a line at the very start of the print
 
   // ── Header ──
   push(ESC, 0x61, 1)
   bold(true)
   const name = String(company.name || '')
-  const big = name.length <= (wide ? 24 : 16)
-  size(big ? 0x11 : 0x01)
-  wrap(name, big ? (wide ? 24 : 16) : cols).forEach(line)
-  size(0)
+  wrap(name, cols).forEach(line) // the shop name: bold, normal size (smaller than before, and no extra line spacing needed)
   bold(false)
   if (company.bill_header) wrap(company.bill_header, cols).forEach(line)
   if (company.address) wrap(company.address, cols).forEach(line)
@@ -47,12 +70,14 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer, 
   // ── Bill details ──
   const d = new Date(bill.created_at)
   const when = `${dateIST(d)} ${timeIST(d)}`
-  if (wide) two(`Bill: ${bill.bill_no}`, when)
-  else { line(`Bill: ${bill.bill_no}`); line(when) }
-  if (table) line(/^parcel\b/i.test(String(table)) ? String(table) : `Table: ${table}`) // the waiter's name is not printed on the bill
-  if (customer_name) line(`Customer: ${customer_name}`)
-
-  rule()
+  const twoS = (l, r) => String(l).slice(0, cols - String(r).length - 1).padEnd(cols - String(r).length) + String(r)
+  const det = []
+  if (wide) det.push(twoS(`Bill: ${bill.bill_no}`, when))
+  else { det.push(`Bill: ${bill.bill_no}`); det.push(when) }
+  if (table) det.push(/^parcel\b/i.test(String(table)) ? String(table) : `Table: ${table}`) // the waiter's name is not printed on the bill
+  if (customer_name) det.push(`Customer: ${customer_name}`)
+  det.forEach((t) => line(t))
+  dark() // dark line above the ITEM / QTY / AMT heading
 
   // ── Items: ITEM  QTY  [RATE]  AMOUNT ──
   const wQ = 4, wR = wide ? 9 : 0, wA = 9
@@ -61,7 +86,7 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer, 
   bold(true)
   line('ITEM'.padEnd(wN + 1) + num('QTY', wQ) + (wide ? num('RATE', wR) : '') + num('AMT', wA))
   bold(false)
-  rule()
+  dark() // dark line below it
   let qty = 0
   bill.items.forEach((i) => {
     qty += Number(i.quantity)
@@ -70,32 +95,27 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer, 
     line(rows[0].padEnd(wN + 1) + num(i.quantity, wQ) + (wide ? num(money(i.price), wR) : '') + num(amt, wA))
     rows.slice(1).forEach((r) => line('  ' + r))
   })
-  rule()
-  line(`Items: ${bill.items.length}   Qty: ${qty}`)
-  rule()
 
   // ── Totals ──
-  two('Subtotal', money(bill.subtotal))
-  if (Number(bill.discount)) two('Discount', `-${money(bill.discount)}`)
-  if (gstOn && Number(bill.tax)) two('GST', money(bill.tax))
-  rule('=')
-  bold(true)
-  size(0x01)
+  const tot = [['Subtotal', money(bill.subtotal)]]
+  if (Number(bill.discount)) tot.push(['Discount', `-${money(bill.discount)}`])
+  if (gstOn && Number(bill.tax)) tot.push(['GST', money(bill.tax)])
+  tot.forEach(([l, r]) => two(l, r))
+  dark() // line above TOTAL
+  size(0x10) // double WIDTH only: a bold, wide TOTAL that is no taller than a normal line, so no extra space above or below it
   const total = money(bill.grand_total)
-  line('TOTAL'.padEnd(Math.max(1, cols - total.length)) + total)
+  line('TOTAL'.padEnd(Math.max(1, cols / 2 - total.length)) + total)
   size(0)
-  bold(false)
-  rule('=')
-  if (bill.payments?.length) bill.payments.forEach((p) => two(`Paid (${p.method})`, money(p.amount)))
+  dark() // line below TOTAL (it also separates the thank-you line)
+  // (no "Paid (cash)" line on the Fast text bill)
 
   // ── Footer ──
-  line()
   push(ESC, 0x61, 1)
   bold(true)
   wrap(company.bill_footer || 'Thank you! Visit again.', cols).forEach(line)
   bold(false)
   push(ESC, 0x61, 0)
-  push(ESC, 0x64, 3) // feed 3 lines
+  if (textTune.bottom() > 0) push(ESC, 0x64, textTune.bottom()) // extra blank lines below the last line (default 0: the cut command already feeds the paper to the blade; adjustable in Settings)
   push(GS, 0x56, 0x42, 0x00) // partial cut (ignored by printers without a cutter)
   return new Uint8Array(out)
 }
