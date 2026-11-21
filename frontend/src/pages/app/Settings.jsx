@@ -46,7 +46,8 @@ export default function Settings() {
   }
   const savePrinter = async (e) => {
     e.preventDefault()
-    try { if (!localStorage.getItem('hms.kot.width') && p.paper_width) kotPrefs.setWidth(p.paper_width) } catch { /* ignore */ }
+    // a device whose kitchen slips go to the bill printer also takes its paper width (a separate kitchen printer keeps its own)
+    try { if (!localStorage.getItem('hms.kot.width') && p.paper_width && !kotPrefs.hasOwnPrinter()) kotPrefs.setWidth(p.paper_width) } catch { /* ignore */ }
     try { await api.put('/printer', { paper_width: p.paper_width, connection: p.connection, ip_address: p.ip_address || null, port: p.port || null, use_escpos: !!p.use_escpos, show_logo: !!p.show_logo }); toast.success(t('Printer settings saved')) } catch (x) { toast.error(x) }
   }
   const ticket = async (e) => {
@@ -79,7 +80,8 @@ export default function Settings() {
 
         <div className="space-y-5">
           <Card>
-            <h3 className="mb-3 font-semibold">{t('Thermal printer')}</h3>
+            <h3 className="mb-1 font-semibold">{t('Bill printer')}</h3>
+            <p className="mb-3 text-xs text-muted">{t('For printing bills. The kitchen slip (KOT) printer is set up separately.')}</p>
             {!hasFeature('thermal') && <p className="mb-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">{t('Direct thermal printing needs the Pro plan; browser print is always available.')}</p>}
             <form onSubmit={savePrinter} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
@@ -90,7 +92,7 @@ export default function Settings() {
               {p.connection === 'network' && <div className="grid grid-cols-2 gap-3"><Input label="Printer IP" value={p.ip_address || ''} onChange={(e) => setP({ ...p, ip_address: e.target.value })} /><Input label="Port" type="number" value={p.port || 9100} onChange={(e) => setP({ ...p, port: e.target.value })} /></div>}
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.use_escpos} onChange={(e) => setP({ ...p, use_escpos: e.target.checked })} /> {t('Use ESC/POS commands (USB / Bluetooth)')}</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.show_logo} onChange={(e) => setP({ ...p, show_logo: e.target.checked })} /> {t('Print logo on browser receipts')}</label>
-              <Button type="submit" className="w-full">Save printer</Button>
+              <Button type="submit" className="w-full">Save bill printer</Button>
             </form>
           </Card>
 

@@ -318,4 +318,26 @@ class KotTest extends TestCase
         $this->putJson("/api/admin/companies/$id", ['kot_screen' => true], $admin)->assertOk();
         $this->getJson('/api/kots', $owner)->assertOk();
     }
+
+    public function test_slip_lines_carry_the_dish_marathi_name_for_marathi_slips(): void
+    {
+        $this->switchKot(true, true);
+        $owner = $this->login('atithi@demo.test');
+        $dishes = $this->getJson('/api/menu/items', $owner)->json();
+        $companyId = Company::where('email', 'atithi@demo.test')->value('id');
+        \App\Models\FoodItem::withoutGlobalScopes()->where('company_id', $companyId)->where('id', $dishes[0]['id'])->update(['name_mr' => 'पनीर बटर मसाला']);
+        $table = $this->getJson('/api/tables', $owner)->json('0.id');
+
+        // the slip returned with the new order (printed from the order screen)
+        $o = $this->postJson('/api/orders', ['table_id' => $table, 'items' => [$this->line($owner, 0, 2), $this->line($owner, 1)]], $owner)->assertCreated()->json();
+        $lines = collect($o['kot']['items'])->keyBy('name');
+        $this->assertSame('पनीर बटर मसाला', $lines[$dishes[0]['name']]['name_mr']);
+        $this->assertSame($dishes[0]['name'], $lines[$dishes[0]['name']]['name']); // the English name is unchanged
+        $this->assertArrayHasKey('name_mr', $lines[$dishes[1]['name']]);
+        $this->assertNull($lines[$dishes[1]['name']]['name_mr']); // no Marathi name: null, the slip prints the English one
+
+        // the kitchen board (printed from the kitchen screen)
+        $board = collect($this->getJson('/api/kots', $owner)->assertOk()->json())->firstWhere('id', $o['kot']['id']);
+        $this->assertSame('पनीर बटर मसाला', collect($board['items'])->firstWhere('name', $dishes[0]['name'])['name_mr']);
+    }
 }

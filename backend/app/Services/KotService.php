@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\FoodItem;
 use App\Models\Kot;
 use App\Models\KotItem;
 use App\Models\Order;
@@ -20,6 +21,28 @@ class KotService
     public static function enabled(): bool
     {
         return (bool) Tenant::company()?->kot_enabled;
+    }
+
+    /**
+     * Adds each slip line's Marathi dish name (`name_mr`, null when the dish has none) so a Marathi slip can print it.
+     * Read only: slip lines keep storing the English name. Found through the order line's dish, else by the dish's English name
+     * (a cancelled line whose order line is gone). Accepts one ticket, a list, or null; returns what it was given.
+     */
+    public static function withMarathiNames($kots)
+    {
+        $items = collect($kots instanceof Kot ? [$kots] : ($kots ?? []))->filter()->flatMap(fn (Kot $k) => $k->items);
+        if ($items->isEmpty()) {
+            return $kots;
+        }
+        $dishOf = OrderItem::whereIn('id', $items->pluck('order_item_id')->filter()->unique()->values())->pluck('food_item_id', 'id');
+        $byId = FoodItem::whereIn('id', $dishOf->filter()->unique()->values())->whereNotNull('name_mr')->where('name_mr', '!=', '')->pluck('name_mr', 'id');
+        $byName = FoodItem::whereIn('name', $items->pluck('name')->unique()->values())->whereNotNull('name_mr')->where('name_mr', '!=', '')->pluck('name_mr', 'name');
+        foreach ($items as $i) {
+            $dish = $i->order_item_id ? ($dishOf[$i->order_item_id] ?? null) : null;
+            $i->setAttribute('name_mr', ($dish ? ($byId[$dish] ?? null) : null) ?? ($byName[$i->name] ?? null));
+        }
+
+        return $kots;
     }
 
     /** The kitchen screen (board, chef login, "ready" alerts). Off = KOT works as printed slips only. */

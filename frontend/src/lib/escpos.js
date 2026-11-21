@@ -7,13 +7,22 @@ import { dateIST, timeIST } from './format'
 const ESC = 0x1b
 const GS = 0x1d
 
-/** Fast-text tuning for THIS device (every printer spaces its lines a little differently): line spacing in dots and blank lines left below the last line. */
+/** Fast-text tuning for THIS device (every printer spaces its lines a little differently): line spacing in dots and blank lines left below the last line.
+ *  The kitchen (KOT) printer can have its own values (`job` = 'kot'); until it does it uses the bill printer's. */
 const num = (k, d, lo, hi) => { try { const v = Number(localStorage.getItem(k)); return localStorage.getItem(k) === null || Number.isNaN(v) ? d : Math.min(hi, Math.max(lo, v)) } catch { return d } }
+const tuneKey = (k, job) => (job === 'kot' ? `hms.kot.text.${k}` : `hms.text.${k}`)
 export const textTune = {
-  spacing: () => num('hms.text.spacing', 24, 12, 48),
-  bottom: () => num('hms.text.bottom', 0, 0, 8),
-  set: (k, v) => { try { localStorage.setItem(`hms.text.${k}`, String(v)) } catch { /* private mode */ } },
+  spacing: (job) => num(tuneKey('spacing', job), job === 'kot' ? textTune.spacing() : 24, 12, 48),
+  bottom: (job) => num(tuneKey('bottom', job), job === 'kot' ? textTune.bottom() : 0, 0, 8),
+  set: (k, v, job) => { try { localStorage.setItem(tuneKey(k, job), String(v)) } catch { /* private mode */ } },
 }
+
+/** Common characters that have a plain-English twin (phone keyboards type curly quotes and long dashes; "Café" has an accent).
+ *  Anything left that is not plain English (Marathi letters, emoji) would print as "?" on a text slip. */
+const TWIN = { '\u2018': "'", '\u2019': "'", '\u201a': "'", '\u201c': '"', '\u201d': '"', '\u2013': '-', '\u2014': '-', '\u2026': '...', '\u00d7': 'x', '\u20b9': 'Rs', '\u00a0': ' ', '\u2022': '*', '\t': ' ', '\r': '' }
+export const toAscii = (s) => String(s ?? '').replace(/[\u2018\u2019\u201a\u201c\u201d\u2013\u2014\u2026\u00d7\u20b9\u00a0\u2022\t\r]/g, (c) => TWIN[c]).normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+/** True when the text prints correctly with the printer's own (English) letters. */
+export const isPlain = (s) => !/[^\x20-\x7E\n]/.test(toAscii(s)) // eslint-disable-line no-control-regex
 
 const enc = new TextEncoder()
 
@@ -134,16 +143,32 @@ async function chunked(write, bytes, size, delay = 0) {
   for (let i = 0; i < bytes.length; i += size) { await write(bytes.slice(i, i + size)); if (delay) await sleep(delay) }
 }
 
-// ───────── Remembered printer ─────────
+// ───────── Remembered printers ─────────
 // The browser only shows its "choose a printer" popup the FIRST time. We remember the choice (this device + browser), so every
 // later print connects straight to the same printer with no popup. "Forget" (Settings) clears it.
-const KEY = { usb: 'hms.printer.usb', bluetooth: 'hms.printer.bt' }
-const read = (k) => { try { return JSON.parse(localStorage.getItem(KEY[k]) || 'null') } catch { return null } }
-const write = (k, v) => { try { localStorage.setItem(KEY[k], JSON.stringify(v)) } catch { /* private mode */ } }
+// A device can have TWO printers: one for bills ('bill': the original keys, kept so existing devices keep their printer) and one for
+// kitchen slips ('kot'). Each job has its own saved Bluetooth and USB printer, so choosing one never replaces the other.
+const KEY = {
+  bill: { usb: 'hms.printer.usb', bluetooth: 'hms.printer.bt' },
+  kot: { usb: 'hms.printer.kot.usb', bluetooth: 'hms.printer.kot.bt' },
+}
+const slot = (job) => (job === 'kot' ? KEY.kot : KEY.bill)
+const read = (kind, job) => { try { return JSON.parse(localStorage.getItem(slot(job)[kind]) || 'null') } catch { return null } }
+const write = (kind, job, v) => { try { localStorage.setItem(slot(job)[kind], JSON.stringify(v)) } catch { /* private mode */ } }
 
-const cached = { bluetooth: null }
-export const savedPrinter = (kind) => read(kind)
-export const forgetPrinter = (kind) => { try { localStorage.removeItem(KEY[kind]) } catch { /* ignore */ } cached.bluetooth = null }
+const cached = { bill: null, kot: null } // the Bluetooth device already found for each job in this session
+export const savedPrinter = (kind, job = 'bill') => read(kind, job)
+export const forgetPrinter = (kind, job = 'bill') => { try { localStorage.removeItem(slot(job)[kind]) } catch { /* ignore */ } if (kind === 'bluetooth') cached[job === 'kot' ? 'kot' : 'bill'] = null }
+
+// One print at a time per printer: two jobs sent at once (two new tickets, or a bill and a slip that end up on the same printer)
+// would otherwise clash on the same Bluetooth / USB link. Different printers still print at the same time.
+const lanes = new Map()
+function inLane(key, fn) {
+  const run = (lanes.get(key) || Promise.resolve()).catch(() => {}).then(fn)
+  lanes.set(key, run)
+  run.finally(() => { if (lanes.get(key) === run) lanes.delete(key) }).catch(() => {})
+  return run
+}
 
 const BT_SERVICES = ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2', '0000ff00-0000-1000-8000-00805f9b34fb', '49535343-fe7d-4ae5-8fa9-9fafd205e455']
 
@@ -154,64 +179,80 @@ const friendly = (e) => {
   return e
 }
 
-async function btDevice(forcePick) {
+async function btDevice(forcePick, job) {
   if (!navigator.bluetooth) throw new Error('Web Bluetooth is not supported in this browser. Use Chrome/Edge on Android/desktop or browser print.')
+  const j = job === 'kot' ? 'kot' : 'bill'
   if (!forcePick) {
-    if (cached.bluetooth) return cached.bluetooth
-    const saved = read('bluetooth')
+    if (cached[j]) return cached[j]
+    const saved = read('bluetooth', j)
     if (saved && navigator.bluetooth.getDevices) {
       const known = (await navigator.bluetooth.getDevices()).find((d) => d.id === saved.id)
-      if (known) return (cached.bluetooth = known)
+      if (known) return (cached[j] = known)
     }
   }
   const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: BT_SERVICES })
-  write('bluetooth', { id: device.id, name: device.name || 'Bluetooth printer' })
-  return (cached.bluetooth = device)
+  write('bluetooth', j, { id: device.id, name: device.name || 'Bluetooth printer' })
+  return (cached[j] = device)
 }
 
-async function usbDevice(forcePick) {
+const isPrinter = (d) => d.configurations.some((c) => c.interfaces.some((f) => f.alternates.some((a) => a.interfaceClass === 7)))
+const sameUsb = (d, s) => !!s && d.vendorId === s.vendorId && d.productId === s.productId && (!s.serialNumber || d.serialNumber === s.serialNumber)
+
+async function usbDevice(forcePick, job) {
   if (!navigator.usb) throw new Error('WebUSB is not supported in this browser. Use Chrome/Edge or browser print.')
+  const j = job === 'kot' ? 'kot' : 'bill'
   if (!forcePick) {
-    const saved = read('usb')
-    const isPrinter = (d) => d.configurations.some((c) => c.interfaces.some((f) => f.alternates.some((a) => a.interfaceClass === 7)))
-    const known = (await navigator.usb.getDevices()).find((d) => (saved ? d.vendorId === saved.vendorId && d.productId === saved.productId : isPrinter(d)))
+    const saved = read('usb', j)
+    const devices = await navigator.usb.getDevices()
+    let known = saved ? devices.find((d) => sameUsb(d, saved)) : null
+    if (!saved) { // nothing chosen for this job: any USB printer, but not the one chosen for the OTHER job
+      const other = read('usb', j === 'kot' ? 'bill' : 'kot')
+      const printers = devices.filter(isPrinter)
+      known = printers.find((d) => !sameUsb(d, other)) || printers[0]
+    }
     if (known) return known
   }
   const device = await navigator.usb.requestDevice({ filters: [{ classCode: 7 }] })
-  write('usb', { vendorId: device.vendorId, productId: device.productId, name: device.productName || 'USB printer' })
+  write('usb', j, { vendorId: device.vendorId, productId: device.productId, serialNumber: device.serialNumber || null, name: device.productName || 'USB printer' })
   return device
 }
 
-/** Settings -> "Choose printer": runs the browser popup once and remembers the result. */
-export async function pairPrinter(kind) {
+/** Settings -> "Choose printer": runs the browser popup once and remembers the result for that job ('bill' or 'kot'). */
+export async function pairPrinter(kind, job = 'bill') {
   try {
-    if (kind === 'usb') return (await usbDevice(true)).productName || 'USB printer'
-    return (await btDevice(true)).name || 'Bluetooth printer'
+    if (kind === 'usb') return (await usbDevice(true, job)).productName || 'USB printer'
+    return (await btDevice(true, job)).name || 'Bluetooth printer'
   } catch (e) { throw friendly(e) }
 }
 
-export async function printUsb(bytes, { delay = 0 } = {}) {
+export async function printUsb(bytes, { delay = 0, job = 'bill' } = {}) {
   try {
-    const device = await usbDevice(false)
-    if (!device.opened) await device.open()
-    if (!device.configuration) await device.selectConfiguration(1)
-    const iface = device.configuration.interfaces.find((i) => i.alternates.some((a) => a.interfaceClass === 7))
-    if (!iface) throw new Error('No printer interface found on this device')
-    if (!iface.claimed) await device.claimInterface(iface.interfaceNumber)
-    const ep = iface.alternates[0].endpoints.find((e) => e.direction === 'out')
-    await chunked((c) => device.transferOut(ep.endpointNumber, c), bytes, 64, delay)
-    await device.close()
+    const device = await usbDevice(false, job)
+    await inLane(`usb:${device.vendorId}:${device.productId}:${device.serialNumber || ''}`, () => sendUsb(device, bytes, delay))
   } catch (e) { throw friendly(e) }
+}
+
+async function sendUsb(device, bytes, delay) {
+  if (!device.opened) await device.open()
+  if (!device.configuration) await device.selectConfiguration(1)
+  const iface = device.configuration.interfaces.find((i) => i.alternates.some((a) => a.interfaceClass === 7))
+  if (!iface) throw new Error('No printer interface found on this device')
+  if (!iface.claimed) await device.claimInterface(iface.interfaceNumber)
+  const ep = iface.alternates[0].endpoints.find((e) => e.direction === 'out')
+  await chunked((c) => device.transferOut(ep.endpointNumber, c), bytes, 64, delay)
+  await device.close()
 }
 
 // The Bluetooth link is kept for a short while after a print, so the NEXT print skips the slow connect + service search
 // (the slowest part of a small print). It is dropped after 45 s idle so the printer is free for other devices.
-const btLink = { device: null, char: null, timer: null }
-const dropLink = () => { clearTimeout(btLink.timer); try { btLink.device?.gatt?.disconnect() } catch { /* ignore */ } btLink.device = null; btLink.char = null }
+// One link per printer: a device with a bill printer AND a kitchen printer keeps both links.
+const links = new Map() // device.id -> { char, timer }
+const dropLink = (device) => { const l = links.get(device.id); if (l) clearTimeout(l.timer); links.delete(device.id); try { device.gatt?.disconnect() } catch { /* ignore */ } }
 
-export async function printBluetooth(bytes, { delay = 0, chunk = 100, settle = 1200 } = {}) {
+export async function printBluetooth(bytes, { delay = 0, chunk = 100, settle = 1200, job = 'bill' } = {}) {
   const send = async (device) => {
-    let w = btLink.device === device && device.gatt.connected ? btLink.char : null
+    const link = links.get(device.id)
+    let w = link && device.gatt.connected ? link.char : null
     if (!w) {
       const server = device.gatt.connected ? device.gatt : await device.gatt.connect()
       const services = await server.getPrimaryServices()
@@ -221,20 +262,22 @@ export async function printBluetooth(bytes, { delay = 0, chunk = 100, settle = 1
         if (w) break
       }
       if (!w) throw new Error('No writable printer characteristic found')
-      btLink.device = device; btLink.char = w
+      links.set(device.id, { char: w, timer: null })
     }
     await chunked((c) => (w.properties.writeWithoutResponse ? w.writeValueWithoutResponse(c) : w.writeValue(c)), bytes, chunk, delay)
     if (delay) await sleep(settle) // let the printer finish its buffer
-    clearTimeout(btLink.timer)
-    btLink.timer = setTimeout(dropLink, 45000)
+    const l = links.get(device.id)
+    if (l) { clearTimeout(l.timer); l.timer = setTimeout(() => dropLink(device), 45000) }
   }
   try {
-    const device = await btDevice(false)
-    try {
-      await send(device)
-    } catch (e) {
-      // A dropped connection: reconnect the SAME remembered printer once; never re-open the chooser
-      if (e?.name === 'NetworkError' || btLink.device) { dropLink(); try { device.gatt.disconnect() } catch { /* ignore */ } await send(device) } else throw e
-    }
+    const device = await btDevice(false, job)
+    await inLane(`bt:${device.id}`, async () => {
+      try {
+        await send(device)
+      } catch (e) {
+        // A dropped connection: reconnect the SAME remembered printer once; never re-open the chooser
+        if (e?.name === 'NetworkError' || links.has(device.id)) { dropLink(device); await send(device) } else throw e
+      }
+    })
   } catch (e) { throw friendly(e) }
 }

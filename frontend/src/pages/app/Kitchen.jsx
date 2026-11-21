@@ -140,7 +140,7 @@ export default function Kitchen() {
         </div>
       )}
 
-      <Modal open={setup} onClose={() => setSetup(false)} title={t('Print settings')}><KotPrintSettings where="kitchen" /></Modal>
+      <Modal open={setup} onClose={() => setSetup(false)} title={t('Print settings')}><KotPrintSettings where="kitchen" onSaved={() => setSetup(false)} /></Modal>
     </>
   )
 }

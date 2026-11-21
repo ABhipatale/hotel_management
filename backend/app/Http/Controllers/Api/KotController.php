@@ -44,7 +44,7 @@ class KotController extends Controller
                 ->orderBy('id');
         }
 
-        return $q->get();
+        return KotService::withMarathiNames($q->get());
     }
 
     /**
