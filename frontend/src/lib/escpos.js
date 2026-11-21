@@ -42,6 +42,8 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer, 
     push(GS, 0x76, 0x30, 0, rb & 255, rb >> 8, 3, 0)
     for (let i = 0; i < rb * 3; i++) out.push(0xff)
   }
+  // A little blank paper (dots) next to a dark line, on the 80 mm paper only (the 58 mm bill is already well spaced)
+  const gap = (n) => { if (wide) push(ESC, 0x4a, n) }
   const rule = (ch = '-') => {
     if (ch === '=') push(ESC, 0x45, 1)
     line('_'.repeat(cols))
@@ -87,6 +89,7 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer, 
   if (customer_name) det.push(`Customer: ${customer_name}`)
   det.forEach((t) => line(t))
   dark() // dark line above the ITEM / QTY / AMT heading
+  gap(4)
 
   // ── Items: ITEM  QTY  [RATE]  AMOUNT ──
   const wQ = 4, wR = wide ? 9 : 0, wA = 9
@@ -95,7 +98,9 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer, 
   bold(true)
   line('ITEM'.padEnd(wN + 1) + num('QTY', wQ) + (wide ? num('RATE', wR) : '') + num('AMT', wA))
   bold(false)
+  gap(3)
   dark() // dark line below it
+  gap(7) // room between the heading line and the first dish
   let qty = 0
   bill.items.forEach((i) => {
     qty += Number(i.quantity)
@@ -110,11 +115,14 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer, 
   if (Number(bill.discount)) tot.push(['Discount', `-${money(bill.discount)}`])
   if (gstOn && Number(bill.tax)) tot.push(['GST', money(bill.tax)])
   tot.forEach(([l, r]) => two(l, r))
+  gap(4)
   dark() // line above TOTAL
+  gap(5)
   size(0x10) // double WIDTH only: a bold, wide TOTAL that is no taller than a normal line, so no extra space above or below it
   const total = money(bill.grand_total)
   line('TOTAL'.padEnd(Math.max(1, cols / 2 - total.length)) + total)
   size(0)
+  gap(5)
   dark() // line below TOTAL (it also separates the thank-you line)
   // (no "Paid (cash)" line on the Fast text bill)
 

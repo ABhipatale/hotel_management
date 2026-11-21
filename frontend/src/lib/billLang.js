@@ -20,3 +20,12 @@ export const billStyle = {
   get: () => { try { return localStorage.getItem('hms.billstyle') === 'text' ? 'text' : 'picture' } catch { return 'picture' } },
   set: (v) => { try { localStorage.setItem('hms.billstyle', v === 'text' ? 'text' : 'picture') } catch { /* private mode */ } },
 }
+
+// Which language the KITCHEN SLIP (KOT) prints in on THIS device. 'auto' = follow the app's language (so a Marathi screen prints a Marathi slip).
+export const kotLang = {
+  /** 'en' | 'mr' | 'hi' | 'auto' */
+  get: () => { try { const v = localStorage.getItem('hms.kotlang'); return v === 'en' || v === 'mr' || v === 'hi' ? v : 'auto' } catch { return 'auto' } },
+  set: (v) => { try { if (v === 'en' || v === 'mr' || v === 'hi') localStorage.setItem('hms.kotlang', v); else localStorage.removeItem('hms.kotlang') } catch { /* private mode */ } },
+  /** The language to print with: this device's choice, else the app language that was passed in. */
+  resolve(appLang) { const v = kotLang.get(); return v === 'auto' ? appLang : v },
+}

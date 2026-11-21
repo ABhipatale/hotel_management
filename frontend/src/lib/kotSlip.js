@@ -1,5 +1,6 @@
 // Kitchen slip (KOT) for thermal printers. Drawn on a canvas and sent as a picture so Marathi dish names print correctly
 // (a plain ESC/POS printer has no Devanagari font), with big bold dishes that are easy to read in a hot kitchen.
+import { kotLang } from './billLang'
 import { isPlain, printBluetooth, printUsb, savedPrinter, textTune, toAscii } from './escpos'
 import { dateIST, timeIST } from './format'
 
@@ -17,10 +18,12 @@ export const kotPrefs = {
   style: () => (get('hms.kot.style', 'picture') === 'text' ? 'text' : 'picture'),
   setStyle: (v) => put('hms.kot.style', v === 'text' ? 'text' : 'picture'),
   /** Language printed on the slip: 'en' | 'mr' | 'hi'. Not chosen = follow the app (Marathi app -> Marathi slip, otherwise English, as before). */
-  lang: (appLang) => { const v = get('hms.kot.lang', null); return v === 'en' || v === 'mr' || v === 'hi' ? v : (appLang === 'mr' ? 'mr' : 'en') },
+  // Stored as `hms.kotlang` by billLang.kotLang (that key is already on main / on devices: never add a second one).
+  // "Same as app": a Marathi app prints Marathi, any other app language English (as before; Hindi only when chosen here).
+  lang: (appLang) => { const v = kotLang.get(); return v !== 'auto' ? v : (appLang === 'mr' ? 'mr' : 'en') },
   /** the saved choice itself: 'auto' | 'en' | 'mr' | 'hi' */
-  langChoice: () => { const v = get('hms.kot.lang', null); return v === 'en' || v === 'mr' || v === 'hi' ? v : 'auto' },
-  setLang: (v) => { if (v === 'en' || v === 'mr' || v === 'hi') put('hms.kot.lang', v); else { try { localStorage.removeItem('hms.kot.lang') } catch { /* private mode */ } } },
+  langChoice: () => kotLang.get(),
+  setLang: (v) => kotLang.set(v),
   /** Bluetooth or USB for the kitchen printer on this device; null = never chosen (then Bluetooth is tried first, as before) */
   conn: () => { const v = get('hms.kot.conn', null); return v === 'usb' || v === 'bluetooth' ? v : null },
   setConn: (v) => put('hms.kot.conn', v === 'usb' ? 'usb' : 'bluetooth'),
@@ -440,14 +443,15 @@ export async function buildKotSlip(kot, company, opts = {}) {
 /**
  * Prints one ticket to this device's kitchen printer (or the bill printer when it has no separate one).
  * Throws a readable Error when no printer was chosen / it fails.
+ * @param {string} appLang the app's language: used only when this device has not chosen a slip language
  * @returns {Promise<'text'|'picture'>} how the slip was printed
  */
-export async function printKot(kot, company, lang = 'en') {
+export async function printKot(kot, company, appLang = 'en') {
   const conn = kotConnection()
   if (!conn) throw new Error('Choose a printer first (Print settings).')
   const style = kotStyleFor()
   const width = kotPrefs.width()
-  const kl = kotPrefs.lang(lang) // this device's slip language (not chosen: follows the app)
+  const kl = kotPrefs.lang(appLang) // this device's slip language (Settings: Kitchen slip language), else the app's
   if (style === 'text') await loadFonts() // lines with Marathi / Hindi letters are drawn with the phone's fonts
   const bytes = style === 'text' ? buildKotText(kot, company, { width, lang: kl }) : await buildKotSlip(kot, company, { width, lang: kl })
   if (conn.kind === 'usb') await printUsb(bytes, { delay: 4, job: conn.job })

@@ -130,13 +130,13 @@ export default function KotPrintSettings({ where, onSaved }) {
         />
       )}
       <div>
-        <div className="mb-1 text-sm font-bold">{t('Slip language')}</div>
+        <div className="mb-1 text-sm font-bold">{t('Kitchen slip language')}</div>
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-          {[['auto', t('Automatic')], ['en', 'English'], ['mr', 'मराठी'], ['hi', 'हिंदी']].map(([k, l]) => (
+          {[['auto', t('Same as app')], ['en', 'English'], ['mr', 'मराठी'], ['hi', 'हिंदी']].map(([k, l]) => (
             <button key={k} type="button" aria-pressed={d.lang === k} onClick={() => set('lang', k)} className={`px-1 ${choice(d.lang === k)}`}>{l}</button>
           ))}
         </div>
-        <p className="mt-1 text-xs text-muted">{t('Automatic follows the app language (Marathi app: Marathi slip, otherwise English). A Marathi slip prints the Marathi dish name when the dish has one.')}</p>
+        <p className="mt-1 text-xs text-muted">{t('Only on this device. "Same as app" prints Marathi slips when the app is in Marathi.')} {t('A Marathi slip prints the Marathi dish name when the dish has one.')}</p>
       </div>
       <div>
         <div className="mb-1 text-sm font-bold">{t('Slip printing')}</div>

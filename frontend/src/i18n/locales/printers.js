@@ -1,8 +1,7 @@
 // Two printers on one device: the bill printer and the kitchen slip (KOT) printer, each with its own Save.
 export default {
   hi: {
-    'Slip language': 'स्लिप की भाषा',
-    'Automatic follows the app language (Marathi app: Marathi slip, otherwise English). A Marathi slip prints the Marathi dish name when the dish has one.': 'अपने-आप = ऐप की भाषा (मराठी ऐप: मराठी स्लिप, नहीं तो अंग्रेज़ी)। मराठी स्लिप पर डिश का मराठी नाम छपता है, अगर वह दिया गया हो।',
+    'A Marathi slip prints the Marathi dish name when the dish has one.': 'मराठी स्लिप पर डिश का मराठी नाम छपता है, अगर वह दिया गया हो।',
     'Fast text prints much quicker on a slow printer. Marathi or Hindi words are sent as small pictures, only where they appear, so Marathi slips stay fast.': 'तेज़ टेक्स्ट धीमे प्रिंटर पर बहुत जल्दी छपता है। मराठी या हिंदी शब्द सिर्फ़ जहाँ हों वहीं छोटे चित्र बनकर जाते हैं, इसलिए मराठी स्लिप भी तेज़ रहती है।',
     'Same printer as the bills: slips and bills print one after the other.': 'बिल वाला ही प्रिंटर: स्लिप और बिल एक के बाद एक छपते हैं।',
     'Use the bill printer': 'बिल प्रिंटर इस्तेमाल करें',
@@ -24,8 +23,7 @@ export default {
     'For the kitchen printer only. Lines too far apart? Press minus. The cut too close to the last line? Press plus on the bottom space.': 'सिर्फ़ किचन प्रिंटर के लिए। लाइनें बहुत दूर हैं? माइनस दबाएँ। कट आख़िरी लाइन के बहुत पास है? नीचे की जगह पर प्लस दबाएँ।',
   },
   mr: {
-    'Slip language': 'स्लिपची भाषा',
-    'Automatic follows the app language (Marathi app: Marathi slip, otherwise English). A Marathi slip prints the Marathi dish name when the dish has one.': 'आपोआप = ॲपची भाषा (मराठी ॲप: मराठी स्लिप, नाहीतर इंग्रजी). मराठी स्लिपवर डिशचे मराठी नाव छापले जाते, ते दिलेले असल्यास.',
+    'A Marathi slip prints the Marathi dish name when the dish has one.': 'मराठी स्लिपवर डिशचे मराठी नाव छापले जाते, ते दिलेले असल्यास.',
     'Fast text prints much quicker on a slow printer. Marathi or Hindi words are sent as small pictures, only where they appear, so Marathi slips stay fast.': 'जलद टेक्स्ट संथ प्रिंटरवर खूप लवकर छापला जातो. मराठी किंवा हिंदी शब्द फक्त जिथे असतील तिथेच लहान चित्र म्हणून जातात, त्यामुळे मराठी स्लिपही जलद छापली जाते.',
     'Same printer as the bills: slips and bills print one after the other.': 'बिलांचाच प्रिंटर: स्लिप आणि बिले एकामागून एक छापली जातात.',
     'Use the bill printer': 'बिल प्रिंटर वापरा',
