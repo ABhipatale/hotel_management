@@ -84,7 +84,7 @@ export function kotStyleFor() {
 async function loadFonts() {
   try {
     await Promise.all([
-      document.fonts.load('400 24px "Noto Sans Devanagari"', 'अआइ'), document.fonts.load('700 24px "Noto Sans Devanagari"', 'अआइ'),
+      document.fonts.load('400 24px "Noto Sans Devanagari"', 'अआइ'), document.fonts.load('600 24px "Noto Sans Devanagari"', 'अआइ'), document.fonts.load('700 24px "Noto Sans Devanagari"', 'अआइ'),
       document.fonts.load('400 24px "Noto Sans"', 'Ag'), document.fonts.load('700 24px "Noto Sans"', 'Ag'),
     ])
   } catch { /* system fonts are used */ }
@@ -259,7 +259,7 @@ export async function drawKotCanvas(kot, company, { width = '80mm', lang = 'en' 
  * Marathi slip stays fast: only those lines are pictures, not the whole slip. An all-English slip contains no pictures at all.
  * Needs the fonts loaded (printKot does that) when a slip has Devanagari.
  */
-export function buildKotText(kot, company, { width = '80mm', lang = 'en' } = {}) {
+function buildKotTextOnce(kot, company, { width = '80mm', lang = 'en', dishPx } = {}) {
   const narrow = width === '58mm'
   const cols = narrow ? 32 : 48
   const out = [ESC, 0x40, ESC, 0x4d, 0] // Font A: 32 / 48 letters per line, so everything lines up
@@ -276,7 +276,7 @@ export function buildKotText(kot, company, { width = '80mm', lang = 'en' } = {})
   const align = (a) => { aligned = a; push(ESC, 0x61, a) }
   const wrap = (s, w) => { const o = []; let cur = ''; String(s).split(/\s+/).filter(Boolean).forEach((word) => { while (word.length > w) { if (cur) { o.push(cur); cur = '' } o.push(word.slice(0, w)); word = word.slice(w) } if (!cur) cur = word; else if ((cur + ' ' + word).length <= w) cur += ' ' + word; else { o.push(cur); cur = word } }); if (cur) o.push(cur); return o }
   const two = (l, r) => line(String(l).slice(0, cols - String(r).length - 1).padEnd(cols - String(r).length) + r)
-  const L = lang === 'en' ? { ...KOT_LABELS.en, items: 'Items' } : labels(lang)
+  const L = { ...KOT_LABELS.en, items: 'Items' } // headings and labels stay plain English text on a Fast slip (free); only the dish names (and any Marathi / Hindi note) are pictures
   const t = kot.order?.table
   const parcel = t && /^parcel\b/i.test(String(t.number))
   const where = t ? (parcel ? `${L.parcel} ${String(t.number).replace(/^parcel\s*/i, '')}` : `${L.table} ${t.number}`) : (kot.order?.type === 'delivery' ? L.delivery : L.takeaway)
@@ -288,10 +288,10 @@ export function buildKotText(kot, company, { width = '80mm', lang = 'en' } = {})
   const dark = () => { push(GS, 0x76, 0x30, 0, rb & 255, rb >> 8, 3, 0); for (let i = 0; i < rb * 3; i++) out.push(0xff) }
 
   // ── lines as small pictures (only for Marathi / Hindi text) ──
-  const PX = { small: narrow ? 22 : 26, dish: narrow ? 32 : 40, head: narrow ? 34 : 44 } // ≈ the printer's normal / tall / tall+wide letters
+  const PX = { small: narrow ? 22 : 26, dish: dishPx || (narrow ? 32 : 40), head: narrow ? 34 : 44 } // ≈ the printer's normal / tall / tall+wide letters
   let pad = null
   const canvas = () => pad || (pad = (() => { const c = document.createElement('canvas'); c.width = W; c.height = 8; return { c, ctx: c.getContext('2d', { willReadFrequently: true }) } })())
-  const fontOf = (px, b) => `${b ? 700 : 400} ${px}px ${FONT}`
+  const fontOf = (px, b) => `${b === true ? 700 : b || 400} ${px}px ${FONT}` // b: true = bold (700), a number = that weight, false = regular
   const measure = (s, px, b) => { const { ctx } = canvas(); ctx.font = fontOf(px, b); return ctx.measureText(s).width }
   const wrapPx = (s, px, b, maxW) => {
     const o = []
@@ -350,7 +350,7 @@ export function buildKotText(kot, company, { width = '80mm', lang = 'en' } = {})
   // 1. shop name (small, centered, not bold)
   spacing(tight)
   align(1)
-  if (company?.name) { if (isPlain(company.name)) wrap(toAscii(company.name), cols).slice(0, 2).forEach(line); else raster(wrapPx(company.name, PX.small, false, W - 4).slice(0, 2).map((l) => ({ px: PX.small, parts: [{ text: l, align: 'center' }] }))) }
+  if (company?.name && isPlain(company.name)) wrap(toAscii(company.name), cols).slice(0, 2).forEach(line) // a Marathi / Hindi shop name is left off: a centred picture would cost a whole line of data
   align(0)
   dark()
 
@@ -388,9 +388,9 @@ export function buildKotText(kot, company, { width = '80mm', lang = 'en' } = {})
       rows.slice(1).forEach((r) => line(' '.repeat(q.length + 1) + r))
       size(0); bold(false); spacing(tight)
     } else {
-      const x = measure(`${q} `, PX.dish, true)
-      const rows = wrapPx(name, PX.dish, true, W - x - 4)
-      raster(rows.map((r, n) => ({ px: PX.dish, bold: true, parts: n === 0 ? [{ text: q }, { text: r, x }] : [{ text: r, x }] })))
+      const x = measure(`${q} `, PX.dish, 600)
+      const rows = wrapPx(name, PX.dish, 600, W - x - 4)
+      raster(rows.map((r, n) => ({ px: PX.dish, bold: 600, parts: n === 0 ? [{ text: q }, { text: r, x }] : [{ text: r, x }] })))
     }
     if (i.variant) { if (isPlain(i.variant)) line(`   (${i.variant})`); else pic(`(${i.variant})`, PX.small, { x: measure('   ', PX.small) }) }
   })
@@ -453,6 +453,23 @@ export async function printKot(kot, company, lang = 'en') {
   if (conn.kind === 'usb') await printUsb(bytes, { delay: 4, job: conn.job })
   else await printBluetooth(bytes, { delay: 5, chunk: 160, settle: 700, job: conn.job })
   return style
+}
+
+/**
+ * The fast slip: the headings are plain text, so the only pictures are the Marathi / Hindi dish names. They are printed BIG and bold
+ * (readable at a glance in a hot kitchen); only a long order steps down a little, never below a clear reading size, to keep the data
+ * small (about 7 KB for 4 long pizza names, 2-3 KB for a short order; an English-only slip is ~1 KB).
+ */
+export function buildKotText(kot, company, opts = {}) {
+  const narrow = opts.width === '58mm'
+  const budget = narrow ? 5200 : 8000
+  const sizes = opts.sizes || (narrow ? [35, 33, 31, 29] : [44, 40, 37, 35, 33])
+  let bytes
+  for (const px of sizes) {
+    bytes = buildKotTextOnce(kot, company, { ...opts, dishPx: px })
+    if (bytes.length <= budget) break
+  }
+  return bytes
 }
 
 /** A sample slip for Settings -> "Test print" (nothing is saved or marked printed). */
