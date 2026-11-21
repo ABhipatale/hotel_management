@@ -8,11 +8,9 @@ import { textTune } from '../lib/escpos'
 export default function BillLanguageSettings() {
   const t = useT()
   const [v, setV] = useState(billLang.get())
-  const [paper, setPaper] = useState(devicePaper.get())
   const [sty, setSty] = useState(billStyle.get())
   const [sp, setSp] = useState(textTune.spacing())
   const [bt, setBt] = useState(textTune.bottom())
-  const ownKot = kotPrefs.hasOwnPrinter() // this device has a separate kitchen printer: the bill paper no longer changes the slip
   const opts = [['auto', t('Automatic')], ['en', 'English'], ['mr', 'मराठी']]
   return (
     <div className="space-y-2">
@@ -21,13 +19,6 @@ export default function BillLanguageSettings() {
           <button key={k} type="button" aria-pressed={v === k} onClick={() => { setV(k); billLang.set(k) }} className={`min-h-11 rounded-xl text-sm font-bold transition active:scale-95 ${v === k ? 'bg-brand text-white shadow-card' : 'text-muted'}`}>{label}</button>
         ))}
       </div>
-      <div className="pt-2 text-sm font-bold">{t('Paper in the printer on this device')}</div>
-      <div role="group" aria-label={t('Paper in the printer on this device')} className="grid grid-cols-2 gap-1 rounded-2xl bg-canvas p-1 ring-1 ring-line">
-        {[['58mm', '58 mm'], ['80mm', '80 mm']].map(([k, label]) => (
-          <button key={k} type="button" aria-pressed={paper === k} onClick={() => { setPaper(k); devicePaper.set(k); if (k !== 'auto' && !ownKot) kotPrefs.setWidth(k) }} className={`min-h-11 rounded-xl text-sm font-bold transition active:scale-95 ${paper === k ? 'bg-brand text-white shadow-card' : 'text-muted'}`}>{label}</button>
-        ))}
-      </div>
-      <p className="text-xs text-muted">{ownKot ? t('Choose 58 mm if this phone prints bills on narrow paper. The kitchen printer has its own paper setting.') : t('Choose 58 mm if this phone prints on narrow paper. Used for the bill and the kitchen slip on this device only.')}</p>
       <div className="pt-2 text-sm font-bold">{t('English bill printing')}</div>
       <div role="group" aria-label={t('English bill printing')} className="grid grid-cols-2 gap-1 rounded-2xl bg-canvas p-1 ring-1 ring-line">
         {[['picture', t('Neat picture')], ['text', t('Fast text')]].map(([k, label]) => (
@@ -51,6 +42,28 @@ export default function BillLanguageSettings() {
       )}
       <p className="text-xs text-muted">{t('Fast text prints much quicker on a slow printer. Marathi bills are always a picture.')}</p>
       <p className="text-xs text-muted">{t('Used for the printed bill and the WhatsApp bill on this device. Automatic follows the app language.')}</p>
+    </div>
+  )
+}
+
+/**
+ * Paper width of the bill printer on THIS device (Settings -> Printer -> Bill printer). Not chosen yet = the hotel's saved width
+ * (`fallback`) is shown selected. A device without its own kitchen printer uses the same width for its kitchen slips.
+ */
+export function DevicePaperSetting({ fallback }) {
+  const t = useT()
+  const [paper, setPaper] = useState(devicePaper.get())
+  const ownKot = kotPrefs.hasOwnPrinter() // this device has a separate kitchen printer: the bill paper no longer changes the slip
+  const shown = paper === 'auto' ? (fallback === '58mm' ? '58mm' : '80mm') : paper
+  return (
+    <div className="space-y-2">
+      <div className="text-sm font-bold">{t('Paper in the printer on this device')}</div>
+      <div role="group" aria-label={t('Paper in the printer on this device')} className="grid grid-cols-2 gap-1 rounded-2xl bg-canvas p-1 ring-1 ring-line">
+        {[['58mm', '58 mm'], ['80mm', '80 mm']].map(([k, label]) => (
+          <button key={k} type="button" aria-pressed={shown === k} onClick={() => { setPaper(k); devicePaper.set(k); if (k !== 'auto' && !ownKot) kotPrefs.setWidth(k) }} className={`min-h-11 rounded-xl text-sm font-bold transition active:scale-95 ${shown === k ? 'bg-brand text-white shadow-card' : 'text-muted'}`}>{label}</button>
+        ))}
+      </div>
+      <p className="text-xs text-muted">{ownKot ? t('Choose 58 mm if this phone prints bills on narrow paper. The kitchen printer has its own paper setting.') : t('Choose 58 mm if this phone prints on narrow paper. Used for the bill and the kitchen slip on this device only.')}</p>
     </div>
   )
 }

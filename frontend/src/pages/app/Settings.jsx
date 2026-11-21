@@ -9,9 +9,10 @@ import { useT } from '../../i18n'
 import ImagePicker from '../../components/ImagePicker'
 import SavedPrinter from '../../components/SavedPrinter'
 import KotPrintSettings from '../../components/KotPrintSettings'
-import BillLanguageSettings from '../../components/BillLanguageSettings'
+import BillLanguageSettings, { DevicePaperSetting } from '../../components/BillLanguageSettings'
 import ApprovalSettings from '../../components/ApprovalSettings'
-import { Button, Card, Input, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
+import { ChevronRight, Printer } from 'lucide-react'
+import { Button, Card, Chips, Input, Modal, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
 
 export default function Settings() {
   const { refresh, hasFeature, company: shop, user } = useAuth()
@@ -26,6 +27,8 @@ export default function Settings() {
   const [icon, setIcon] = useState(null)
   const [removeIcon, setRemoveIcon] = useState(false)
   const [p, setP] = useState(null)
+  const [printerOpen, setPrinterOpen] = useState(false) // Settings -> Printer: the bill printer, bill language and kitchen printer live in one place
+  const [ptab, setPtab] = useState('bill')
   const [tk, setTk] = useState({ subject: '', message: '' })
 
   useEffect(() => { if (company) setF(company) }, [company])
@@ -80,39 +83,20 @@ export default function Settings() {
 
         <div className="space-y-5">
           <Card>
-            <h3 className="mb-1 font-semibold">{t('Bill printer')}</h3>
-            <p className="mb-3 text-xs text-muted">{t('For printing bills. The kitchen slip (KOT) printer is set up separately.')}</p>
-            {!hasFeature('thermal') && <p className="mb-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">{t('Direct thermal printing needs the Pro plan; browser print is always available.')}</p>}
-            <form onSubmit={savePrinter} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Select label="Paper width" value={p.paper_width} onChange={(e) => setP({ ...p, paper_width: e.target.value })}><option value="58mm">58 mm</option><option value="80mm">80 mm</option></Select>
-                <Select label="Connection" value={p.connection} onChange={(e) => setP({ ...p, connection: e.target.value })}><option value="browser">{t('Browser print')}</option><option value="usb">USB</option><option value="bluetooth">Bluetooth</option><option value="network">{t('Network')}</option></Select>
-              </div>
-              {(p.connection === 'usb' || p.connection === 'bluetooth') && <SavedPrinter kind={p.connection} />}
-              {p.connection === 'network' && <div className="grid grid-cols-2 gap-3"><Input label="Printer IP" value={p.ip_address || ''} onChange={(e) => setP({ ...p, ip_address: e.target.value })} /><Input label="Port" type="number" value={p.port || 9100} onChange={(e) => setP({ ...p, port: e.target.value })} /></div>}
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.use_escpos} onChange={(e) => setP({ ...p, use_escpos: e.target.checked })} /> {t('Use ESC/POS commands (USB / Bluetooth)')}</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.show_logo} onChange={(e) => setP({ ...p, show_logo: e.target.checked })} /> {t('Print logo on browser receipts')}</label>
-              <Button type="submit" className="w-full">Save bill printer</Button>
-            </form>
-          </Card>
-
-          <Card>
-            <h3 className="mb-3 font-semibold">{t('Bill language')}</h3>
-            <BillLanguageSettings />
+            <button type="button" onClick={() => setPrinterOpen(true)} className="flex w-full items-center gap-3 text-left">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><Printer className="h-5 w-5" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold">{t('Printer')}</span>
+                <span className="block text-xs text-muted">{t('Bill printer, bill language and kitchen slip printer')}</span>
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+            </button>
           </Card>
 
           {user?.role === 'owner' && (
             <Card>
               <h3 className="mb-3 font-semibold">{t('Approvals')}</h3>
               <ApprovalSettings />
-            </Card>
-          )}
-
-          {shop?.kot_print && (
-            <Card>
-              <h3 className="mb-1 font-semibold">{t('Kitchen slip (KOT) printer')}</h3>
-              <p className="mb-3 text-xs text-muted">{t('For this device: print the kitchen slip when an order is placed here.')}</p>
-              <KotPrintSettings where="order" />
             </Card>
           )}
 
@@ -134,6 +118,37 @@ export default function Settings() {
           </div>
         </Card>
       </div>
+
+      <Modal open={printerOpen} onClose={() => setPrinterOpen(false)} title={t('Printer')} wide>
+        <Chips value={ptab} onChange={setPtab} items={[['bill', t('Bill printer')], ...(shop?.kot_print ? [['kot', t('Kitchen slip printer')]] : [])]} />
+        {ptab === 'bill' && (
+          <div>
+            <p className="mb-3 text-xs text-muted">{t('For printing bills. The kitchen slip (KOT) printer is set up separately.')}</p>
+            {!hasFeature('thermal') && <p className="mb-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">{t('Direct thermal printing needs the Pro plan; browser print is always available.')}</p>}
+            <form onSubmit={savePrinter} className="space-y-3">
+              <DevicePaperSetting fallback={p.paper_width} />
+              <div>
+                <Select label="Connection" value={p.connection} onChange={(e) => setP({ ...p, connection: e.target.value })}><option value="browser">{t('Browser print')}</option><option value="usb">USB</option><option value="bluetooth">Bluetooth</option><option value="network">{t('Network')}</option></Select>
+              </div>
+              {(p.connection === 'usb' || p.connection === 'bluetooth') && <SavedPrinter kind={p.connection} />}
+              {p.connection === 'network' && <div className="grid grid-cols-2 gap-3"><Input label="Printer IP" value={p.ip_address || ''} onChange={(e) => setP({ ...p, ip_address: e.target.value })} /><Input label="Port" type="number" value={p.port || 9100} onChange={(e) => setP({ ...p, port: e.target.value })} /></div>}
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.use_escpos} onChange={(e) => setP({ ...p, use_escpos: e.target.checked })} /> {t('Use ESC/POS commands (USB / Bluetooth)')}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.show_logo} onChange={(e) => setP({ ...p, show_logo: e.target.checked })} /> {t('Print logo on browser receipts')}</label>
+              <Button type="submit" className="w-full">Save bill printer</Button>
+            </form>
+            <div className="mt-5 border-t border-line pt-4">
+              <h4 className="mb-3 font-semibold">{t('Bill language')}</h4>
+              <BillLanguageSettings />
+            </div>
+          </div>
+        )}
+        {ptab === 'kot' && shop?.kot_print && (
+          <div>
+            <p className="mb-3 text-xs text-muted">{t('For this device: print the kitchen slip when an order is placed here.')}</p>
+            <KotPrintSettings where="order" />
+          </div>
+        )}
+      </Modal>
     </>
   )
 }
