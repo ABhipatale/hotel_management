@@ -2,14 +2,19 @@ import { useState } from 'react'
 import { useT } from '../i18n'
 import { useAuth } from '../context/AuthContext'
 import { kotPrefs } from '../lib/kotSlip'
+import { kotLang } from '../lib/billLang'
+import { useToast } from '../context/ToastContext'
 import SavedPrinter from './SavedPrinter'
 import { readyAlertOn, setReadyAlert } from '../lib/kotAlerts'
-import { Switch } from './ui'
+import { Button, Switch } from './ui'
 
 /** Kitchen-slip printing choices for THIS device: which printer, paper width, and when to print by itself. */
 export default function KotPrintSettings({ where }) {
   const t = useT()
+  const toast = useToast()
   const { company } = useAuth()
+  const [lang, setLang] = useState(kotLang.get())
+  const [savedLang, setSavedLang] = useState(kotLang.get())
   const [width, setWidth] = useState(kotPrefs.width())
   const [auto, setAuto] = useState(kotPrefs.auto(where))
   const [mode, setMode] = useState(kotPrefs.orderMode(company?.kot_print_mode))
@@ -50,6 +55,16 @@ export default function KotPrintSettings({ where }) {
           onChange={(v) => { setAuto(v); kotPrefs.setAuto(where, v) }}
         />
       )}
+      <div>
+        <div className="mb-1 text-sm font-bold">{t('Kitchen slip language')}</div>
+        <div className="grid grid-cols-3 gap-2">
+          {[['auto', 'Same as app'], ['en', 'English'], ['mr', 'मराठी']].map(([k, l]) => (
+            <button key={k} type="button" aria-pressed={lang === k} onClick={() => setLang(k)} className={`min-h-11 rounded-xl text-sm font-bold ring-1 transition active:scale-95 ${lang === k ? 'bg-brand text-white ring-brand' : 'bg-white text-slate-600 ring-line'}`}>{k === 'auto' ? t(l) : l}</button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted">{t('Only on this device. "Same as app" prints Marathi slips when the app is in Marathi.')}</p>
+        <Button type="button" className="mt-2 w-full" disabled={lang === savedLang} onClick={() => { kotLang.set(lang); setSavedLang(lang); toast.success(t('Saved')) }}>{t('Save')}</Button>
+      </div>
       <div>
         <div className="mb-1 text-sm font-bold">{t('Slip printing')}</div>
         <div className="grid grid-cols-2 gap-2">

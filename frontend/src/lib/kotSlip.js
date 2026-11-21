@@ -1,5 +1,6 @@
 // Kitchen slip (KOT) for thermal printers. Drawn on a canvas and sent as a picture so Marathi dish names print correctly
 // (a plain ESC/POS printer has no Devanagari font), with big bold dishes that are easy to read in a hot kitchen.
+import { kotLang } from './billLang'
 import { printBluetooth, printUsb, savedPrinter, textTune } from './escpos'
 import { dateIST, timeIST } from './format'
 
@@ -304,7 +305,8 @@ export async function buildKotSlip(kot, company, opts = {}) {
 }
 
 /** Prints one ticket to this device's saved printer. Throws a readable Error when no printer was chosen / it fails. */
-export async function printKot(kot, company, lang = 'en') {
+export async function printKot(kot, company, appLang = 'en') {
+  const lang = kotLang.resolve(appLang) // this device's slip language (Settings → Print), else the app's language
   const conn = kotConnection()
   if (!conn) throw new Error('Choose a printer first (Print settings).')
   const plain = kotPrefs.style() === 'text' && lang !== 'mr' && !/[^\x20-\x7E\n]/.test(JSON.stringify([company?.name, kot.note, kot.order?.table?.section, kot.sender?.name, (kot.items || []).map((i) => [i.name, i.variant])]))
