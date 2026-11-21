@@ -150,7 +150,7 @@ class OrderController extends Controller
 
         if (KotService::enabled()) {
             // the ticket this order just sent to the kitchen (so the app can print its slip)
-            $order->setAttribute('kot', \App\Models\Kot::with('items', 'order:id,order_no,table_id,type,notes,waiter_id', 'order.table:id,number,section', 'sender:id,name,role')->where('order_id', $order->id)->where('type', 'new')->latest('id')->first());
+            $order->setAttribute('kot', KotService::withMarathiNames(\App\Models\Kot::with('items', 'order:id,order_no,table_id,type,notes,waiter_id', 'order.table:id,number,section', 'sender:id,name,role')->where('order_id', $order->id)->where('type', 'new')->latest('id')->first()));
         }
 
         return response()->json($order, 201);
@@ -171,7 +171,7 @@ class OrderController extends Controller
         }
         $order->load('bill.items', 'items', 'table');
         if (KotService::enabled()) {
-            $order->setAttribute('kot', \App\Models\Kot::with('items', 'order:id,order_no,table_id,type,notes,waiter_id', 'order.table:id,number,section', 'sender:id,name,role')->where('order_id', $order->id)->where('type', 'new')->latest('id')->first());
+            $order->setAttribute('kot', KotService::withMarathiNames(\App\Models\Kot::with('items', 'order:id,order_no,table_id,type,notes,waiter_id', 'order.table:id,number,section', 'sender:id,name,role')->where('order_id', $order->id)->where('type', 'new')->latest('id')->first()));
         }
         $order->setAttribute('duplicate', true);
 

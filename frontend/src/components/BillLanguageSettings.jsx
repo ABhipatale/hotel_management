@@ -12,6 +12,7 @@ export default function BillLanguageSettings() {
   const [sty, setSty] = useState(billStyle.get())
   const [sp, setSp] = useState(textTune.spacing())
   const [bt, setBt] = useState(textTune.bottom())
+  const ownKot = kotPrefs.hasOwnPrinter() // this device has a separate kitchen printer: the bill paper no longer changes the slip
   const opts = [['auto', t('Automatic')], ['en', 'English'], ['mr', 'मराठी']]
   return (
     <div className="space-y-2">
@@ -23,10 +24,10 @@ export default function BillLanguageSettings() {
       <div className="pt-2 text-sm font-bold">{t('Paper in the printer on this device')}</div>
       <div role="group" aria-label={t('Paper in the printer on this device')} className="grid grid-cols-2 gap-1 rounded-2xl bg-canvas p-1 ring-1 ring-line">
         {[['58mm', '58 mm'], ['80mm', '80 mm']].map(([k, label]) => (
-          <button key={k} type="button" aria-pressed={paper === k} onClick={() => { setPaper(k); devicePaper.set(k); if (k !== 'auto') kotPrefs.setWidth(k) }} className={`min-h-11 rounded-xl text-sm font-bold transition active:scale-95 ${paper === k ? 'bg-brand text-white shadow-card' : 'text-muted'}`}>{label}</button>
+          <button key={k} type="button" aria-pressed={paper === k} onClick={() => { setPaper(k); devicePaper.set(k); if (k !== 'auto' && !ownKot) kotPrefs.setWidth(k) }} className={`min-h-11 rounded-xl text-sm font-bold transition active:scale-95 ${paper === k ? 'bg-brand text-white shadow-card' : 'text-muted'}`}>{label}</button>
         ))}
       </div>
-      <p className="text-xs text-muted">{t('Choose 58 mm if this phone prints on narrow paper. Used for the bill and the kitchen slip on this device only.')}</p>
+      <p className="text-xs text-muted">{ownKot ? t('Choose 58 mm if this phone prints bills on narrow paper. The kitchen printer has its own paper setting.') : t('Choose 58 mm if this phone prints on narrow paper. Used for the bill and the kitchen slip on this device only.')}</p>
       <div className="pt-2 text-sm font-bold">{t('English bill printing')}</div>
       <div role="group" aria-label={t('English bill printing')} className="grid grid-cols-2 gap-1 rounded-2xl bg-canvas p-1 ring-1 ring-line">
         {[['picture', t('Neat picture')], ['text', t('Fast text')]].map(([k, label]) => (
