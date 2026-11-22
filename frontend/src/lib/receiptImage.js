@@ -4,6 +4,7 @@
 
 import { dateIST, timeIST } from './format'
 import { billStyle } from './billLang'
+import { creditLines } from './billCredit'
 
 const ESC = 0x1b
 const GS = 0x1d
@@ -63,7 +64,7 @@ export async function buildReceiptImage({ bill, company, table, order_no, waiter
 
   const canvas = document.createElement('canvas')
   canvas.width = W
-  canvas.height = 900 + bill.items.length * lh * 3
+  canvas.height = 1020 + bill.items.length * lh * 3 // +120: room for the software line at the end
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
   ctx.fillStyle = '#fff'
   ctx.fillRect(0, 0, W, canvas.height)
@@ -191,6 +192,11 @@ export async function buildReceiptImage({ bill, company, table, order_no, waiter
   // ── footer ──
   y += 10
   centered(receiptFooter(company, lang), base, true)
+  // the very last lines of every bill: who made the software and how to reach them (small, centred, never split mid-part)
+  const small = wide ? 22 : 20
+  y += 8
+  setFont(small, false)
+  creditLines((s) => ctx.measureText(s).width <= W - pad * 2, '  ·  ').forEach((ln) => { y += Math.round(small * 1.25); ctx.textAlign = 'center'; ctx.fillText(ln, W / 2, y); y += Math.round(small * 0.2) })
   if (wide) y += 90 // 80 mm printers: blank bottom margin, the cutter sits below the print head and would cut through the last line (58 mm was already fine)
 
   // ── canvas -> 1-bit raster bands ──

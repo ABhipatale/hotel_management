@@ -3,6 +3,7 @@
 // or a local print agent. Settings are still stored per company/branch.
 
 import { dateIST, timeIST } from './format'
+import { creditLines } from './billCredit'
 
 const ESC = 0x1b
 const GS = 0x1d
@@ -131,6 +132,8 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer, 
   bold(true)
   wrap(company.bill_footer || 'Thank you! Visit again.', cols).forEach(line)
   bold(false)
+  push(ESC, 0x4a, 8) // a little paper between the thank-you line and the software line
+  creditLines((s) => s.length <= cols).forEach(line) // the very last lines of every bill: who made the software and how to reach them
   push(ESC, 0x61, 0)
   if (textTune.bottom() > 0) push(ESC, 0x64, textTune.bottom()) // extra blank lines below the last line (default 0: the cut command already feeds the paper to the blade; adjustable in Settings)
   push(GS, 0x56, 0x42, 0x00) // partial cut (ignored by printers without a cutter)

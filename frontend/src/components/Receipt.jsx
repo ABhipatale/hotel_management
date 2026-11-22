@@ -3,6 +3,7 @@ import { MessageCircle, Printer } from 'lucide-react'
 import { buildReceipt, printBluetooth, printUsb, savedPrinter } from '../lib/escpos'
 import { buildReceiptImage, customerLine, needsImage, receiptFooter, receiptLabels, receiptName, tableLine } from '../lib/receiptImage'
 import { billLang, devicePaper } from '../lib/billLang'
+import { BILL_CREDIT } from '../lib/billCredit'
 import { dateIST, timeIST } from '../lib/format'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
@@ -98,6 +99,8 @@ export default function Receipt({ data: hotelData, phone }) {
         <hr className="my-1.5 border-t-2 border-double border-black" />
         {bill.payments?.map((p) => <div key={p.id} className="flex justify-between"><span>{L.paid} ({L[p.method] || p.method})</span><span>{m(p.amount)}</span></div>)}
         <div className="mt-2 text-center font-bold">{receiptFooter(company, rl)}</div>
+        {/* the very last line of every bill: who made the software and how to reach them */}
+        <div className="mt-1.5 flex flex-wrap justify-center gap-x-3 text-center text-[10px] leading-tight">{BILL_CREDIT.map((part) => <span key={part} className="whitespace-nowrap">{part}</span>)}</div>
       </div>
       </div>
 
