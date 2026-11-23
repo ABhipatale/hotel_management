@@ -38,4 +38,9 @@ export const STATUS_STYLE = {
 /** A parcel counter is stored as "Parcel 1", "Parcel 2"... in the table list. */
 export const isParcel = (n) => /^parcel\b/i.test(String(n ?? ''))
 /** "Table 5" for a table, "Parcel 2" for a parcel counter (translated). `t` is the translate function. */
+/** What a table card shows big: a parcel -> P3; a name that starts with a digit -> T3; anything else (G1, AC2) exactly as saved. */
+export const tableLabel = (n) => {
+  const s = String(n ?? '')
+  return isParcel(s) ? `P${s.replace(/^parcel\s*/i, '')}` : /^\d/.test(s) ? `T${s}` : s
+}
 export const tableText = (t, n) => (isParcel(n) ? t('Parcel {n}', { n: String(n).replace(/^parcel\s*/i, '') }) : t('Table {n}', { n }))

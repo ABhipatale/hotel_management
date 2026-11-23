@@ -9,6 +9,7 @@ use App\Support\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class TableController extends Controller
@@ -33,17 +34,26 @@ class TableController extends Controller
         if (! $isParcel && $plan?->max_tables !== null && HotelTable::withoutGlobalScope('branch')->where('kind', '!=', 'parcel')->count() >= $plan->max_tables) { // parcel counters are not tables: they do not use the plan's table limit
             return response()->json(['message' => "Your plan allows up to {$plan->max_tables} tables. Please upgrade.", 'code' => 'limit_reached'], 402);
         }
+        // A table's name can carry a prefix ("G" + "1" = "G1"). "T" / no prefix keeps the bare number, exactly as before.
+        // The final name is only known after it is built, so a prefixed table (and a parcel) is checked for duplicates on that final name.
+        $prefix = $isParcel ? '' : $this->prefixOf($r);
+        $bare = ! $isParcel && $this->isBare($prefix);
         $data = $r->validate([
             'kind' => 'nullable|in:table,parcel',
-            'number' => ['required', 'string', 'max:20', Rule::unique('hotel_tables')->where('company_id', Tenant::id())->where('branch_id', $branch)],
+            'number' => array_filter(['required', 'string', 'max:20', $bare ? Rule::unique('hotel_tables')->where('company_id', Tenant::id())->where('branch_id', $branch) : null]),
+            'prefix' => 'nullable|string',
             'capacity' => 'required|integer|min:1|max:50',
             'section' => 'nullable|string|max:60',
             'waiter_id' => ['nullable', 'integer'],
         ]);
+        unset($data['prefix']);
         if ($isParcel) {
             // "3" and "Parcel 3" both become "Parcel 3" (the name carries the label everywhere: orders, kitchen slip, bill)
             $data['number'] = 'Parcel '.trim(preg_replace('/^parcel\s*/i', '', $data['number']));
             abort_if(HotelTable::where('branch_id', $branch)->where('number', $data['number'])->exists(), 422, $data['number'].' already exists.');
+        } elseif (! $bare) {
+            $data['number'] = $this->nameWith($prefix, $data['number']);
+            abort_if(HotelTable::where('branch_id', $branch)->where('number', $data['number'])->exists(), 422, 'Table '.$data['number'].' already exists.');
         }
         $data['kind'] = $isParcel ? 'parcel' : 'table';
         $this->checkWaiter($data['waiter_id'] ?? null);
@@ -57,13 +67,23 @@ class TableController extends Controller
     public function update(Request $r, int $id)
     {
         $t = HotelTable::findOrFail($id);
+        // `prefix` (tables only) rebuilds the name from prefix + number; an old app that sends no prefix renames exactly as before.
+        $withPrefix = $t->kind !== 'parcel' && $r->has('prefix');
+        $prefix = $withPrefix ? $this->prefixOf($r) : '';
+        $bare = ! $withPrefix || $this->isBare($prefix);
         $data = $r->validate([
-            'number' => ['sometimes', 'string', 'max:20', Rule::unique('hotel_tables')->where('company_id', Tenant::id())->where('branch_id', $t->branch_id)->ignore($t->id)],
+            'number' => ['sometimes', 'string', 'max:20', $bare ? Rule::unique('hotel_tables')->where('company_id', Tenant::id())->where('branch_id', $t->branch_id)->ignore($t->id) : 'required'],
+            'prefix' => 'nullable|string',
             'capacity' => 'sometimes|integer|min:1|max:50',
             'section' => 'nullable|string|max:60',
             'status' => ['sometimes', Rule::in(self::STATUSES)],
             'waiter_id' => ['nullable', 'integer'],
         ]);
+        unset($data['prefix']);
+        if ($withPrefix && ! $bare && isset($data['number'])) {
+            $data['number'] = $this->nameWith($prefix, $data['number']);
+            abort_if(HotelTable::where('branch_id', $t->branch_id)->where('number', $data['number'])->where('id', '!=', $t->id)->exists(), 422, 'Table '.$data['number'].' already exists.');
+        }
         $this->checkWaiter($data['waiter_id'] ?? null);
         $t->update($data);
 
@@ -107,6 +127,39 @@ class TableController extends Controller
         $url = rtrim(config('app.frontend_url'), '/').'/menu/'.Tenant::company()->slug.'/table/'.$t->qrToken->token;
 
         return response(QrCode::format('svg')->size(300)->margin(1)->generate($url), 200, ['Content-Type' => 'image/svg+xml']);
+    }
+
+    /** The prefix sent with the request: letters A-Z only, up to 6, upper case. Refuses "P" / "PARCEL" (a table must never look like a parcel). */
+    private function prefixOf(Request $r): string
+    {
+        $raw = trim((string) $r->input('prefix', ''));
+        if ($raw === '') {
+            return '';
+        }
+        $p = strtoupper($raw);
+        if (! preg_match('/^[A-Z]{1,6}$/', $p) || in_array($p, ['P', 'PARCEL'], true)) {
+            throw ValidationException::withMessages(['prefix' => 'The prefix must be 1 to 6 letters (A-Z) and cannot be P or PARCEL.']);
+        }
+
+        return $p;
+    }
+
+    /** "T" or no prefix: the table keeps its bare number (as it always did). */
+    private function isBare(string $prefix): bool
+    {
+        return $prefix === '' || $prefix === 'T';
+    }
+
+    /** "G" + "1" = "G1". If the number already starts with the prefix ("G" + "G1") it is not doubled. */
+    private function nameWith(string $prefix, string $number): string
+    {
+        $number = trim($number);
+        $name = str_starts_with(strtoupper($number), $prefix) ? $prefix.substr($number, strlen($prefix)) : $prefix.$number;
+        if (mb_strlen($name) > 20) {
+            throw ValidationException::withMessages(['number' => 'The table name is too long (20 characters at most).']);
+        }
+
+        return $name;
     }
 
     private function issueToken(HotelTable $t): void
