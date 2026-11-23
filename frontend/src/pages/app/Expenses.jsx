@@ -6,9 +6,10 @@ import { dateOnly, money, today } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import { useT } from '../../i18n'
-import { Button, Input, Modal, PageHeader, ListSkeleton, Table } from '../../components/ui'
+import { Button, Input, Modal, PageHeader, ListSkeleton, Select, Table } from '../../components/ui'
 
 const CATS = ['Groceries', 'Salaries', 'Rent', 'Electricity', 'Gas', 'Maintenance', 'Marketing', 'Other']
+const NEW_CAT = '__new' // the dropdown's last option: type a category of your own
 
 export default function Expenses() {
   const toast = useToast()
@@ -18,10 +19,13 @@ export default function Expenses() {
   const { data, loading, reload, error } = useApi('/expenses', { params: range })
   const [edit, setEdit] = useState(null)
   const total = (data || []).reduce((a, e) => a + Number(e.amount), 0)
+  // categories the owner typed before (shown in the list) stay one tap away
+  const used = [...new Set((data || []).map((x) => x.category).filter((c) => c && !CATS.includes(c)))]
 
   const save = async (e) => {
     e.preventDefault()
-    try { await api.post('/expenses', edit); toast.success(t('Expense added')); setEdit(null); reload() } catch (x) { toast.error(x) }
+    const body = { category: edit.category.trim(), description: edit.description, amount: edit.amount, expense_date: edit.expense_date }
+    try { await api.post('/expenses', body); toast.success(t('Expense added')); setEdit(null); reload() } catch (x) { toast.error(x) }
   }
   const del = async (x) => { if (await ask({ title: t('Delete this expense?'), message: t('It will be removed from your expense totals.'), confirmText: t('Delete expense') })) { try { await api.delete(`/expenses/${x.id}`); reload() } catch (e) { toast.error(e) } } }
 
@@ -44,7 +48,12 @@ export default function Expenses() {
       <Modal open={!!edit} onClose={() => setEdit(null)} title={t('Add expense')}>
         {edit && (
           <form onSubmit={save} className="space-y-3">
-            <label className="block"><span className="mb-1 block text-xs font-medium text-muted">{t('Category')}</span><input list="cats" required className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm w-full" value={edit.category} onChange={(e) => setEdit({ ...edit, category: e.target.value })} /><datalist id="cats">{CATS.map((c) => <option key={c} value={c} label={t(c)} />)}</datalist></label>
+            {/* a real dropdown: the old typed field with suggestions only listed names matching what was already in it ("Groceries"), and phones often showed none */}
+            <Select label={t('Category')} required value={edit.custom ? NEW_CAT : edit.category} onChange={(e) => setEdit(e.target.value === NEW_CAT ? { ...edit, custom: true, category: '' } : { ...edit, custom: false, category: e.target.value })}>
+              {[...CATS, ...used].map((c) => <option key={c} value={c}>{t(c)}</option>)}
+              <option value={NEW_CAT}>+ {t('New category')}</option>
+            </Select>
+            {edit.custom && <Input label={t('New category')} required maxLength={60} autoFocus value={edit.category} onChange={(e) => setEdit({ ...edit, category: e.target.value })} />}
             <Input label={t('Amount (₹)')} type="number" min="0.01" step="0.01" required value={edit.amount} onChange={(e) => setEdit({ ...edit, amount: e.target.value })} />
             <Input label={t('Date')} type="date" required value={edit.expense_date} onChange={(e) => setEdit({ ...edit, expense_date: e.target.value })} />
             <Input label={t('Description')} value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} />
