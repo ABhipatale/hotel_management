@@ -206,7 +206,7 @@ function CompanyDetailsEditor({ company, onDone }) {
   const tr = useT()
   const [f, setF] = useState({
     name: company.name || '', phone: company.phone || '', email: company.email || '', address: company.address || '', city: company.city || '',
-    gst_enabled: company.gst_enabled !== false, gst_number: company.gst_number || '', qr_enabled: company.qr_enabled !== false, kot_enabled: !!company.kot_enabled, kot_screen: company.kot_screen !== false, kot_print: !!company.kot_print, kot_print_mode: company.kot_print_mode || '', use_library_images: company.use_library_images !== false, default_language: company.default_language || 'en', multi_counter: !!company.multi_counter, parcel_enabled: !!company.parcel_enabled,
+    gst_enabled: company.gst_enabled !== false, gst_number: company.gst_number || '', qr_enabled: company.qr_enabled !== false, kot_enabled: !!company.kot_enabled, kot_screen: company.kot_screen !== false, kot_print: !!company.kot_print, kot_print_mode: company.kot_print_mode || '', use_library_images: company.use_library_images !== false, default_language: company.default_language || 'en', multi_counter: !!company.multi_counter, parcel_enabled: !!company.parcel_enabled, table_sharing_enabled: !!company.table_sharing_enabled,
   })
   const [busy, setBusy] = useState(false)
   const s = (k) => (e) => setF({ ...f, [k]: e.target.value })
@@ -229,6 +229,7 @@ function CompanyDetailsEditor({ company, onDone }) {
       <CounterMode multi={f.multi_counter} onMulti={(v) => setF({ ...f, multi_counter: v })} locked={!!company.multi_counter} />
       <QrSwitch checked={f.qr_enabled} onChange={(v) => setF({ ...f, qr_enabled: v })} />
       <Switch label="Parcel counters" checked={f.parcel_enabled} onChange={(v) => setF({ ...f, parcel_enabled: v })} hint={f.parcel_enabled ? 'Parcel 1, Parcel 2... can be added in Tables and chosen in New order. Customer name is asked at checkout.' : 'Off: this hotel has only tables and plain takeaway / delivery.'} />
+      <Switch label="Shared tables" checked={f.table_sharing_enabled} onChange={(v) => setF({ ...f, table_sharing_enabled: v })} hint={f.table_sharing_enabled ? 'A table can be split in two (T1A and T1B), each with its own order and bill. It becomes one table again when both bills are paid.' : 'Off: every table has one order and one bill at a time.'} />
       <KotSwitch enabled={f.kot_enabled} screen={f.kot_screen} print={f.kot_print} mode={f.kot_print_mode} onEnabled={(v) => setF({ ...f, kot_enabled: v, kot_screen: v ? f.kot_screen : true, kot_print: v ? f.kot_print : false, kot_print_mode: v ? f.kot_print_mode : '' })} onScreen={(v) => setF({ ...f, kot_screen: v, kot_print: v ? f.kot_print : true })} onPrint={(v) => setF({ ...f, kot_print: v, kot_print_mode: v ? f.kot_print_mode : '' })} onMode={(v) => setF({ ...f, kot_print_mode: v })} />
       <Switch label="Platform dish photos" checked={f.use_library_images} onChange={(v) => setF({ ...f, use_library_images: v })} hint={f.use_library_images ? 'Dishes without their own photo show matching photos from the platform image library.' : 'Only this company\'s own photos are shown. The platform library is hidden for it.'} />
       <LangSelect value={f.default_language} onChange={(v) => setF({ ...f, default_language: v })} />
@@ -357,7 +358,7 @@ function RenewSubscription({ company, onDone }) {
 function AddCompany({ open, onClose, onDone }) {
   const toast = useToast()
   const tr = useT()
-  const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', gst_enabled: true, qr_enabled: true, parcel_enabled: false, kot_enabled: false, kot_screen: true, kot_print: false, kot_print_mode: '', default_language: 'en', gst_number: '', billing_cycle: '', multi_counter: false })
+  const [f, setF] = useState({ company_name: '', owner_name: '', phone: '', email: '', password: '', city: '', gst_enabled: true, qr_enabled: true, parcel_enabled: false, table_sharing_enabled: false, kot_enabled: false, kot_screen: true, kot_print: false, kot_print_mode: '', default_language: 'en', gst_number: '', billing_cycle: '', multi_counter: false })
   const [offline, setOffline] = useState(null)
   const [names, setNames] = useState(['Counter 1', 'Counter 2'])
   const [busy, setBusy] = useState(false)
@@ -379,6 +380,7 @@ function AddCompany({ open, onClose, onDone }) {
       <CounterMode multi={f.multi_counter} onMulti={(v) => setF({ ...f, multi_counter: v })} names={names} onNames={setNames} />
       <QrSwitch checked={f.qr_enabled} onChange={(v) => setF({ ...f, qr_enabled: v })} />
       <Switch label="Parcel counters" checked={f.parcel_enabled} onChange={(v) => setF({ ...f, parcel_enabled: v })} hint="Parcel 1, Parcel 2... (optional)" />
+      <Switch label="Shared tables" checked={f.table_sharing_enabled} onChange={(v) => setF({ ...f, table_sharing_enabled: v })} hint="A table can be split in two, each with its own bill (optional)" />
       <KotSwitch enabled={f.kot_enabled} screen={f.kot_screen} print={f.kot_print} mode={f.kot_print_mode} onEnabled={(v) => setF({ ...f, kot_enabled: v, kot_screen: v ? f.kot_screen : true, kot_print: v ? f.kot_print : false, kot_print_mode: v ? f.kot_print_mode : '' })} onScreen={(v) => setF({ ...f, kot_screen: v, kot_print: v ? f.kot_print : true })} onPrint={(v) => setF({ ...f, kot_print: v, kot_print_mode: v ? f.kot_print_mode : '' })} onMode={(v) => setF({ ...f, kot_print_mode: v })} />
       <LangSelect value={f.default_language} onChange={(v) => setF({ ...f, default_language: v })} />
         <Select label="Subscription" value={f.billing_cycle} onChange={s('billing_cycle')}>

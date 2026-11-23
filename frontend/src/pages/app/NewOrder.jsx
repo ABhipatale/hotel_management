@@ -32,7 +32,7 @@ export default function NewOrder() {
   const { data: items, loading } = useApi('/menu/items')
   const { data: cats } = useApi('/menu/categories')
   const { data: allTables } = useApi('/tables')
-  const tables = company?.parcel_enabled ? allTables : allTables?.filter((x) => x.kind !== 'parcel') // parcel counters are an option the platform admin switches on
+  const tables = (company?.parcel_enabled ? allTables : allTables?.filter((x) => x.kind !== 'parcel'))?.filter((x) => !x.is_split) // a shared table is ordered for through its parts (T1A / T1B);  parcel counters are an option the platform admin switches on
   // Edit mode (?edit=<order id>): the order's dishes are loaded into the cart and saved back until the order is paid
   const editId = params.get('edit')
   const { data: editing, loading: loadingEdit } = useApi(`/orders/${editId}`, { skip: !editId })

@@ -115,6 +115,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
             Route::get('tables/{id}/qr', [TableController::class, 'qr'])->middleware('feature:qr');
         });
         // Staff (waiters) may update a table's status
+        Route::post('tables/{id}/split', [TableController::class, 'split'])->middleware('perm:orders.create,tables.manage');
+        Route::post('tables/{id}/merge', [TableController::class, 'merge'])->middleware('perm:orders.create,tables.manage');
         Route::patch('tables/{id}/status', [TableController::class, 'setStatus'])->middleware('perm:orders.create,tables.manage');
 
         // Menu

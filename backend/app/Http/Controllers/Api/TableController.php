@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\HotelTable;
+use App\Models\Order;
+use Illuminate\Support\Facades\DB;
 use App\Models\TableQrToken;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
@@ -18,7 +20,9 @@ class TableController extends Controller
 
     public function index(Request $r)
     {
+        // The two parts of a shared table (T1A, T1B) are listed only while their table is shared.
         return HotelTable::where('branch_id', $this->branch($r))
+            ->where(fn ($q) => $q->whereNull('parent_id')->orWhereIn('parent_id', HotelTable::where('is_split', true)->select('id')))
             ->with('qrToken:id,table_id,token', 'waiter:id,name')
             ->withCount(['orders as open_orders' => fn ($q) => $q->whereNotIn('status', ['paid', 'cancelled'])])
             ->withMin(['orders as open_since' => fn ($q) => $q->whereNotIn('status', ['paid', 'cancelled'])], 'created_at')
@@ -31,7 +35,7 @@ class TableController extends Controller
         $plan = $r->attributes->get('plan');
         $isParcel = $r->input('kind') === 'parcel';
         abort_if($isParcel && ! Tenant::company()?->parcel_enabled, 403, 'Parcel counters are not enabled for this hotel. Ask the platform admin to switch them on.');
-        if (! $isParcel && $plan?->max_tables !== null && HotelTable::withoutGlobalScope('branch')->where('kind', '!=', 'parcel')->count() >= $plan->max_tables) { // parcel counters are not tables: they do not use the plan's table limit
+        if (! $isParcel && $plan?->max_tables !== null && HotelTable::withoutGlobalScope('branch')->where('kind', '!=', 'parcel')->whereNull('parent_id')->count() >= $plan->max_tables) { // parcel counters are not tables: they do not use the plan's table limit
             return response()->json(['message' => "Your plan allows up to {$plan->max_tables} tables. Please upgrade.", 'code' => 'limit_reached'], 402);
         }
         // A table's name can carry a prefix ("G" + "1" = "G1"). "T" / no prefix keeps the bare number, exactly as before.
@@ -85,7 +89,13 @@ class TableController extends Controller
             abort_if(HotelTable::where('branch_id', $t->branch_id)->where('number', $data['number'])->where('id', '!=', $t->id)->exists(), 422, 'Table '.$data['number'].' already exists.');
         }
         $this->checkWaiter($data['waiter_id'] ?? null);
+        $old = $t->number;
         $t->update($data);
+        if ($t->number !== $old) { // the parts of a shared table follow the new name (T1A -> T5A)
+            foreach ($t->parts as $part) {
+                $part->update(['number' => $t->number.substr($part->number, -1)]);
+            }
+        }
 
         return $t->load('qrToken', 'waiter:id,name');
     }
@@ -100,10 +110,70 @@ class TableController extends Controller
         return $t;
     }
 
+    /**
+     * Shared table: split T1 into T1A + T1B, each with its own order and bill. An order already running on the table moves to T1A.
+     * Needs the platform admin's "Shared tables" switch.
+     */
+    public function split(int $id)
+    {
+        abort_unless(Tenant::company()?->table_sharing_enabled, 403, 'Shared tables are not enabled for this hotel. Ask the platform admin to switch them on.');
+
+        return DB::transaction(function () use ($id) {
+            $t = HotelTable::lockForUpdate()->findOrFail($id);
+            abort_if($t->kind === 'parcel' || $t->parent_id, 422, 'Only a normal table can be shared.');
+            abort_if($t->is_split, 422, 'This table is already shared.');
+
+            $parts = [];
+            foreach (['A', 'B'] as $letter) {
+                $name = $t->number.$letter;
+                $part = HotelTable::where('branch_id', $t->branch_id)->where('number', $name)->first();
+                if ($part && $part->parent_id !== $t->id) {
+                    // a left-over part of a deleted table can be re-used; a real table with that name cannot
+                    abort_if(! $part->parent_id || HotelTable::whereKey($part->parent_id)->exists(), 422, "A table named {$name} already exists.");
+                    $part->update(['parent_id' => $t->id]);
+                }
+                $parts[$letter] = $part ?: HotelTable::create([
+                    'branch_id' => $t->branch_id, 'number' => $name, 'kind' => 'table', 'parent_id' => $t->id,
+                    'capacity' => max(1, (int) ceil($t->capacity / 2)), 'section' => $t->section, 'waiter_id' => $t->waiter_id, 'status' => 'available',
+                ]);
+                $parts[$letter]->update(['status' => 'available']);
+            }
+            // an order already running here belongs to the first party (A)
+            $running = Order::where('table_id', $t->id)->whereNotIn('status', ['paid', 'cancelled'])->pluck('id');
+            if ($running->isNotEmpty()) {
+                Order::whereIn('id', $running)->update(['table_id' => $parts['A']->id]);
+                $parts['A']->update(['status' => in_array($t->status, ['available', 'paid', 'reserved'], true) ? 'occupied' : $t->status]);
+            }
+            $t->update(['is_split' => true, 'status' => 'available']);
+
+            return $t->load('parts');
+        });
+    }
+
+    /** Back to one table. Only when neither part has an open order (it also happens by itself once both bills are paid). */
+    public function merge(int $id)
+    {
+        $t = HotelTable::findOrFail($id);
+        abort_unless($t->is_split, 422, 'This table is not shared.');
+        $ids = $t->parts()->pluck('id');
+        abort_if(Order::whereIn('table_id', $ids)->whereNotIn('status', ['paid', 'cancelled'])->exists(), 422, 'A part of this table still has an open order. Bill it first.');
+        $t->mergeIfIdle();
+
+        return $t->refresh();
+    }
+
     public function destroy(int $id)
     {
         $t = HotelTable::findOrFail($id);
+        abort_if($t->parent_id, 422, 'This is one part of a shared table. Merge the table back to remove it.');
+        abort_if($t->is_split, 422, 'This table is shared. Merge it back first.');
         abort_if($t->orders()->whereNotIn('status', ['paid', 'cancelled'])->exists(), 422, 'Table has open orders.');
+        // its two (hidden) parts go too, unless they carry order history (then they stay, hidden)
+        foreach ($t->parts as $part) {
+            if (! $part->orders()->exists()) {
+                $part->delete();
+            }
+        }
         $t->delete();
 
         return response()->noContent();

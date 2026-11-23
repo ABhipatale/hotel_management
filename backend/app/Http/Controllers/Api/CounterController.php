@@ -43,7 +43,7 @@ class CounterController extends Controller
         $exp = Expense::whereBetween('expense_date', [BizTime::dateOf($from), BizTime::dateOf($to)])->select('branch_id', DB::raw('SUM(amount) as total'))->groupBy('branch_id')->pluck('total', 'branch_id');
         $orders = Order::whereBetween('created_at', [$from, $to])->where('status', '!=', 'cancelled')->select('branch_id', DB::raw('COUNT(*) as n'))->groupBy('branch_id')->pluck('n', 'branch_id');
         $open = Order::whereNotIn('status', ['paid', 'cancelled'])->select('branch_id', DB::raw('COUNT(*) as n'))->groupBy('branch_id')->pluck('n', 'branch_id');
-        $tables = HotelTable::select('branch_id', DB::raw('COUNT(*) as n'))->groupBy('branch_id')->pluck('n', 'branch_id');
+        $tables = HotelTable::whereNull('parent_id')->select('branch_id', DB::raw('COUNT(*) as n'))->groupBy('branch_id')->pluck('n', 'branch_id');
         $staff = User::inTenant(Tenant::id())->where('role', '!=', 'owner')->select('branch_id', DB::raw('COUNT(*) as n'))->groupBy('branch_id')->pluck('n', 'branch_id');
         $pay = Payment::whereBetween('created_at', [$from, $to])->select('branch_id', 'method', DB::raw('SUM(amount) as total'))->groupBy('branch_id', 'method')->get()->groupBy('branch_id');
 

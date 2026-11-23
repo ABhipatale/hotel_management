@@ -27,7 +27,7 @@ class SubscriptionController extends Controller
         return $state + [
             'usage' => [
                 'staff' => User::inTenant(Tenant::id())->count(),
-                'tables' => HotelTable::count(),
+                'tables' => HotelTable::whereNull('parent_id')->count(),
             ],
         ];
     }

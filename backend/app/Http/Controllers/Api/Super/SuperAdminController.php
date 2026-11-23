@@ -99,6 +99,7 @@ class SuperAdminController extends Controller
             'kot_print' => 'sometimes|boolean',              // + printed kitchen slip
             'kot_print_mode' => 'sometimes|nullable|in:auto,ask,off', // how the slip prints when an order is placed (null = each device decides)
             'parcel_enabled' => 'sometimes|boolean',         // parcel counters (Parcel 1, Parcel 2...) on/off
+            'table_sharing_enabled' => 'sometimes|boolean',  // a table can be split in two (T1A / T1B), each with its own bill
             'multi_counter' => 'sometimes|boolean',          // several counters (each with its own tables, staff and books)
             'business_type' => 'sometimes|in:restaurant,cafe', // restaurant = hotel / restaurant as always; cafe = quick counter sale + tokens
             'counters' => 'sometimes|array|max:20',
@@ -133,6 +134,7 @@ class SuperAdminController extends Controller
             'default_language' => 'sometimes|in:en,hi,mr',
             'multi_counter' => 'sometimes|boolean',
             'parcel_enabled' => 'sometimes|boolean',
+            'table_sharing_enabled' => 'sometimes|boolean',
             'business_type' => 'sometimes|in:restaurant,cafe',
             'kot_enabled' => 'sometimes|boolean',
             'kot_screen' => 'sometimes|boolean',

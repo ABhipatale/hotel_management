@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Clock, Download, MoreHorizontal, Plus, QrCode, RefreshCw, Trash2, Users } from 'lucide-react'
+import { Clock, Download, MoreHorizontal, Plus, QrCode, RefreshCw, SplitSquareHorizontal, Trash2, Users } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { useAuth } from '../../context/AuthContext'
@@ -70,8 +70,11 @@ export default function Tables() {
   const manage = can('tables.manage')
   useTick()
 
-  const counts = (data || []).reduce((a, t) => ({ ...a, [t.status]: (a[t.status] || 0) + 1 }), {})
-  const rows = (data || []).filter((t) => filter === 'all' || t.status === filter)
+  // A shared table (T1) shows as one card holding its two parts (T1A, T1B); the parts are what get ordered for and counted.
+  const partsOf = (t) => (data || []).filter((x) => x.parent_id === t.id).sort((a, b) => a.id - b.id)
+  const leaves = (data || []).filter((t) => !t.is_split)
+  const counts = leaves.reduce((a, t) => ({ ...a, [t.status]: (a[t.status] || 0) + 1 }), {})
+  const rows = (data || []).filter((t) => !t.parent_id && (filter === 'all' || (t.is_split ? partsOf(t).some((p) => p.status === filter) : t.status === filter)))
   // Tables are grouped by section: no-section first, then each section in the order its first table was created, parcels last.
   // Nobody has a section yet: no headings at all (one grid, tables then parcels), exactly as before.
   const sectioned = (data || []).some((t) => !isParcel(t.number) && secKey(t.section))
@@ -96,6 +99,12 @@ export default function Tables() {
     if (!(await ask({ title: tx('Delete table {n}?', { n: tableLabel(t.number) }), message: tx('The table and its QR code will be removed. Tables with open orders cannot be deleted.'), confirmText: tx('Delete table') }))) return
     try { await api.delete(`/tables/${t.id}`); setSel(null); reload() } catch (e) { toast.error(e) }
   }
+  const share = async (t) => {
+    try { await api.post(`/tables/${t.id}/split`); toast.success(tx('Table {n} is shared: {a} and {b}', { n: t.number, a: `${t.number}A`, b: `${t.number}B` })); setSel(null); reload() } catch (e) { toast.error(e) }
+  }
+  const merge = async (t) => {
+    try { await api.post(`/tables/${t.id}/merge`); toast.success(tx('Table {n} is one table again', { n: t.number })); setSel(null); reload() } catch (e) { toast.error(e) }
+  }
   const showQr = async (t) => {
     try {
       const r = await api.get(`/tables/${t.id}/qr`, { responseType: 'text' })
@@ -113,7 +122,39 @@ export default function Tables() {
     a.click()
   }
 
+  /** A shared table: one frame, two parts (T1A, T1B), each tapped on its own to take that party's order. */
+  const splitCard = (t, i) => {
+    const parts = partsOf(t)
+    return (
+      <div key={t.id} style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }} className="animate-pop col-span-2 rounded-[1.25rem] border-2 border-dashed border-slate-300 bg-white/60 p-2.5">
+        <div className="mb-2 flex items-center justify-between gap-2 px-1">
+          <span className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-slate-600"><SplitSquareHorizontal className="h-4 w-4" />{tx('Shared')} · {tableLabel(t.number)}</span>
+          <button type="button" aria-label={tx('Table options')} title={tx('Table options')} onClick={() => setSel(t)} className="grid h-8 w-8 place-items-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-line transition hover:bg-slate-50 active:scale-90"><MoreHorizontal className="h-4 w-4" /></button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {parts.map((p) => {
+            const l = LOOK[p.status]
+            return (
+              <div key={p.id} role="button" tabIndex={0} onClick={() => tap(p)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tap(p) } }} className={`relative cursor-pointer select-none rounded-2xl border-2 p-3 text-left shadow-sm transition active:scale-[.96] ${l.card} ${l.text}`}>
+                <div className="flex items-center justify-between gap-1 text-[10px] font-semibold">
+                  <span className="flex items-center gap-1 opacity-70"><Users className="h-3 w-3" />{p.capacity}</span>
+                  {p.open_orders > 0 && <span className="rounded-full bg-white/80 px-1.5 py-0.5 opacity-90">{tx(p.open_orders > 1 ? '{n} orders' : '{n} order', { n: p.open_orders })}</span>}
+                </div>
+                <div className="mt-2 text-3xl font-extrabold tracking-tight">{tableLabel(p.number)}</div>
+                <div className="mt-2 flex flex-wrap items-center gap-1">
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold capitalize ${l.pill}`}>{stLabel(p.status)}</span>
+                  {p.open_since && <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold"><Clock className="h-3 w-3" />{elapsed(p.open_since)}</span>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   const card = (t, i) => {
+    if (t.is_split) return splitCard(t, i)
     const l = LOOK[t.status]
     return (
       <div key={t.id} role="button" tabIndex={0} onClick={() => tap(t)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tap(t) } }} style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }} className={`animate-pop relative cursor-pointer select-none overflow-hidden rounded-[1.25rem] border-2 p-3.5 text-left shadow-sm transition active:scale-[.96] ${l.card} ${l.text}`}>
@@ -140,7 +181,7 @@ export default function Tables() {
     <>
       <PageHeader title={tx('Tables')} actions={manage && <div className="flex gap-2"><Button size="sm" onClick={() => setAdding('table')}><Plus className="h-4 w-4" /> {tx('Add')}</Button>{company?.parcel_enabled && <Button size="sm" variant="secondary" onClick={() => setAdding('parcel')}><Plus className="h-4 w-4" /> {tx('Parcel')}</Button>}</div>} />
 
-      <Chips value={filter} onChange={setFilter} items={[['all', tx('All ({n})', { n: data.length })], ...STATUSES.map((s) => [s, `${tx(cap(s))}${counts[s] ? ` (${counts[s]})` : ''}`])]} />
+      <Chips value={filter} onChange={setFilter} items={[['all', tx('All ({n})', { n: leaves.length })], ...STATUSES.map((s) => [s, `${tx(cap(s))}${counts[s] ? ` (${counts[s]})` : ''}`])]} />
 
       {!rows.length ? <Empty icon={Users} title={tx('No tables here')} hint={manage ? tx('Add your first table to start taking orders.') : tx('Ask the owner to add tables.')} /> : (
         <div className="space-y-1">
@@ -161,19 +202,31 @@ export default function Tables() {
       )}
 
       <Modal open={!!sel} onClose={() => setSel(null)} title={tableText(tx, sel?.number ?? '')}>
-        {sel && (
+        {sel?.is_split && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted">{tx('This table is shared by two parties. Each part has its own order and bill. It becomes one table again when both are paid.')}</p>
+            <div className="grid grid-cols-2 gap-2">
+              {partsOf(sel).map((p) => <Button key={p.id} variant="accent" size="lg" onClick={() => nav(`/app/order/new?table=${p.id}`)}>{tableLabel(p.number)}{p.open_orders ? ` · ${tx(p.open_orders > 1 ? '{n} orders' : '{n} order', { n: p.open_orders })}` : ''}</Button>)}
+            </div>
+            <Button variant="secondary" className="w-full" disabled={partsOf(sel).some((p) => p.open_orders > 0)} onClick={() => merge(sel)}>{tx('Merge back into one table')}</Button>
+            {partsOf(sel).some((p) => p.open_orders > 0) && <p className="text-xs text-muted">{tx('Bill and pay both parts first (or cancel their orders).')}</p>}
+          </div>
+        )}
+        {sel && !sel.is_split && (
           <div className="space-y-5">
             <div className="flex items-center gap-2 text-sm text-muted"><span className={`h-2.5 w-2.5 rounded-full ${LOOK[sel.status].dot}`} /><span className="capitalize">{tx('{status} · {n} seats', { status: stLabel(sel.status), n: sel.capacity })}</span></div>
             {can('orders.create') && <Button variant="accent" className="w-full" size="lg" onClick={() => nav(`/app/order/new?table=${sel.id}`)}>{sel.open_orders ? tx('Add items to order') : tx('Take order')}</Button>}
             {sel.open_orders > 0 && <Button className="w-full" variant="secondary" onClick={() => nav('/app/orders')}>{tx('View open orders')}</Button>}
+            {company?.table_sharing_enabled && !isParcel(sel.number) && !sel.parent_id && <Button className="w-full" variant="secondary" onClick={() => share(sel)}><SplitSquareHorizontal className="h-4 w-4" /> {tx('Share this table ({a} + {b})', { a: tableLabel(`${sel.number}A`), b: tableLabel(`${sel.number}B`) })}</Button>}
+            {sel.parent_id && partsOf({ id: sel.parent_id }).every((p) => !p.open_orders) && <Button className="w-full" variant="secondary" onClick={() => merge({ id: sel.parent_id, number: String(sel.number).slice(0, -1) })}>{tx('Merge back into one table')}</Button>}
             <div>
               <div className="mb-2 text-xs font-semibold text-slate-600">{tx('Change status')}</div>
               <div className="flex flex-wrap gap-2">{STATUSES.map((s) => <button key={s} onClick={() => setStatus(sel, s)} className={`rounded-full px-3.5 py-2 text-xs font-semibold capitalize ring-1 transition ${sel.status === s ? 'bg-brand text-white ring-brand' : 'bg-white text-slate-600 ring-line'}`}>{stLabel(s) === 'Free' ? tx('Available') : stLabel(s)}</button>)}</div>
             </div>
-            {manage && (isParcel(sel.number)
+            {manage && !sel.parent_id && (isParcel(sel.number)
               ? <SectionField key={sel.id} table={sel} onSaved={(section) => { setSel({ ...sel, section }); reload() }} />
               : <TableEditor key={sel.id} table={sel} tables={data} onSaved={(t) => { setSel({ ...sel, ...t }); reload() }} />)}
-            {manage && (
+            {manage && !sel.parent_id && (
               <div className="flex gap-2">
                 {!isParcel(sel.number) && hasFeature('qr') && company?.qr_enabled !== false && <Button variant="secondary" className="flex-1" onClick={() => { const t = sel; setSel(null); showQr(t) }}><QrCode className="h-4 w-4" /> {tx('QR code')}</Button>}
                 <Button variant="ghost" onClick={() => remove(sel)}><Trash2 className="h-4 w-4 text-rose-600" /></Button>

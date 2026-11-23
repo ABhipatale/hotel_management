@@ -331,6 +331,7 @@ class OrderService
             if ($order->table) {
                 $open = Order::where('table_id', $order->table_id)->whereNotIn('status', ['paid', 'cancelled'])->exists();
                 $order->table->update(['status' => $open ? 'occupied' : 'available']);
+                $order->table->mergeIfIdle(); // a shared table closes once both parts are settled
             }
 
             return $bill->load('items', 'payments');

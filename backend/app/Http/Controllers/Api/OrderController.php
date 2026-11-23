@@ -109,6 +109,7 @@ class OrderController extends Controller
             'client_time' => 'nullable|date',           // when the order was really taken (offline orders reach the server later)
         ]);
         $table = ! empty($d['table_id']) ? HotelTable::findOrFail($d['table_id']) : null;
+        abort_if($table?->is_split, 422, 'This table is shared. Choose one of its parts (for example '.$table?->number.'A).');
         $branch = $table?->branch_id ?? $this->branch($r);
         // No table => it cannot be a dine-in order; treat it as takeaway.
         if (! $table && ($d['type'] ?? 'dine_in') === 'dine_in') {
@@ -287,6 +288,7 @@ class OrderController extends Controller
             } elseif ($d['status'] === 'cancelled') {
                 $open = Order::where('table_id', $order->table_id)->whereNotIn('status', ['paid', 'cancelled'])->exists();
                 $order->table->update(['status' => $open ? 'occupied' : 'available']);
+                $order->table->mergeIfIdle();
             }
         }
 

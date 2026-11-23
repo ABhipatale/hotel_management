@@ -121,6 +121,7 @@ class PublicMenuController extends Controller
         return Tenant::as($company, function () use ($company, $token) {
             $qr = TableQrToken::where('token', $token)->where('is_active', true)->firstOrFail(); // scoped to this company
             $table = $qr->table_id ? \App\Models\HotelTable::findOrFail($qr->table_id) : abort(404);
+            abort_if($table->is_split, 409, 'This table is shared by two parties. Please ask the staff to take your order.');
 
             return [$company, $table];
         });
