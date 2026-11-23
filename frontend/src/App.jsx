@@ -27,6 +27,7 @@ const Billing = lazy(() => import('./pages/app/Billing'))
 const MenuManager = lazy(() => import('./pages/app/MenuManager'))
 const Staff = lazy(() => import('./pages/app/Staff'))
 const Expenses = lazy(() => import('./pages/app/Expenses'))
+const Payroll = lazy(() => import('./pages/app/Payroll'))
 const Inventory = lazy(() => import('./pages/app/Inventory'))
 const Reports = lazy(() => import('./pages/app/Reports'))
 const Settings = lazy(() => import('./pages/app/Settings'))
@@ -63,6 +64,12 @@ const P = ({ perm, children }) => <Guard perm={perm}>{children}</Guard>
 function OwnerMulti({ children }) {
   const a = useAuth()
   return <Guard>{a.user?.role === 'owner' && a.company?.multi_counter ? children : <Navigate to={homeFor(a)} replace />}</Guard>
+}
+
+/** Salary & advances: only for companies the platform admin enabled it for. */
+function PayrollOnly({ children }) {
+  const a = useAuth()
+  return a.company?.payroll_enabled ? children : <Navigate to={homeFor(a)} replace />
 }
 
 /** Kitchen screen: only for companies the platform admin enabled KOT for. */
@@ -129,6 +136,7 @@ export default function App() {
               <Route path="inventory" element={<P perm="inventory.manage"><NeedCounter><Inventory /></NeedCounter></P>} />
               <Route path="expenses" element={<P perm="expenses.manage"><NeedCounter><Expenses /></NeedCounter></P>} />
               <Route path="reports" element={<P perm="reports.view"><Reports /></P>} />
+              <Route path="salary" element={<P perm="users.manage"><PayrollOnly><Payroll /></PayrollOnly></P>} />
               <Route path="staff" element={<P perm="users.manage"><Staff /></P>} />
               <Route path="subscription" element={<P perm="subscription.manage"><Subscription /></P>} />
               <Route path="settings" element={<P perm="settings.manage"><Settings /></P>} />

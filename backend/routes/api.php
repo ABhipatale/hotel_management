@@ -119,6 +119,19 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('tables/{id}/merge', [TableController::class, 'merge'])->middleware('perm:orders.create,tables.manage');
         Route::patch('tables/{id}/status', [TableController::class, 'setStatus'])->middleware('perm:orders.create,tables.manage');
 
+        // Staff salary & advances (owner; the platform admin switches it on per company)
+        Route::middleware('perm:users.manage')->prefix('payroll')->group(function () {
+            Route::get('employees', [\App\Http\Controllers\Api\PayrollController::class, 'index']);
+            Route::post('employees', [\App\Http\Controllers\Api\PayrollController::class, 'store']);
+            Route::get('employees/{id}', [\App\Http\Controllers\Api\PayrollController::class, 'show']);
+            Route::put('employees/{id}', [\App\Http\Controllers\Api\PayrollController::class, 'update']);
+            Route::delete('employees/{id}', [\App\Http\Controllers\Api\PayrollController::class, 'destroy']);
+            Route::post('employees/{id}/advance', [\App\Http\Controllers\Api\PayrollController::class, 'advance']);
+            Route::post('employees/{id}/repayment', [\App\Http\Controllers\Api\PayrollController::class, 'repayment']);
+            Route::post('employees/{id}/salary', [\App\Http\Controllers\Api\PayrollController::class, 'salary']);
+            Route::delete('entries/{id}', [\App\Http\Controllers\Api\PayrollController::class, 'destroyEntry']);
+        });
+
         // Menu
         Route::middleware('perm:menu.view')->group(function () {
             Route::get('menu/categories', [MenuController::class, 'categories']);

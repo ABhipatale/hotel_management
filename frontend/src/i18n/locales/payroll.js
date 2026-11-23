@@ -1,0 +1,31 @@
+// Staff salary & advances (pagar / uchal)
+export default {
+  hi: {
+    'Salary': 'वेतन', 'Salary & advances': 'वेतन और एडवांस', 'Monthly pay, advances (uchal) and deductions of your staff': 'आपके स्टाफ का मासिक वेतन, एडवांस (उधार) और कटौती',
+    'Add person': 'व्यक्ति जोड़ें', 'Edit person': 'व्यक्ति बदलें', 'Previous month': 'पिछला महीना', 'Next month': 'अगला महीना', 'This month': 'इस महीने',
+    'Monthly salaries': 'मासिक वेतन (कुल)', 'Paid this month': 'इस महीने दिया', 'Still to pay': 'अभी देना बाकी', '{n} people': '{n} लोग', 'Advances to recover': 'वसूल करने के एडवांस',
+    'No staff added yet': 'अभी कोई स्टाफ नहीं जोड़ा', 'Add your cook, waiters, cleaners... with their monthly salary.': 'अपने कुक, वेटर, सफाई वाले... को उनके मासिक वेतन के साथ जोड़ें।',
+    'Switched off': 'बंद', 'month': 'महीना', 'Paid': 'दिया', 'Not paid yet': 'अभी नहीं दिया', 'Advance to recover': 'वसूल करना बाकी एडवांस',
+    'Pay salary': 'वेतन दें', 'Give advance': 'एडवांस दें', 'Got money back': 'पैसे वापस मिले', 'History': 'हिसाब',
+    'Remove {n}?': '{n} को हटाएँ?', 'A person with records is only switched off; their history stays.': 'जिसका हिसाब है उसे सिर्फ़ बंद किया जाता है; उसका रिकॉर्ड रहता है।', 'Remove': 'हटाएँ',
+    'Work (cook, waiter...)': 'काम (कुक, वेटर...)', 'Monthly salary (₹)': 'मासिक वेतन (₹)', 'Joining date': 'जॉइन की तारीख', 'Working': 'काम पर', 'Left / switched off': 'छोड़ दिया / बंद',
+    'Amount (₹)': 'रकम (₹)', 'Paid by': 'कैसे दिया', 'Cash': 'नकद', 'Note (optional)': 'नोट (वैकल्पिक)',
+    'Absent days': 'गैरहाज़िर दिन', 'Bonus (₹)': 'बोनस (₹)', 'Recover advance (₹)': 'एडवांस काटें (₹)', 'owes': 'बाकी', 'Taken out of this salary. Leave less to recover the rest next month.': 'इसी वेतन से कटेगा। कम रखें तो बाकी अगले महीने वसूल होगा।',
+    'Monthly salary': 'मासिक वेतन', 'Absent': 'गैरहाज़िर', 'days': 'दिन', 'Bonus': 'बोनस', 'Advance deducted': 'एडवांस कटौती', 'Give in hand': 'हाथ में देना', 'Pay': 'दें', 'Salary paid': 'वेतन दिया गया',
+    'Advance given': 'एडवांस दिया', 'Money returned': 'पैसे लौटाए', 'advance': 'एडवांस', 'Undo this entry?': 'यह एंट्री रद्द करें?', 'The salary is removed from expenses and the advance deducted becomes due again.': 'वेतन खर्चों से हट जाएगा और कटा हुआ एडवांस फिर बाकी हो जाएगा।', 'The balance is corrected.': 'बाकी रकम ठीक हो जाएगी।', 'Undo': 'रद्द करें', 'after advance deducted': 'एडवांस कटने के बाद', 'Nothing yet.': 'अभी कुछ नहीं।',
+  },
+  mr: {
+    'Salary': 'पगार', 'Salary & advances': 'पगार आणि उचल', 'Monthly pay, advances (uchal) and deductions of your staff': 'तुमच्या कामगारांचा मासिक पगार, उचल (उधार) आणि कपात',
+    'Add person': 'कामगार जोडा', 'Edit person': 'कामगार बदला', 'Previous month': 'मागचा महिना', 'Next month': 'पुढचा महिना', 'This month': 'या महिन्यात',
+    'Monthly salaries': 'मासिक पगार (एकूण)', 'Paid this month': 'या महिन्यात दिले', 'Still to pay': 'अजून द्यायचे', '{n} people': '{n} जण', 'Advances to recover': 'वसूल करायची उचल',
+    'No staff added yet': 'अजून कामगार जोडले नाहीत', 'Add your cook, waiters, cleaners... with their monthly salary.': 'तुमचे आचारी, वेटर, सफाई कामगार... त्यांच्या मासिक पगारासह जोडा.',
+    'Switched off': 'बंद', 'month': 'महिना', 'Paid': 'दिले', 'Not paid yet': 'अजून दिले नाही', 'Advance to recover': 'वसूल करायची उचल',
+    'Pay salary': 'पगार द्या', 'Give advance': 'उचल द्या', 'Got money back': 'पैसे परत मिळाले', 'History': 'हिशोब',
+    'Remove {n}?': '{n} यांना काढायचे?', 'A person with records is only switched off; their history stays.': 'हिशोब असलेल्या कामगाराला फक्त बंद केले जाते; त्याचा हिशोब राहतो.', 'Remove': 'काढा',
+    'Work (cook, waiter...)': 'काम (आचारी, वेटर...)', 'Monthly salary (₹)': 'मासिक पगार (₹)', 'Joining date': 'रुजू तारीख', 'Working': 'कामावर', 'Left / switched off': 'सोडले / बंद',
+    'Amount (₹)': 'रक्कम (₹)', 'Paid by': 'कसे दिले', 'Cash': 'रोख', 'Note (optional)': 'टीप (ऐच्छिक)',
+    'Absent days': 'गैरहजर दिवस', 'Bonus (₹)': 'बोनस (₹)', 'Recover advance (₹)': 'उचल कापा (₹)', 'owes': 'बाकी', 'Taken out of this salary. Leave less to recover the rest next month.': 'याच पगारातून कापली जाईल. कमी ठेवल्यास उरलेली पुढच्या महिन्यात वसूल होईल.',
+    'Monthly salary': 'मासिक पगार', 'Absent': 'गैरहजर', 'days': 'दिवस', 'Bonus': 'बोनस', 'Advance deducted': 'उचल कपात', 'Give in hand': 'हातात द्या', 'Pay': 'द्या', 'Salary paid': 'पगार दिला',
+    'Advance given': 'उचल दिली', 'Money returned': 'पैसे परत केले', 'advance': 'उचल', 'Undo this entry?': 'ही नोंद रद्द करायची?', 'The salary is removed from expenses and the advance deducted becomes due again.': 'पगार खर्चातून काढला जाईल आणि कापलेली उचल पुन्हा बाकी होईल.', 'The balance is corrected.': 'बाकी रक्कम दुरुस्त होईल.', 'Undo': 'रद्द करा', 'after advance deducted': 'उचल वजा करून', 'Nothing yet.': 'अजून काही नाही.',
+  },
+}
