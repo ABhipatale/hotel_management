@@ -170,7 +170,7 @@ class BillingController extends Controller
         return [
             'bill' => $bill,
             // No GSTIN on the bill when GST is switched off for this company
-            'company' => array_merge($c->only('name', 'logo_url', 'address', 'phone', 'gst_number', 'gst_enabled', 'bill_header', 'bill_footer', 'brand_color', 'upi_id', 'upi_name'), $c->gst_enabled ? [] : ['gst_number' => null]),
+            'company' => array_merge($c->only('name', 'logo_url', 'address', 'phone', 'gst_number', 'gst_enabled', 'bill_header', 'bill_footer', 'brand_color', 'upi_id', 'upi_name'), $c->gst_enabled ? [] : ['gst_number' => null], $c->upi_qr_enabled ? [] : ['upi_id' => null, 'upi_name' => null]),
             'printer' => $printer,
             'table' => $bill->order?->table?->number,
             'order_no' => $bill->order?->order_no,

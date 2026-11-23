@@ -71,10 +71,10 @@ export default function Settings() {
             <Input label="Company name" required value={f.name || ''} onChange={s('name')} />
             <div className="grid grid-cols-2 gap-3"><Input label="Phone" value={f.phone || ''} onChange={s('phone')} /><Input label="GST number" value={f.gst_enabled === false ? '' : f.gst_number || ''} onChange={s('gst_number')} disabled={f.gst_enabled === false} placeholder={f.gst_enabled === false ? 'GST is off' : ''} hint={f.gst_enabled === false ? 'GST is switched off for your business. Ask the administrator to turn it on.' : undefined} /></div>
             <Input label="Address" value={f.address || ''} onChange={s('address')} />
-            <div className="grid grid-cols-2 gap-3">
+            {shop?.upi_qr_enabled && <div className="grid grid-cols-2 gap-3">
               <Input label="UPI ID (payment QR on bill)" placeholder="hotel@upi" autoCapitalize="none" autoComplete="off" value={f.upi_id || ''} onChange={s('upi_id')} hint={f.upi_id && !validUpi(f.upi_id) ? 'Enter a valid UPI ID like name@bank' : 'Prints a scan-to-pay QR with the exact amount on unpaid bills. Leave empty for no QR.'} />
               <Input label="Name in UPI app" placeholder={f.name || ''} value={f.upi_name || ''} onChange={s('upi_name')} />
-            </div>
+            </div>}
             <div className="grid grid-cols-3 gap-3"><Input label="City" value={f.city || ''} onChange={s('city')} /><Input label="State" value={f.state || ''} onChange={s('state')} /><Input label="PIN" value={f.pin_code || ''} onChange={s('pin_code')} /></div>
             <div className="space-y-5 rounded-2xl bg-slate-50 p-4">
               <ImagePicker label="Company logo" hint="Shown in the app header, on bills and on your QR menu. Any shape; PNG with transparent background looks best." current={f.logo_url} file={logo} onChange={setLogo} rounded="rounded-2xl" fit="object-contain bg-white" />

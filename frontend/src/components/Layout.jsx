@@ -5,6 +5,7 @@ import {
   PanelLeftClose, PanelLeftOpen, Settings, ShoppingBag, Split, Store, Tag, Users, UtensilsCrossed, Wallet,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import UpiPrompt from './UpiPrompt'
 import { useCounter } from '../context/CounterContext'
 import CounterSwitch from './CounterSwitch'
 import { useConfirm } from '../context/ConfirmContext'
@@ -223,6 +224,7 @@ export default function Layout() {
 
         <main className={`mx-auto w-full min-w-0 flex-1 px-4 py-5 pb-36 sm:px-6 ${posPage ? 'max-w-none lg:px-3 lg:py-2' : side ? 'max-w-7xl lg:px-8' : 'max-w-none lg:px-6'} ${navOnWide ? '' : 'lg:pb-8'}`}>
           <div key={`${loc.pathname}|${selected}`} className="animate-page"><Outlet /></div>
+          <UpiPrompt />
         </main>
       </div>
 

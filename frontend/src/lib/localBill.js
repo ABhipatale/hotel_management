@@ -40,7 +40,7 @@ export function buildLocalBill({ lines, items, company, printer, table, user, or
     },
     company: {
       name: company?.name, logo_url: company?.logo_url, address: company?.address, phone: company?.phone, gst_number: company?.gst_number,
-      gst_enabled: company?.gst_enabled, bill_header: company?.bill_header, bill_footer: company?.bill_footer, upi_id: company?.upi_id, upi_name: company?.upi_name, brand_color: company?.brand_color,
+      gst_enabled: company?.gst_enabled, bill_header: company?.bill_header, bill_footer: company?.bill_footer, upi_id: company?.upi_qr_enabled ? company?.upi_id : null, upi_name: company?.upi_qr_enabled ? company?.upi_name : null, brand_color: company?.brand_color,
     },
     printer: printer || null,
     table: table?.number ?? null,

@@ -88,6 +88,9 @@ class SettingsController extends Controller
         if (! $c->gst_enabled) {
             unset($d['gst_number']); // GST fields are locked by the platform admin
         }
+        if (! $c->upi_qr_enabled) {
+            unset($d['upi_id'], $d['upi_name']); // the UPI QR is switched on by the platform admin
+        }
         $c->fill($d)->save();
         AuditLog::record('company.update', 'company', $c->id);
 

@@ -66,15 +66,27 @@ class ReceiptMarathiTest extends TestCase
         $this->assertSame('डाळ फ्राय (Full)', $items['Dal Fry (Full)']['name_mr']); // no Marathi variant name: the English one is kept
     }
 
-    public function test_upi_id_is_saved_in_settings_and_reaches_the_bill(): void
+    public function test_upi_qr_is_a_platform_admin_switch_and_the_id_reaches_the_bill_only_when_on(): void
     {
         $owner = $this->h('atithi@demo.test');
-        $this->postJson('/api/company', ['upi_id' => 'not a upi'], $owner)->assertStatus(422);
-        $this->postJson('/api/company', ['upi_id' => 'hotel@okbank', 'upi_name' => 'Hotel Atithi'], $owner)->assertOk()->assertJsonPath('upi_id', 'hotel@okbank');
         $cat = $this->getJson('/api/menu/categories', $owner)->json('0.id');
         $dish = $this->postJson('/api/menu/items', ['category_id' => $cat, 'name' => 'Upi Tea', 'price' => 20], $owner)->assertCreated()->json();
+
+        // off by default: the owner cannot save an id, bills carry none
+        $this->postJson('/api/auth/login', ['email' => 'atithi@demo.test', 'password' => 'Demo@12345'])->assertJsonPath('company.upi_qr_enabled', false);
+        $this->postJson('/api/company', ['upi_id' => 'hotel@okbank'], $owner)->assertOk()->assertJsonPath('upi_id', null);
+
+        $admin = ['Accept' => 'application/json', 'Authorization' => 'Bearer '.$this->postJson('/api/auth/login', ['email' => 'admin@hms.test', 'password' => 'Admin@12345'])->assertOk()->json('token')];
+        $cid = \App\Support\Tenant::unscoped(fn () => \App\Models\Company::where('slug', 'hotel-atithi')->value('id'));
+        $this->putJson("/api/admin/companies/$cid", ['upi_qr_enabled' => true], $admin)->assertOk()->assertJsonPath('upi_qr_enabled', true);
+
+        $this->postJson('/api/company', ['upi_id' => 'not a upi'], $owner)->assertStatus(422);
+        $this->postJson('/api/company', ['upi_id' => 'hotel@okbank', 'upi_name' => 'Hotel Atithi'], $owner)->assertOk()->assertJsonPath('upi_id', 'hotel@okbank');
         $bill = $this->postJson('/api/orders', ['type' => 'takeaway', 'generate_bill' => true, 'items' => [['food_item_id' => $dish['id'], 'quantity' => 1]]], $owner)->assertCreated()->json('bill');
         $this->getJson('/api/bills/'.$bill['id'], $owner)->assertOk()->assertJsonPath('company.upi_id', 'hotel@okbank')->assertJsonPath('company.upi_name', 'Hotel Atithi');
-        $this->postJson('/api/company', ['upi_id' => ''], $owner)->assertOk()->assertJsonPath('upi_id', null); // cleared = no QR
+
+        // switched off again: the saved id is kept but no longer printed
+        $this->putJson("/api/admin/companies/$cid", ['upi_qr_enabled' => false], $admin)->assertOk();
+        $this->getJson('/api/bills/'.$bill['id'], $owner)->assertOk()->assertJsonPath('company.upi_id', null);
     }
 }
