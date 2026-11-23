@@ -14,7 +14,7 @@ import { kotConnection, kotPrefs, printKot } from '../../lib/kotSlip'
 import { newRef, outbox } from '../../lib/outbox'
 import { buildLocalBill, offlineNumber } from '../../lib/localBill'
 import Receipt from '../../components/Receipt'
-import { catName, dishNames } from '../../lib/dishName'
+import { baseVariantName, catName, dishNames, variantName } from '../../lib/dishName'
 import { Button, Chips, Input, Modal, Select, Spinner } from '../../components/ui'
 
 /** Waiter POS: pick table → add items → place order. Totals here are an estimate; the server prices the order. */
@@ -506,10 +506,10 @@ export default function NewOrder() {
         )}
       </Modal>
 
-      <Modal open={!!pick} onClose={() => setPick(null)} title={pick?.name}>
+      <Modal open={!!pick} onClose={() => setPick(null)} title={pick ? nm(pick).main : ''}>
         <div className="space-y-2">
-          {pick && [{ id: null, name: pick.base_variant_name || t('Regular'), price: pick.price }, ...pick.variants].map((v) => (
-            <button key={v.id ?? 'base'} onClick={() => { add(pick, v.id ? v : null); setPick(null) }} className="flex w-full items-center justify-between rounded-xl border border-line px-4 py-3 text-sm hover:border-brand"><span>{v.name}</span><b>{money(v.price)}</b></button>
+          {pick && [{ id: null, name: baseVariantName(pick, lang, t('Regular')), price: pick.price }, ...pick.variants.map((v) => ({ ...v, name: variantName(v, lang), orig: v }))].map((v) => (
+            <button key={v.id ?? 'base'} onClick={() => { add(pick, v.id ? v.orig : null); setPick(null) }} className="flex w-full items-center justify-between rounded-xl border border-line px-4 py-3 text-sm hover:border-brand"><span>{v.name}</span><b>{money(v.price)}</b></button>
           ))}
         </div>
       </Modal>

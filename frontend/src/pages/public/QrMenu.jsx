@@ -7,7 +7,7 @@ import { money } from '../../lib/format'
 import { Button, Input, Modal, Spinner } from '../../components/ui'
 import LangSwitch from '../../components/LangSwitch'
 import { useI18n } from '../../i18n'
-import { catName, dishNames } from '../../lib/dishName'
+import { baseVariantName, catName, dishNames, variantName } from '../../lib/dishName'
 import { devUrl, thumbOf } from '../../lib/image'
 
 /** A dish photo (own or platform library). No photo, or one that fails to load, shows a soft tile with the dish's first letter. */
@@ -199,9 +199,9 @@ export default function QrMenu() {
         </button>
       )}
 
-      <Modal open={!!pick} onClose={() => setPick(null)} title={pick?.name}>
-        {pick && [{ id: null, name: pick.base_variant_name || t('Regular'), price: pick.price }, ...pick.variants].map((v) => (
-          <button key={v.id ?? 'base'} onClick={() => { add(pick, v.id ? v : null); setPick(null) }} className="mb-2 flex w-full items-center justify-between rounded-xl border border-line px-4 py-3 text-sm"><span>{v.name}</span><b>{money(unit(pick, v))}</b></button>
+      <Modal open={!!pick} onClose={() => setPick(null)} title={pick ? dishNames(pick, lang).main : ''}>
+        {pick && [{ id: null, name: baseVariantName(pick, lang, t('Regular')), price: pick.price }, ...pick.variants.map((v) => ({ ...v, name: variantName(v, lang), orig: v }))].map((v) => (
+          <button key={v.id ?? 'base'} onClick={() => { add(pick, v.id ? v.orig : null); setPick(null) }} className="mb-2 flex w-full items-center justify-between rounded-xl border border-line px-4 py-3 text-sm"><span>{v.name}</span><b>{money(unit(pick, v.orig || v))}</b></button>
         ))}
       </Modal>
 
