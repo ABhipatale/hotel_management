@@ -43,6 +43,7 @@ const money = (n) => Number(n).toFixed(2)
 async function loadFonts() {
   try {
     await Promise.all([
+      document.fonts.load('500 24px "Noto Sans Devanagari"', 'अआइ'),
       document.fonts.load('400 24px "Noto Sans Devanagari"', 'अआइ'),
       document.fonts.load('700 24px "Noto Sans Devanagari"', 'अआइ'),
       document.fonts.load('400 24px "Noto Sans"', 'Ag'),
@@ -72,7 +73,7 @@ export async function buildReceiptImage({ bill, company, table, order_no, waiter
   ctx.textBaseline = 'alphabetic'
   let y = 22 // small blank top margin so the printer never clips the first line
 
-  const setFont = (size, bold) => { ctx.font = `${bold ? 700 : 400} ${size}px ${FONT}` }
+  const setFont = (size) => { ctx.font = `500 ${size}px ${FONT}` } // one even, medium weight everywhere: bold letters smudge together on a thermal printer
   const wrap = (text, maxW) => {
     const out = []
     String(text).split('\n').forEach((para) => {

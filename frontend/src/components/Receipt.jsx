@@ -49,7 +49,7 @@ export default function Receipt({ data: hotelData, phone }) {
       const bytes = picture ? await buildReceiptImage(data, rl) : buildReceipt(data)
       const hasQr = !!upiLink(company, bill) // a QR is a dense block of dots: send it in smaller pieces with longer pauses
       // a picture bill is a lot of data: bigger pieces and shorter pauses keep it quick (same pacing as the kitchen slip)
-      conn === 'usb' ? await printUsb(bytes, { delay: hasQr ? 8 : picture ? 4 : 0 }) : await printBluetooth(bytes, hasQr ? { delay: 12, chunk: 100, settle: 1200 } : picture ? { delay: 5, chunk: 160, settle: 700 } : { delay: 0 })
+      conn === 'usb' ? await printUsb(bytes, { delay: hasQr ? 8 : picture ? 4 : 0 }) : await printBluetooth(bytes, hasQr ? { delay: 6, chunk: 100, settle: 1500, ack: true } : picture ? { delay: 4, chunk: 200, settle: 1200, ack: true } : { delay: 0 })
       toast.success(t('Sent to printer'))
     } catch (e) {
       // Never open the system print dialog behind the user's back: show why it failed instead.

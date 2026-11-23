@@ -265,7 +265,9 @@ async function sendUsb(device, bytes, delay) {
 const links = new Map() // device.id -> { char, timer }
 const dropLink = (device) => { const l = links.get(device.id); if (l) clearTimeout(l.timer); links.delete(device.id); try { device.gatt?.disconnect() } catch { /* ignore */ } }
 
-export async function printBluetooth(bytes, { delay = 0, chunk = 100, settle = 1200, job = 'bill' } = {}) {
+// ack: each piece is written WITH a reply (the printer confirms it before the next one is sent). Slower, but the printer can never be flooded,
+// so a long or dense picture bill does not stop half way. A failed piece is retried a few times.
+export async function printBluetooth(bytes, { delay = 0, chunk = 100, settle = 1200, job = 'bill', ack = false } = {}) {
   const send = async (device) => {
     const link = links.get(device.id)
     let w = link && device.gatt.connected ? link.char : null
@@ -280,7 +282,12 @@ export async function printBluetooth(bytes, { delay = 0, chunk = 100, settle = 1
       if (!w) throw new Error('No writable printer characteristic found')
       links.set(device.id, { char: w, timer: null })
     }
-    await chunked((c) => (w.properties.writeWithoutResponse ? w.writeValueWithoutResponse(c) : w.writeValue(c)), bytes, chunk, delay)
+    const put = (c) => (ack && w.properties.write && w.writeValueWithResponse ? w.writeValueWithResponse(c) : w.properties.writeWithoutResponse ? w.writeValueWithoutResponse(c) : w.writeValue(c))
+    await chunked(async (c) => {
+      for (let tryNo = 1; ; tryNo++) {
+        try { await put(c); return } catch (err) { if (!ack || tryNo >= 4) throw err; await sleep(120 * tryNo) }
+      }
+    }, bytes, chunk, delay)
     if (delay) await sleep(settle) // let the printer finish its buffer
     const l = links.get(device.id)
     if (l) { clearTimeout(l.timer); l.timer = setTimeout(() => dropLink(device), 45000) }

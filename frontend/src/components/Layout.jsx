@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Armchair, BarChart3, Bell, Building2, ChefHat, Clock, CreditCard, Download, Images, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
+  Armchair, BarChart3, Bell, Building2, ChefHat, Clock, CreditCard, Download, HandCoins, Images, LayoutDashboard, LifeBuoy, LogOut, Package, Plus, Receipt,
   PanelLeftClose, PanelLeftOpen, Settings, ShoppingBag, Split, Store, Tag, Users, UtensilsCrossed, Wallet,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -43,6 +43,7 @@ const TENANT_NAV = [
   { to: '/app/expenses', icon: Wallet, label: 'Expenses', perm: 'expenses.manage' },
   { to: '/app/reports', icon: BarChart3, label: 'Reports', perm: 'reports.view' },
   { to: '/app/staff', icon: Users, label: 'Staff', perm: 'users.manage' },
+  { to: '/app/salary', icon: HandCoins, label: 'Salary', perm: 'users.manage', payroll: true },
   { to: '/app/subscription', icon: CreditCard, label: 'Subscription', perm: 'subscription.manage' },
   { to: '/app/settings', icon: Settings, label: 'Settings', perm: 'settings.manage' },
 ]
@@ -117,7 +118,7 @@ export default function Layout() {
     : t('Your subscription ends in {n} days.', { n: daysLeft })
   const roleText = (r) => t(r?.replace('_', ' ') || '')
 
-  const items = isSuperAdmin ? ADMIN_NAV : TENANT_NAV.filter((n) => (n.ownerMulti ? multi && isOwner : n.kot ? company?.kot_enabled && company?.kot_screen !== false && can(n.perm) : can(n.perm)))
+  const items = isSuperAdmin ? ADMIN_NAV : TENANT_NAV.filter((n) => (n.ownerMulti ? multi && isOwner : n.payroll ? company?.payroll_enabled && can(n.perm) : n.kot ? company?.kot_enabled && company?.kot_screen !== false && can(n.perm) : can(n.perm)))
   const canNew = !isSuperAdmin && can('orders.create')
 
   // Mobile: up to 4 primary tabs around the centre "new order" button. Everything else lives in the
