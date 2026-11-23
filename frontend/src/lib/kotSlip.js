@@ -71,6 +71,8 @@ const labels = (lang) => KOT_LABELS[lang] || KOT_LABELS.en
 
 /** The dish name on the slip: the Marathi name on a Marathi slip (the server sends `name_mr`), otherwise the name as ordered. */
 export const kotDishName = (i, lang) => (lang === 'mr' && i.name_mr ? i.name_mr : i.name)
+/** The size / variant on the slip: its Marathi name on a Marathi slip when the owner entered one (the server sends `variant_mr`). */
+export const kotVariantName = (i, lang) => (lang === 'mr' && i.variant_mr ? i.variant_mr : i.variant)
 
 /**
  * 'text' (Fast text) or 'picture' (Neat picture), as chosen on this device. Fast text works in every language: lines with plain English
@@ -225,7 +227,7 @@ export async function drawKotCanvas(kot, company, { width = '80mm', lang = 'en' 
     font(nameSize); ctx.textAlign = 'left'
     const top = y + Math.round(nameSize * k * 0.95) + Math.max(0, Math.round((rowH - blockH) / 2))
     nameLines.forEach((ln, idx) => ctx.fillText(ln, pad + qb + gap, top + idx * nameH))
-    if (i.variant) { font(varSize, false); ctx.fillText(`(${i.variant})`, pad + qb + gap, top + nameLines.length * nameH - Math.round(4 * k)) }
+    if (i.variant) { font(varSize, false); ctx.fillText(`(${kotVariantName(i, lang)})`, pad + qb + gap, top + nameLines.length * nameH - Math.round(4 * k)) }
     y += rowH + Math.round(12 * k)
   })
   rule('thick')
@@ -392,7 +394,7 @@ function buildKotTextOnce(kot, company, { width = '80mm', lang = 'en', dishPx } 
       const rows = wrapPx(name, PX.dish, 600, W - x - 4)
       raster(rows.map((r, n) => ({ px: PX.dish, bold: 600, parts: n === 0 ? [{ text: q }, { text: r, x }] : [{ text: r, x }] })))
     }
-    if (i.variant) { if (isPlain(i.variant)) line(`   (${i.variant})`); else pic(`(${i.variant})`, PX.small, { x: measure('   ', PX.small) }) }
+    if (i.variant) { const vn = kotVariantName(i, lang); if (isPlain(vn)) line(`   (${vn})`); else pic(`(${vn})`, PX.small, { x: measure('   ', PX.small) }) }
   })
   push(ESC, 0x4a, 3)
   dark()

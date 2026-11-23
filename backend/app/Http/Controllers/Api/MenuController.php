@@ -66,7 +66,30 @@ class MenuController extends Controller
             $q->where(fn ($w) => $w->where('name', 'like', "%$s%")->orWhere('name_mr', 'like', "%$s%")->orWhere('code', ctype_digit($s) ? (int) $s : -1));
         }
 
-        return $q->orderByRaw('code is null')->orderBy('code')->orderBy('name')->get();
+        return $q->inMenuOrder()->get();
+    }
+
+    /**
+     * Saves the dish order the owner arranged. `ids` is the new sequence of the dishes that were shown (all of them, or one category).
+     * They are put into the places those same dishes already hold, so dishes that were not sent never move. Codes are untouched.
+     */
+    public function reorderItems(Request $r)
+    {
+        $d = $r->validate(['ids' => 'required|array|min:1|max:1000', 'ids.*' => ['integer', Tenant::exists('food_items')]]);
+        $sent = array_values(array_unique(array_map('intval', $d['ids'])));
+
+        DB::transaction(function () use ($sent) {
+            $order = FoodItem::inMenuOrder()->pluck('id')->all(); // every dish, current order
+            $places = array_keys(array_intersect($order, $sent)); // the slots the sent dishes hold now
+            foreach ($places as $n => $slot) {
+                $order[$slot] = $sent[$n];
+            }
+            foreach ($order as $i => $id) {
+                FoodItem::where('id', $id)->update(['sort_order' => $i + 1]);
+            }
+        });
+
+        return FoodItem::with('variants', 'category:id,name,name_mr')->inMenuOrder()->get();
     }
 
     /** Bulk upload: a CSV with one dish per row (see the sample CSV in the Menu screen). */
@@ -145,8 +168,11 @@ class MenuController extends Controller
             'image' => 'nullable|image|max:3072',
             'library_image_id' => ['nullable', 'integer', 'exists:library_images,id'],
             'image_action' => 'nullable|in:remove,auto',
+            'base_variant_name' => 'nullable|string|max:40',
+            'base_variant_name_mr' => 'nullable|string|max:80',
             'variants' => 'nullable|array|max:10',
             'variants.*.name' => 'required|string|max:40',
+            'variants.*.name_mr' => 'nullable|string|max:80',
             'variants.*.price' => 'required|numeric|min:0',
         ]);
     }
@@ -194,7 +220,7 @@ class MenuController extends Controller
     {
         $item->variants()->delete();
         foreach ($variants as $v) {
-            FoodItemVariant::create(['food_item_id' => $item->id, 'name' => $v['name'], 'price' => $v['price']]);
+            FoodItemVariant::create(['food_item_id' => $item->id, 'name' => $v['name'], 'name_mr' => ($v['name_mr'] ?? '') !== '' ? $v['name_mr'] : null, 'price' => $v['price']]);
         }
     }
 }

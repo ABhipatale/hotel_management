@@ -340,4 +340,23 @@ class KotTest extends TestCase
         $board = collect($this->getJson('/api/kots', $owner)->assertOk()->json())->firstWhere('id', $o['kot']['id']);
         $this->assertSame('पनीर बटर मसाला', collect($board['items'])->firstWhere('name', $dishes[0]['name'])['name_mr']);
     }
+
+    public function test_slip_lines_carry_the_variant_marathi_name(): void
+    {
+        $this->switchKot(true, true);
+        $owner = $this->login('atithi@demo.test');
+        $cat = $this->getJson('/api/menu/categories', $owner)->json('0.id');
+        $dish = $this->postJson('/api/menu/items', ['category_id' => $cat, 'name' => 'Dal Fry', 'name_mr' => 'डाळ फ्राय', 'price' => 100,
+            'variants' => [['name' => 'Half', 'name_mr' => 'अर्धा', 'price' => 60], ['name' => 'Full', 'price' => 100]]], $owner)->assertCreated()->json();
+        $v = collect($dish['variants'])->keyBy('name');
+        $table = $this->getJson('/api/tables', $owner)->json('0.id');
+
+        $o = $this->postJson('/api/orders', ['table_id' => $table, 'items' => [
+            ['food_item_id' => $dish['id'], 'variant_id' => $v['Half']['id'], 'quantity' => 1], ['food_item_id' => $dish['id'], 'variant_id' => $v['Full']['id'], 'quantity' => 1],
+        ]], $owner)->assertCreated()->json();
+        $lines = collect($o['kot']['items'])->keyBy('variant');
+        $this->assertSame('अर्धा', $lines['Half']['variant_mr']);
+        $this->assertSame('Half', $lines['Half']['variant']); // the English variant is unchanged
+        $this->assertNull($lines['Full']['variant_mr']);
+    }
 }

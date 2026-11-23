@@ -1,5 +1,5 @@
 import { Eye, EyeOff, Loader2, X } from 'lucide-react'
-import { Children, useEffect, useState } from 'react'
+import { Children, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useT } from '../i18n'
 
@@ -298,9 +298,40 @@ export const ErrorNote = ({ children }) => {
 /** Pill filter row — horizontally scrollable on phones. */
 export function Chips({ items, value, onChange, rows = 1 }) {
   const t = useT()
+  const box = useRef(null)
+  const dragged = useRef(false)
+  // Mouse: the wheel scrolls the row sideways, and the row can be dragged. (Touch already scrolls natively.)
+  useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const wheel = (e) => {
+      const max = el.scrollWidth - el.clientWidth
+      if (max <= 0 || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return // nothing to scroll, or already a sideways gesture
+      const next = el.scrollLeft + e.deltaY
+      if ((e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max - 1)) return // at the end: let the page scroll
+      e.preventDefault()
+      el.scrollLeft = next
+    }
+    el.addEventListener('wheel', wheel, { passive: false })
+    return () => el.removeEventListener('wheel', wheel)
+  }, [])
+  const grab = (e) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return
+    const el = box.current
+    const x0 = e.clientX
+    const left0 = el.scrollLeft
+    dragged.current = false
+    const move = (m) => {
+      if (Math.abs(m.clientX - x0) > 5) dragged.current = true
+      if (dragged.current) el.scrollLeft = left0 - (m.clientX - x0)
+    }
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
   // rows > 1: the chips are laid out in that many lines and scroll sideways together, so twice as many are visible at once
   return (
-    <div className={cx('no-scrollbar -mx-4 mb-3 overflow-x-auto overscroll-x-contain px-4 pb-1', rows > 1 ? 'grid auto-cols-max grid-flow-col gap-1' : 'flex gap-1.5')} style={rows > 1 ? { gridTemplateRows: `repeat(${rows}, auto)` } : undefined}>
+    <div ref={box} onPointerDown={grab} onClickCapture={(e) => { if (dragged.current) { e.preventDefault(); e.stopPropagation(); dragged.current = false } }} className={cx('no-scrollbar -mx-4 mb-3 select-none overflow-x-auto overscroll-x-contain px-4 pb-1', rows > 1 ? 'grid auto-cols-max grid-flow-col gap-1' : 'flex gap-1.5')} style={rows > 1 ? { gridTemplateRows: `repeat(${rows}, auto)` } : undefined}>
       {items.map(([k, label]) => (
         <button
           key={k}

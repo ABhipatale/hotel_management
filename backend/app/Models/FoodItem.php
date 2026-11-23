@@ -12,7 +12,7 @@ class FoodItem extends Model
     use BelongsToCompany;
 
     protected $guarded = ['id', 'company_id'];
-    protected $casts = ['is_veg' => 'boolean', 'is_available' => 'boolean', 'hide_library_image' => 'boolean', 'code' => 'integer'];
+    protected $casts = ['is_veg' => 'boolean', 'is_available' => 'boolean', 'hide_library_image' => 'boolean', 'code' => 'integer', 'sort_order' => 'integer'];
     protected $appends = ['image_url', 'image_source'];
 
     protected static function booted(): void
@@ -22,7 +22,26 @@ class FoodItem extends Model
             if ($m->code === null) {
                 $m->code = ((int) static::withoutGlobalScopes()->where('company_id', $m->company_id)->max('code')) + 1;
             }
+            // Once the owner has arranged the menu, a new dish goes to the end; until then every dish stays at 0 (code order).
+            if (! $m->sort_order) {
+                $max = (int) static::withoutGlobalScopes()->where('company_id', $m->company_id)->max('sort_order');
+                $m->sort_order = $max > 0 ? $max + 1 : 0;
+            }
         });
+    }
+
+    /** The owner's name for the base option (e.g. "Half"); only meaningful while the dish has variants. Null = the plain dish, no label. */
+    public function baseVariantLabel(): ?string
+    {
+        $n = trim((string) $this->base_variant_name);
+
+        return $n !== '' && $this->variants->isNotEmpty() ? $n : null;
+    }
+
+    /** The one menu order used everywhere: arranged order, then product number, then name. */
+    public function scopeInMenuOrder($q)
+    {
+        return $q->orderBy('sort_order')->orderByRaw('code is null')->orderBy('code')->orderBy('name');
     }
 
     /**

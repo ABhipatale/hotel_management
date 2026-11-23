@@ -47,4 +47,22 @@ class ReceiptMarathiTest extends TestCase
         $this->assertSame($mr, $items['Marathi Dal']['name_mr']);
         $this->assertNull($items['Only English']['name_mr']);
     }
+
+    public function test_variant_marathi_name_is_saved_and_used_on_the_bill(): void
+    {
+        $owner = $this->h('atithi@demo.test');
+        $cat = $this->getJson('/api/menu/categories', $owner)->json('0.id');
+        $dish = $this->postJson('/api/menu/items', ['category_id' => $cat, 'name' => 'Dal Fry', 'name_mr' => 'डाळ फ्राय', 'price' => 100,
+            'variants' => [['name' => 'Half', 'name_mr' => 'अर्धा', 'price' => 60], ['name' => 'Full', 'price' => 100]]], $owner)->assertCreated()->json();
+        $v = collect($dish['variants'])->keyBy('name');
+        $this->assertSame('अर्धा', $v['Half']['name_mr']);
+        $this->assertNull($v['Full']['name_mr']); // optional
+
+        $bill = $this->postJson('/api/orders', ['type' => 'takeaway', 'generate_bill' => true, 'items' => [
+            ['food_item_id' => $dish['id'], 'variant_id' => $v['Half']['id'], 'quantity' => 1], ['food_item_id' => $dish['id'], 'variant_id' => $v['Full']['id'], 'quantity' => 1],
+        ]], $owner)->assertCreated()->json('bill');
+        $items = collect($this->getJson('/api/bills/'.$bill['id'], $owner)->assertOk()->json('bill.items'))->keyBy('name');
+        $this->assertSame('डाळ फ्राय (अर्धा)', $items['Dal Fry (Half)']['name_mr']);
+        $this->assertSame('डाळ फ्राय (Full)', $items['Dal Fry (Full)']['name_mr']); // no Marathi variant name: the English one is kept
+    }
 }

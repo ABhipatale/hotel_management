@@ -28,7 +28,7 @@ export function buildLocalBill({ lines, items, company, printer, table, user, or
     const variant = l.variant_id ? food?.variants?.find((v) => v.id === l.variant_id) : null
 
     return {
-      id: `off-${i}`, name: l.name, name_mr: food?.name_mr ? food.name_mr + (variant ? ` (${variant.name})` : '') : null,
+      id: `off-${i}`, name: l.name, name_mr: food?.name_mr ? food.name_mr + (variant ? ` (${variant.name_mr || variant.name})` : food?.variants?.length && food.base_variant_name ? ` (${food.base_variant_name_mr || food.base_variant_name})` : '') : null,
       quantity: l.quantity, price: l.price, discount: disc, tax: t, total: r2(gross - disc + t),
     }
   })

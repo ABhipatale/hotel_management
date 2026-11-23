@@ -4,7 +4,10 @@ import { createPortal } from 'react-dom'
 import { useTopbarSlot } from '../../lib/topbarSearch'
 import LibraryPicker from '../../components/LibraryPicker'
 import { compressImage } from '../../lib/image'
-import { Search, ArrowDown, ArrowUp, ChevronsUp, Download, ImageIcon, Pencil, Plus, Trash2, Upload, UtensilsCrossed } from 'lucide-react'
+import { Search, ArrowDown, ArrowUp, ArrowUpDown, ChevronsUp, Download, GripVertical, ImageIcon, Pencil, Plus, Trash2, Upload, UtensilsCrossed } from 'lucide-react'
+import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { api, toFormData } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { money } from '../../lib/format'
@@ -15,7 +18,7 @@ import { useI18n } from '../../i18n'
 import { catName, dishNames } from '../../lib/dishName'
 import { Badge, Button, Card, Chips, Empty, Input, Modal, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
 
-const BLANK = { code: '', category_id: '', name: '', name_mr: '', description: '', price: '', gst_percent: 5, discount_percent: 0, is_veg: true, is_available: true, stock: '', offer_text: '', variants: [] }
+const BLANK = { code: '', category_id: '', name: '', name_mr: '', description: '', price: '', gst_percent: 5, discount_percent: 0, is_veg: true, is_available: true, stock: '', offer_text: '', base_variant_name: '', base_variant_name_mr: '', variants: [] }
 
 const SAMPLE_CSV = [
   'product_number,name,marathi_name,category,category_marathi,price,gst_percent,discount_percent,veg,available,stock,description,offer_text',
@@ -24,6 +27,18 @@ const SAMPLE_CSV = [
   '103,Chicken Biryani,चिकन बिर्याणी,Rice,भात,220,5,10,no,yes,,Served with raita,Lunch special',
   ',Masala Tea,मसाला चहा,Beverages,पेये,15,5,0,yes,yes,,,',
 ].join('\n')
+
+const SIZES = [['Half', 'हाफ'], ['Full', 'फुल'], ['Small', 'लहान'], ['Medium', 'मध्यम'], ['Large', 'मोठा'], ['Quarter', 'पाव']]
+/** One-tap size names for a variant: fills the English and the Marathi name together. */
+function SizeChips({ value, onPick }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {SIZES.map(([en, mr]) => (
+        <button key={en} type="button" aria-pressed={value === en} onClick={() => onPick(en, mr)} className={`min-h-8 rounded-full px-3 text-xs font-semibold ring-1 transition active:scale-95 ${value === en ? 'bg-brand text-white ring-brand' : 'bg-white text-slate-600 ring-line hover:ring-slate-300'}`}>{en}</button>
+      ))}
+    </div>
+  )
+}
 
 /** Dish photo: own upload, a platform library photo, or none. The platform photo that matches the dish name is the automatic default. */
 function DishPhoto({ edit, setEdit, file, setFile, library }) {
@@ -69,6 +84,57 @@ function downloadSample() {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+/** Downloads the whole current menu as a CSV that opens in Excel (UTF-8 with BOM so Marathi shows right). Same columns as the import, so it can be edited and uploaded back. */
+function exportMenu(items, gstOn) {
+  // a cell starting with = + - @ would be run as a formula by Excel: keep it as text
+  const cell = (v) => { let x = v == null ? '' : String(v); if (/^[=+\-@]/.test(x)) x = `'${x}`; return /[",\n\r]/.test(x) ? `"${x.replace(/"/g, '""')}"` : x }
+  const head = ['product_number', 'name', 'marathi_name', 'category', 'category_marathi', 'price', ...(gstOn ? ['gst_percent'] : []), 'discount_percent', 'veg', 'available', 'stock', 'description', 'offer_text', 'variants']
+  const rows = items.map((i) => [i.code, i.name, i.name_mr, i.category?.name, i.category?.name_mr, i.price, ...(gstOn ? [i.gst_percent] : []), i.discount_percent, i.is_veg ? 'yes' : 'no', i.is_available ? 'yes' : 'no', i.stock, i.description, i.offer_text, (i.variants || []).map((v) => `${v.name}${v.name_mr ? ` (${v.name_mr})` : ''}=${v.price}`).join('; ')])
+  const csv = [head, ...rows].map((r) => r.map(cell).join(',')).join('\r\n')
+  const url = URL.createObjectURL(new Blob(['\uFEFF' + csv + '\r\n'], { type: 'text/csv;charset=utf-8' }))
+  const a = Object.assign(document.createElement('a'), { href: url, download: `menu-${new Date().toISOString().slice(0, 10)}.csv` })
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+/** One dish in reorder mode: compact card (photo, number, name). Press and hold, then drag. */
+function SortableDish({ i, lang }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: i.id })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, WebkitTouchCallout: 'none' }}
+      {...attributes}
+      {...listeners}
+      className={`relative flex cursor-grab select-none items-center gap-3 rounded-2xl border bg-white p-2.5 outline-none focus-visible:ring-4 focus-visible:ring-brand/20 ${isDragging ? 'z-20 scale-[1.03] border-brand shadow-2xl' : 'border-line shadow-sm'}`}
+    >
+      {i.image_url ? <Img src={i.image_url} thumb className="pointer-events-none h-14 w-14 shrink-0 rounded-xl object-cover" /> : <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-brand-soft"><UtensilsCrossed className="h-6 w-6 text-brand/40" strokeWidth={1.6} /></div>}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">{i.code != null && <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-md bg-brand px-1 text-[10px] font-extrabold leading-none text-white">{i.code}</span>}<i className={`h-2.5 w-2.5 shrink-0 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} /><span className="truncate text-sm font-medium">{dishNames(i, lang).main}</span></div>
+      </div>
+      <GripVertical className="h-5 w-5 shrink-0 text-muted" />
+    </div>
+  )
+}
+
+/** The dishes being arranged. Touch: hold ~200 ms to lift (so scrolling still works). Mouse: drag 5 px. Keyboard: space, arrows, space. */
+function ReorderGrid({ rows, lang, onMove }) {
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+  const ids = rows.map((r) => r.id)
+  const end = ({ active, over }) => { if (over && active.id !== over.id) onMove(arrayMove(ids, ids.indexOf(active.id), ids.indexOf(over.id))) }
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={end} autoScroll>
+      <SortableContext items={ids} strategy={rectSortingStrategy}>
+        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">{rows.map((i) => <SortableDish key={i.id} i={i} lang={lang} />)}</div>
+      </SortableContext>
+    </DndContext>
+  )
+}
+
 export default function MenuManager() {
   const toast = useToast()
   const { t, lang } = useI18n()
@@ -91,20 +157,51 @@ export default function MenuManager() {
   const [csvBusy, setCsvBusy] = useState(false)
   const [csvRes, setCsvRes] = useState(null)
   const [q, setQ] = useState('')
+  const [order, setOrder] = useState(null) // reorder mode: every dish id in the order being arranged (null = normal screen)
+  const [saving, setSaving] = useState(false)
   const slot = useTopbarSlot() // wide screens: the search box lives in the top bar
 
   const qs = q.trim().toLowerCase()
-  const rows = (items || []).filter((i) => (cat === 'all' || i.category_id === +cat) && (!qs || i.name.toLowerCase().includes(qs) || (i.name_mr || '').toLowerCase().includes(qs) || String(i.code) === qs))
+  const dirty = !!order && order.join() !== (items || []).map((i) => i.id).join()
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
+  const byId = useMemo(() => Object.fromEntries((items || []).map((i) => [i.id, i])), [items])
+  const rows = order ? order.map((id) => byId[id]).filter((i) => i && (cat === 'all' || i.category_id === +cat)) : (items || []).filter((i) => (cat === 'all' || i.category_id === +cat) && (!qs || i.name.toLowerCase().includes(qs) || (i.name_mr || '').toLowerCase().includes(qs) || String(i.code) === qs))
   // New dishes are pre-filled with the next free product number (the owner can change it)
   const nextCode = Math.max(0, ...(items || []).map((i) => Number(i.code) || 0)) + 1
-  const open = (i) => { setImage(null); setEdit(i ? { ...i, code: i.code ?? '', name_mr: i.name_mr ?? '', stock: i.stock ?? '', variants: i.variants.map((v) => ({ name: v.name, price: v.price })) } : { ...BLANK, code: nextCode, category_id: cats?.[0]?.id || '' }) }
+  const open = (i) => { setImage(null); setEdit(i ? { ...i, code: i.code ?? '', name_mr: i.name_mr ?? '', stock: i.stock ?? '', base_variant_name: i.base_variant_name ?? '', base_variant_name_mr: i.base_variant_name_mr ?? '', variants: i.variants.map((v) => ({ name: v.name, name_mr: v.name_mr ?? '', price: v.price })) } : { ...BLANK, code: nextCode, category_id: cats?.[0]?.id || '' }) }
+
+  const startReorder = () => { setQ(''); setOrder((items || []).map((i) => i.id)) }
+  // The dishes shown (all, or one category) take the places they already hold, in their new sequence; other dishes stay put.
+  const moveShown = (next) => {
+    const shown = new Set(next)
+    const slots = order.map((id, k) => (shown.has(id) ? k : -1)).filter((k) => k >= 0)
+    const out = [...order]
+    slots.forEach((k, n) => { out[k] = next[n] })
+    setOrder(out)
+  }
+  const cancelReorder = async () => {
+    if (dirty && !(await ask({ title: t('Discard changes?'), confirmText: t('Discard'), tone: 'danger' }))) return
+    setOrder(null)
+  }
+  const saveOrder = async () => {
+    if (!navigator.onLine) { toast.error(t('You are offline. Connect to the internet to save the order.')); return }
+    setSaving(true)
+    try { await api.post('/menu/items/reorder', { ids: order }); toast.success(t('Order saved')); setOrder(null); reload() } catch (e) { toast.error(e) } finally { setSaving(false) }
+  }
 
   const save = async (e) => {
     e.preventDefault(); setBusy(true)
     try {
       const body = toFormData({ ...edit, image, variants: undefined })
-      edit.variants.forEach((v, i) => { body.append(`variants[${i}][name]`, v.name); body.append(`variants[${i}][price]`, v.price) })
+      edit.variants.forEach((v, i) => { body.append(`variants[${i}][name]`, v.name); body.append(`variants[${i}][name_mr]`, v.name_mr || ''); body.append(`variants[${i}][price]`, v.price) })
       if (edit.id && !edit.variants.length) body.append('variants', '')
+      // the base option's own name only means something while the dish has variants; always sent so a cleared box resets it to "Regular"
+      body.set('base_variant_name', edit.variants.length ? edit.base_variant_name || '' : ''); body.set('base_variant_name_mr', edit.variants.length ? edit.base_variant_name_mr || '' : '')
       // Items use POST for both create & update (multipart); stock may be cleared.
       if (edit.stock === '') body.delete('stock')
       await api.post(edit.id ? `/menu/items/${edit.id}` : '/menu/items', body)
@@ -135,12 +232,23 @@ export default function MenuManager() {
   if (loading) return <Spinner />
   return (
     <>
-      {slot && createPortal(<div className="relative"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Name or number')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>, slot)}
-      <PageHeader title={t('Menu')} sub={t('Categories, dishes, variants and prices')} actions={<><Button variant="secondary" onClick={() => { setCsvRes(null); setCsvFile(null); setCsvOpen(true) }}><Upload className="h-4 w-4" /> {t('Import CSV')}</Button><Button variant="secondary" onClick={() => setCatModal(true)}>{t('Categories')}</Button><Button onClick={() => open()}><Plus className="h-4 w-4" /> {t('Add dish')}</Button></>} />
-      <div className="mb-3 lg:hidden"><div className="relative"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Name or number')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div></div>
+      {slot && !order && createPortal(<div className="relative"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Name or Number of Dish')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div>, slot)}
+      <PageHeader title={t('Menu')} sub={t('Categories, dishes, variants and prices')} actions={order ? null : <><Button variant="secondary" onClick={startReorder} disabled={!items?.length}><ArrowUpDown className="h-4 w-4" /> {t('Reorder')}</Button><Button variant="secondary" onClick={() => exportMenu(items || [], gstOn)} disabled={!items?.length}><Download className="h-4 w-4" /> {t('Export CSV')}</Button><Button variant="secondary" onClick={() => { setCsvRes(null); setCsvFile(null); setCsvOpen(true) }}><Upload className="h-4 w-4" /> {t('Import CSV')}</Button><Button variant="secondary" onClick={() => setCatModal(true)}>{t('Categories')}</Button><Button onClick={() => open()}><Plus className="h-4 w-4" /> {t('Add dish')}</Button></>} />
+      {!order && <div className="mb-3 lg:hidden"><div className="relative"><Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Name or Number of Dish')} className="min-h-10 w-full rounded-xl border border-line bg-white py-2 pl-9 pr-2 text-[16px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 sm:text-sm" /></div></div>}
       <Chips value={cat} onChange={setCat} items={[['all', t('All')], ...(cats || []).map((c) => [String(c.id), catName(c, lang)])]} />
 
-      {!rows.length ? <Empty title={t('No dishes yet')} action={<Button onClick={() => open()}>{t('Add your first dish')}</Button>} /> : (
+      {order ? (
+        <>
+          <ReorderGrid rows={rows} lang={lang} onMove={moveShown} />
+          <div className="pointer-events-none sticky bottom-24 z-30 mt-4 lg:bottom-4">
+            <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-2xl bg-white p-3 shadow-xl ring-1 ring-line">
+              <p className="min-w-0 flex-1 basis-full text-sm font-medium text-muted sm:basis-auto">{t('Hold and drag dishes to move them')}</p>
+              <Button variant="secondary" onClick={cancelReorder} disabled={saving}>{t('Cancel')}</Button>
+              <Button onClick={saveOrder} loading={saving} disabled={!dirty}>{t('Save order')}</Button>
+            </div>
+          </div>
+        </>
+      ) : !rows.length ? <Empty title={t('No dishes yet')} action={<Button onClick={() => open()}>{t('Add your first dish')}</Button>} /> : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((i) => (
             <Card key={i.id} className={`flex gap-3 ${i.is_available ? '' : 'opacity-60'}`}>
@@ -180,12 +288,24 @@ export default function MenuManager() {
               <label className="flex items-center gap-2"><input type="checkbox" checked={edit.is_available} onChange={(e) => setEdit({ ...edit, is_available: e.target.checked })} /> {t('Available')}</label>
             </div>
             <div className="sm:col-span-2">
-              <div className="mb-1 flex items-center justify-between text-xs font-medium text-muted"><span>{t('Variants (e.g. Half / Full)')}</span><button type="button" className="text-brand" onClick={() => setEdit({ ...edit, variants: [...edit.variants, { name: '', price: '' }] })}>{t('+ Add')}</button></div>
+              <div className="mb-1 flex items-center justify-between text-xs font-medium text-muted"><span>{t('Variants (e.g. Half / Full)')}</span><button type="button" className="text-brand" onClick={() => setEdit({ ...edit, variants: [...edit.variants, { name: '', name_mr: '', price: '' }] })}>{t('+ Add')}</button></div>
+              {edit.variants.length > 0 && (
+                <div className="mb-3 space-y-1.5 rounded-2xl bg-slate-50/70 p-2">
+                  <div className="px-1 text-xs font-medium text-muted">{t('Name of the base price option (blank = Regular)')}</div>
+                  <input className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm w-full" placeholder={t('Regular')} maxLength={40} value={edit.base_variant_name || ''} onChange={s('base_variant_name')} />
+                  <input lang="mr" className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm w-full" placeholder={t('Marathi name (optional)')} maxLength={80} value={edit.base_variant_name_mr || ''} onChange={s('base_variant_name_mr')} />
+                  <SizeChips value={edit.base_variant_name} onPick={(en, mr) => setEdit({ ...edit, base_variant_name: en, base_variant_name_mr: mr })} />
+                </div>
+              )}
               {edit.variants.map((v, i) => (
-                <div key={i} className="mb-2 flex gap-2">
-                  <input className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm flex-1" placeholder={t('Name')} required value={v.name} onChange={(e) => setEdit({ ...edit, variants: edit.variants.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} />
-                  <input className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm w-28" placeholder={t('Price')} type="number" required value={v.price} onChange={(e) => setEdit({ ...edit, variants: edit.variants.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)) })} />
-                  <button type="button" onClick={() => setEdit({ ...edit, variants: edit.variants.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4 text-rose-600" /></button>
+                <div key={i} className="mb-3 space-y-1.5 rounded-2xl bg-slate-50/70 p-2">
+                  <div className="flex gap-2">
+                    <input className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm min-w-0 flex-1" placeholder={t('Name')} required value={v.name} onChange={(e) => setEdit({ ...edit, variants: edit.variants.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} />
+                    <input className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm w-28" placeholder={t('Price')} type="number" required value={v.price} onChange={(e) => setEdit({ ...edit, variants: edit.variants.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)) })} />
+                    <button type="button" aria-label={t('Remove')} onClick={() => setEdit({ ...edit, variants: edit.variants.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4 text-rose-600" /></button>
+                  </div>
+                  <input lang="mr" className="min-h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 sm:min-h-11 sm:text-sm w-full" placeholder={t('Marathi name (optional)')} value={v.name_mr || ''} onChange={(e) => setEdit({ ...edit, variants: edit.variants.map((x, j) => (j === i ? { ...x, name_mr: e.target.value } : x)) })} />
+                  <SizeChips value={v.name} onPick={(en, mr) => setEdit({ ...edit, variants: edit.variants.map((x, j) => (j === i ? { ...x, name: en, name_mr: mr } : x)) })} />
                 </div>
               ))}
             </div>

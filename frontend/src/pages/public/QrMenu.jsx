@@ -75,7 +75,7 @@ export default function QrMenu() {
 
   const add = (i, v) => {
     const key = `${i.id}:${v?.id || 0}`
-    setCart((c) => ({ ...c, [key]: { key, food_item_id: i.id, variant_id: v?.id, name: i.name + (v ? ` (${v.name})` : ''), price: +(v?.price ?? i.price), discount: +i.discount_percent, gst: +i.gst_percent, quantity: (c[key]?.quantity || 0) + 1 } }))
+    setCart((c) => ({ ...c, [key]: { key, food_item_id: i.id, variant_id: v?.id, name: i.name + ((v ? v.name : i.variants?.length && i.base_variant_name) ? ` (${v ? v.name : i.base_variant_name})` : ''), price: +(v?.price ?? i.price), discount: +i.discount_percent, gst: +i.gst_percent, quantity: (c[key]?.quantity || 0) + 1 } }))
   }
   const change = (key, d) => setCart((c) => {
     const n = { ...c }
@@ -200,7 +200,7 @@ export default function QrMenu() {
       )}
 
       <Modal open={!!pick} onClose={() => setPick(null)} title={pick?.name}>
-        {pick && [{ id: null, name: t('Regular'), price: pick.price }, ...pick.variants].map((v) => (
+        {pick && [{ id: null, name: pick.base_variant_name || t('Regular'), price: pick.price }, ...pick.variants].map((v) => (
           <button key={v.id ?? 'base'} onClick={() => { add(pick, v.id ? v : null); setPick(null) }} className="mb-2 flex w-full items-center justify-between rounded-xl border border-line px-4 py-3 text-sm"><span>{v.name}</span><b>{money(unit(pick, v))}</b></button>
         ))}
       </Modal>

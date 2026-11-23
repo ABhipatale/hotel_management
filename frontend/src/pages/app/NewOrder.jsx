@@ -81,7 +81,7 @@ export default function NewOrder() {
     const key = `${item.id}:${variant?.id || 0}`
     setCart((c) => ({
       ...c,
-      [key]: { key, food_item_id: item.id, code: item.code, variant_id: variant?.id, name: item.name + (variant ? ` (${variant.name})` : ''), price: +(variant?.price ?? item.price), discount: +item.discount_percent, gst: +item.gst_percent, quantity: (c[key]?.quantity || 0) + 1 },
+      [key]: { key, food_item_id: item.id, code: item.code, variant_id: variant?.id, name: item.name + ((variant ? variant.name : item.variants?.length && item.base_variant_name) ? ` (${variant ? variant.name : item.base_variant_name})` : ''), price: +(variant?.price ?? item.price), discount: +item.discount_percent, gst: +item.gst_percent, quantity: (c[key]?.quantity || 0) + 1 },
     }))
   }
   const dec = (key) => setCart((c) => {
@@ -413,7 +413,7 @@ export default function NewOrder() {
 
       <Modal open={!!pick} onClose={() => setPick(null)} title={pick?.name}>
         <div className="space-y-2">
-          {pick && [{ id: null, name: t('Regular'), price: pick.price }, ...pick.variants].map((v) => (
+          {pick && [{ id: null, name: pick.base_variant_name || t('Regular'), price: pick.price }, ...pick.variants].map((v) => (
             <button key={v.id ?? 'base'} onClick={() => { add(pick, v.id ? v : null); setPick(null) }} className="flex w-full items-center justify-between rounded-xl border border-line px-4 py-3 text-sm hover:border-brand"><span>{v.name}</span><b>{money(v.price)}</b></button>
           ))}
         </div>

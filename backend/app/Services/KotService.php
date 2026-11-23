@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\FoodItem;
+use App\Models\FoodItemVariant;
 use App\Models\Kot;
 use App\Models\KotItem;
 use App\Models\Order;
@@ -37,9 +38,17 @@ class KotService
         $dishOf = OrderItem::whereIn('id', $items->pluck('order_item_id')->filter()->unique()->values())->pluck('food_item_id', 'id');
         $byId = FoodItem::whereIn('id', $dishOf->filter()->unique()->values())->whereNotNull('name_mr')->where('name_mr', '!=', '')->pluck('name_mr', 'id');
         $byName = FoodItem::whereIn('name', $items->pluck('name')->unique()->values())->whereNotNull('name_mr')->where('name_mr', '!=', '')->pluck('name_mr', 'name');
+        // Marathi variant names (Half / Full...): found by the line's dish id (else the dish's English name) + the variant's English name
+        $idByName = FoodItem::whereIn('name', $items->pluck('name')->unique()->values())->pluck('id', 'name');
+        $variantMr = FoodItemVariant::whereIn('food_item_id', $dishOf->filter()->merge($idByName)->unique()->values())->whereNotNull('name_mr')->where('name_mr', '!=', '')
+            ->get(['food_item_id', 'name', 'name_mr'])->mapWithKeys(fn ($v) => [$v->food_item_id.'|'.$v->name => $v->name_mr]);
+        foreach (FoodItem::whereIn('id', $dishOf->filter()->merge($idByName)->unique()->values())->whereNotNull('base_variant_name')->whereNotNull('base_variant_name_mr')->where('base_variant_name_mr', '!=', '')->get(['id', 'base_variant_name', 'base_variant_name_mr']) as $d) {
+            $variantMr[$d->id.'|'.$d->base_variant_name] = $d->base_variant_name_mr; // the base option's own Marathi name
+        }
         foreach ($items as $i) {
             $dish = $i->order_item_id ? ($dishOf[$i->order_item_id] ?? null) : null;
             $i->setAttribute('name_mr', ($dish ? ($byId[$dish] ?? null) : null) ?? ($byName[$i->name] ?? null));
+            $i->setAttribute('variant_mr', $i->variant ? ($variantMr[($dish ?? ($idByName[$i->name] ?? 0)).'|'.$i->variant] ?? null) : null);
         }
 
         return $kots;

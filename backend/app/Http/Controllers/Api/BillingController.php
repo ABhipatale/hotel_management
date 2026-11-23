@@ -146,9 +146,17 @@ class BillingController extends Controller
         $base = fn (string $n) => trim(preg_replace('/\s*\([^)]*\)$/u', '', $n));
         $names = $bill->items->flatMap(fn ($i) => [$i->name, $base($i->name)])->unique()->values()->all();
         $mr = \App\Models\FoodItem::whereIn('name', $names)->whereNotNull('name_mr')->pluck('name_mr', 'name');
+        // the variant's own Marathi name (Half / Full...) when the owner entered one
+        $dishIds = \App\Models\FoodItem::whereIn('name', $names)->pluck('id', 'name');
+        $variantMr = \App\Models\FoodItemVariant::whereIn('food_item_id', $dishIds->values())->whereNotNull('name_mr')->where('name_mr', '!=', '')
+            ->get(['food_item_id', 'name', 'name_mr'])->mapWithKeys(fn ($v) => [$v->food_item_id.'|'.$v->name => $v->name_mr]);
+        foreach (\App\Models\FoodItem::whereIn('id', $dishIds->values())->whereNotNull('base_variant_name')->whereNotNull('base_variant_name_mr')->where('base_variant_name_mr', '!=', '')->get(['id', 'base_variant_name', 'base_variant_name_mr']) as $d) {
+            $variantMr[$d->id.'|'.$d->base_variant_name] = $d->base_variant_name_mr; // the base option's own Marathi name
+        }
         foreach ($bill->items as $i) {
             $variant = preg_match('/\(([^)]*)\)$/u', $i->name, $m) ? $m[1] : null;
-            $i->setAttribute('name_mr', $mr[$i->name] ?? (isset($mr[$base($i->name)]) ? $mr[$base($i->name)].($variant ? " ($variant)" : '') : null));
+            $shownVariant = $variant ? ($variantMr[($dishIds[$base($i->name)] ?? 0).'|'.$variant] ?? $variant) : null;
+            $i->setAttribute('name_mr', $mr[$i->name] ?? (isset($mr[$base($i->name)]) ? $mr[$base($i->name)].($variant ? " ($shownVariant)" : '') : null));
         }
     }
 

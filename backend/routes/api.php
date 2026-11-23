@@ -131,6 +131,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
             Route::get('library', [LibraryController::class, 'index']);
             Route::get('menu/next-code', [MenuController::class, 'nextCode']);
             Route::post('menu/items', [MenuController::class, 'storeItem']);
+            Route::post('menu/items/reorder', [MenuController::class, 'reorderItems']); // must stay above menu/items/{id}
             Route::post('menu/items/{id}', [MenuController::class, 'updateItem']); // POST for multipart
             Route::delete('menu/items/{id}', [MenuController::class, 'destroyItem']);
         });

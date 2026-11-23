@@ -101,7 +101,7 @@ class OrderService
             }
 
             $price = $food->price;
-            $variantName = null;
+            $variantName = $food->baseVariantLabel(); // the owner's name for the base option ("Half"), null = plain "Regular"
             if (! empty($line['variant_id'])) {
                 $v = $food->variants->firstWhere('id', $line['variant_id']);
                 if (! $v) {
@@ -227,7 +227,7 @@ class OrderService
                 if (! $food) {
                     throw ValidationException::withMessages(['items' => 'One or more items are unavailable.']);
                 }
-                $variant = null;
+                $variant = $food->baseVariantLabel();
                 if (! empty($line['variant_id'])) {
                     $v = $food->variants->firstWhere('id', $line['variant_id']);
                     if (! $v) {
