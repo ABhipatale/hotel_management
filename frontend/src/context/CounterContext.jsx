@@ -13,27 +13,113 @@ export function CounterProvider({ children }) {
   const { user, company, counters, counter: mine } = useAuth()
   const multi = !!company?.multi_counter
   const isOwner = user?.role === 'owner'
+  const isChef = user?.role === 'chef'
   const list = useMemo(() => (counters || []).map((c, i) => ({ ...c, color: counterColor(i) })), [counters])
-  const [selected, setSel] = useState(counterStore.get())
+  const [selected, setSel] = useState(() => {
+    if (!multi) return ''
+    if (isOwner) {
+      const stored = counterStore.get()
+      return stored && (counters || []).some((c) => String(c.id) === String(stored) && c.is_active) ? String(stored) : ''
+    }
+    if (isChef) return ''
+    const active = (counters || []).filter((c) => c.is_active)
+    const stored = counterStore.get()
+    if (stored && active.some((c) => String(c.id) === String(stored))) {
+      return String(stored)
+    }
+    const def = mine?.id ? String(mine.id) : (active[0]?.id ? String(active[0].id) : '')
+    if (def) counterStore.set(def)
+    return def
+  })
 
-  // A saved choice that no longer exists (counter removed/disabled) falls back to "all counters"
+  // Validate stored counter against the allowed list when counters change:
   useEffect(() => {
-    if (!multi || !isOwner) { counterStore.set(''); setSel(''); return }
-    if (selected && !list.some((c) => String(c.id) === String(selected) && c.is_active)) { counterStore.set(''); setSel('') }
-  }, [multi, isOwner, list, selected])
+    if (!multi) {
+      if (selected) {
+        counterStore.set('')
+        setSel('')
+      }
+      return
+    }
 
-  const select = useCallback((id) => { counterStore.set(id); setSel(id ? String(id) : '') }, [])
+    if (isOwner) {
+      if (selected && !list.some((c) => String(c.id) === String(selected) && c.is_active)) {
+        counterStore.set('')
+        setSel('')
+      }
+      return
+    }
+
+    if (isChef) {
+      if (selected) {
+        counterStore.set('')
+        setSel('')
+      }
+      return
+    }
+
+    // Non-owner, non-chef staff
+    const active = list.filter((c) => c.is_active)
+    const mainId = mine?.id ? String(mine.id) : (active[0]?.id ? String(active[0].id) : '')
+    const isMine = (id) => active.some((c) => String(c.id) === String(id))
+
+    if (selected && !isMine(selected)) {
+      counterStore.set(mainId)
+      setSel(mainId)
+    } else if (!selected) {
+      // the session arrives after the first render: the counter this device was left on is kept if it is still theirs,
+      // so a reload / reopened app stays on Counter 2 instead of jumping back to the main counter
+      const stored = counterStore.get()
+      const pick = stored && isMine(stored) ? String(stored) : mainId
+      if (pick) {
+        counterStore.set(pick)
+        setSel(pick)
+      }
+    }
+  }, [multi, isOwner, isChef, list, selected, mine])
+
+  const select = useCallback((id) => {
+    if (isOwner) {
+      counterStore.set(id)
+      setSel(id ? String(id) : '')
+      return
+    }
+    if (user?.role !== 'chef') {
+      const active = list.filter((c) => c.is_active)
+      const valid = active.some((c) => String(c.id) === String(id))
+      const target = valid ? String(id) : (mine?.id ? String(mine.id) : (active[0]?.id ? String(active[0].id) : ''))
+      counterStore.set(target)
+      setSel(target)
+    }
+  }, [isOwner, user?.role, list, mine])
 
   const value = useMemo(() => {
-    const current = isOwner ? list.find((c) => String(c.id) === String(selected)) || null : mine ? { ...mine, color: counterColor(0) } : null
+    const chef = user?.role === 'chef'
+    let current = null
+    if (isOwner) {
+      current = list.find((c) => String(c.id) === String(selected)) || null
+    } else if (!chef) {
+      current = list.find((c) => String(c.id) === String(selected)) || (mine ? { ...mine, color: counterColor(0) } : null)
+    } else {
+      current = mine ? { ...mine, color: counterColor(0) } : null
+    }
+
+    const canSwitch = !chef && (isOwner || list.filter((c) => c.is_active).length >= 2)
+
     return {
-      multi, isOwner, counters: list, selected: isOwner ? selected : '', select, current,
+      multi,
+      isOwner,
+      canSwitch,
+      counters: list,
+      selected: chef ? '' : selected,
+      select,
+      current,
       nameOf: (id) => list.find((c) => c.id === id)?.name,
       colorOf: (id) => list.find((c) => c.id === id)?.color,
       // true while the owner is looking at every counter at once
       allCounters: multi && isOwner && !selected,
     }
-  }, [multi, isOwner, list, selected, select, mine])
+  }, [multi, isOwner, user?.role, list, selected, select, mine])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

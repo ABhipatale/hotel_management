@@ -27,10 +27,25 @@ export default function Staff() {
   const save = async (e) => {
     e.preventDefault()
     const body = { ...edit }
-    if (multi && edit.role === 'chef') { delete body.branch_id; body.branch_ids = edit.branch_ids?.length ? edit.branch_ids : [] } else delete body.branch_ids
+    if (multi) {
+      delete body.branch_id
+      const bIds = edit.branch_ids?.length ? edit.branch_ids : []
+      if (!bIds.length) {
+        toast.error(t('Choose at least one counter.'))
+        return
+      }
+      body.branch_ids = bIds
+    } else {
+      delete body.branch_ids
+      delete body.branch_id
+    }
     if (!body.password) delete body.password
     try {
-      edit.id ? await api.put(`/staff/${edit.id}`, body) : await api.post('/staff', body)
+      if (edit.id) {
+        await api.put(`/staff/${edit.id}`, body)
+      } else {
+        await api.post('/staff', body)
+      }
       toast.success(t('Saved')); setEdit(null); reload()
     } catch (x) { toast.error(x) }
   }
@@ -42,17 +57,30 @@ export default function Staff() {
   if (loading) return <Spinner />
   return (
     <>
-      <PageHeader title="Staff" sub="Accounts that can sign in to your company" actions={<Button onClick={() => setEdit({ ...BLANK, role: multi ? 'counter' : 'waiter', branch_id: multi ? active[0]?.id : undefined, branch_ids: multi ? active.map((c) => c.id) : undefined })}><Plus className="h-4 w-4" /> Add staff</Button>} />
+      <PageHeader title="Staff" sub="Accounts that can sign in to your company" actions={<Button onClick={() => setEdit({ ...BLANK, role: multi ? 'counter' : 'waiter', branch_ids: multi ? (active[0] ? [active[0].id] : []) : undefined })}><Plus className="h-4 w-4" /> Add staff</Button>} />
       <Table rows={data} columns={[
         { header: 'Name', render: (u) => <div><div className="font-medium">{u.name}</div><div className="text-xs text-muted">{u.email}</div></div> },
         { header: 'Role', render: (u) => <Badge tone={u.role === 'owner' || u.role === 'captain' ? 'violet' : u.role === 'counter' ? 'green' : u.role === 'chef' ? 'amber' : 'blue'}>{u.role === 'counter' ? 'counter manager' : u.role}</Badge> },
-        ...(multi ? [{ header: 'Counter', render: (u) => (u.role === 'owner' ? <span className="text-muted">{t('All counters')}</span> : <span className="inline-flex items-center gap-1.5 font-semibold">{u.role === 'chef' && u.branch_ids?.length ? u.branch_ids.map((b) => nameOf(b)).filter(Boolean).join(', ') : nameOf(u.branch_id) || counters.find((c) => c.is_default)?.name}</span>) }] : []),
+        ...(multi ? [{
+          header: 'Counter',
+          render: (u) => (
+            u.role === 'owner' ? (
+              <span className="text-muted">{t('All counters')}</span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 font-semibold">
+                {u.branch_ids?.length
+                  ? u.branch_ids.map((b) => nameOf(b)).filter(Boolean).join(', ')
+                  : (nameOf(u.branch_id) || counters.find((c) => c.is_default)?.name)}
+              </span>
+            )
+          ),
+        }] : []),
         { header: 'Last login', render: (u) => dt(u.last_login_at) },
         { header: 'Status', render: (u) => <Badge tone={u.is_active ? 'green' : 'slate'}>{u.is_active ? 'active' : 'disabled'}</Badge> },
         { header: '', className: 'text-right', render: (u) => u.role === 'owner' ? null : (
           <div className="flex justify-end gap-1.5">
             <Button size="sm" variant="ghost" onClick={() => activity(u)}>Activity</Button>
-            <Button size="sm" variant="secondary" onClick={() => setEdit({ ...u, password: '' })}>Edit</Button>
+            <Button size="sm" variant="secondary" onClick={() => setEdit({ ...u, password: '', branch_ids: u.branch_ids?.length ? u.branch_ids : (u.branch_id ? [u.branch_id] : (active[0] ? [active[0].id] : [])) })}>Edit</Button>
             <Button size="sm" variant="ghost" onClick={() => toggle(u)}>{u.is_active ? 'Disable' : 'Enable'}</Button>
             <Button size="sm" variant="ghost" className="!text-rose-600 hover:!bg-rose-50" onClick={() => remove(u)}>Delete</Button>
           </div>
@@ -67,23 +95,52 @@ export default function Staff() {
             <Input label="Mobile" value={edit.phone || ''} onChange={s('phone')} />
             <Input label={edit.id ? 'New password (leave blank to keep)' : 'Password'} type="password" required={!edit.id} value={edit.password} onChange={s('password')} hint="At least 6 characters (a 6-digit PIN is fine)" autoComplete="new-password" />
             <Select label="Role" value={edit.role} onChange={s('role')}>{ROLES.map((r) => <option key={r} value={r}>{r === 'counter' ? t('Counter manager') : r === 'chef' ? t('Chef (kitchen screen only)') : t(r)}</option>)}</Select>
-            {multi && edit.role === 'chef' && (
+            {multi && (
               <div>
-                <div className="mb-1.5 text-sm font-semibold">{t('Counters this chef cooks for')}</div>
+                <div className="mb-1.5 text-sm font-semibold">
+                  {edit.role === 'chef' ? t('Counters this chef cooks for') : t('Counters this staff member works on')}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {active.map((c) => {
-                    const on = (edit.branch_ids || []).includes(c.id)
-                    return <button key={c.id} type="button" aria-pressed={on} onClick={() => setEdit({ ...edit, branch_ids: on ? edit.branch_ids.filter((x) => x !== c.id) : [...(edit.branch_ids || []), c.id] })} className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold ring-1 transition active:scale-95 ${on ? 'bg-brand text-white ring-brand' : 'bg-white text-slate-600 ring-line'}`}>{on && <Check className="h-4 w-4" />}{c.name}</button>
+                    const ids = edit.branch_ids || []
+                    const on = ids.includes(c.id)
+                    const isMain = on && edit.role !== 'chef' && ids[0] === c.id
+                    const toggle = () => {
+                      if (on) {
+                        if (ids.length <= 1) {
+                          toast.error(t('Choose at least one counter.'))
+                          return
+                        }
+                        setEdit({ ...edit, branch_ids: ids.filter((x) => x !== c.id) })
+                      } else {
+                        setEdit({ ...edit, branch_ids: [...ids, c.id] })
+                      }
+                    }
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={toggle}
+                        className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold ring-1 transition active:scale-95 ${on ? 'bg-brand text-white ring-brand' : 'bg-white text-slate-600 ring-line'}`}
+                      >
+                        {on && <Check className="h-4 w-4" />}
+                        {c.name}
+                        {isMain && (
+                          <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-normal tracking-wide">
+                            {t('Main')}
+                          </span>
+                        )}
+                      </button>
+                    )
                   })}
                 </div>
-                <p className="mt-1.5 text-xs text-muted">{t('Tickets from all the chosen counters appear on this chef\'s kitchen screen.')}</p>
+                <p className="mt-1.5 text-xs text-muted">
+                  {edit.role === 'chef'
+                    ? t('Tickets from all the chosen counters appear on this chef\'s kitchen screen.')
+                    : t('Staff can switch between the chosen counters from the top bar. The first chosen is their main counter.')}
+                </p>
               </div>
-            )}
-            {multi && edit.role !== 'chef' && (
-              <Select label="Counter" required value={edit.branch_id ?? ''} onChange={(e) => setEdit({ ...edit, branch_id: Number(e.target.value) })} hint="This login sees and works only on this counter.">
-                {!edit.branch_id && <option value="">{t('Choose a counter')}</option>}
-                {active.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </Select>
             )}
             <Button type="submit" className="w-full">Save</Button>
           </form>

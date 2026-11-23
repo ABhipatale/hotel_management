@@ -48,6 +48,10 @@ export default {
     'New counter name': 'नए काउंटर का नाम',
     'Add': 'जोड़ें',
     "Create a login for each counter from the owner's Staff screen (role: Counter manager).": 'मालिक की स्टाफ स्क्रीन से हर काउंटर का लॉगिन बनाएँ (भूमिका: काउंटर मैनेजर)।',
+    'Counters this staff member works on': 'काउंटर जहाँ यह स्टाफ काम करता है',
+    'Staff can switch between the chosen counters from the top bar. The first chosen is their main counter.': 'स्टाफ ऊपर बार से चुने गए काउंटरों के बीच बदल सकता है। पहला चुना गया काउंटर मुख्य काउंटर होगा।',
+    'Main': 'मुख्य',
+    'Choose at least one counter.': 'कम से कम एक काउंटर चुनें।',
   },
   mr: {
     'Counters': 'काउंटर',
@@ -97,5 +101,9 @@ export default {
     'New counter name': 'नवीन काउंटरचे नाव',
     'Add': 'जोडा',
     "Create a login for each counter from the owner's Staff screen (role: Counter manager).": 'मालकाच्या कर्मचारी स्क्रीनवरून प्रत्येक काउंटरचे लॉगिन तयार करा (भूमिका: काउंटर मॅनेजर).',
+    'Counters this staff member works on': 'काउंटर जिथे हे कर्मचारी काम करतात',
+    'Staff can switch between the chosen counters from the top bar. The first chosen is their main counter.': 'कर्मचारी वरच्या पट्टीवरून निवडलेल्या काउंटर दरम्यान बदलू शकतात. पहिला निवडलेला काउंटर मुख्य काउंटर असेल.',
+    'Main': 'मुख्य',
+    'Choose at least one counter.': 'किमान एक काउंटर निवडा.',
   },
 }

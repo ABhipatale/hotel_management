@@ -71,12 +71,22 @@ class AuthController extends Controller
                 $all = \App\Support\Tenant::as($company, fn () => \App\Models\Branch::whereIn('id', $user->counterIds())->orderBy('id')->get(['id', 'name', 'is_default', 'is_active']));
                 $out['counters'] = $all->values();
                 $out['counter'] = $all->count() === 1 ? $all->first()->only('id', 'name') : null;
+            } elseif ($company->multi_counter && $user->role !== 'owner') {
+                // Waiter / captain / counter manager: their counters (one or several), counter = the one they land on, exactly as
+                // ResolveTenant picks it: the main counter if it is active, else their first active one. Staff with no counter
+                // (made before multi-counter was switched on) work on the default counter, as before.
+                $counterIds = $user->counterIds();
+                $all = \App\Support\Tenant::as($company, fn () => $counterIds
+                    ? \App\Models\Branch::whereIn('id', $counterIds)->orderBy('id')->get(['id', 'name', 'is_default', 'is_active'])
+                    : \App\Models\Branch::orderByDesc('is_default')->orderBy('id')->limit(1)->get(['id', 'name', 'is_default', 'is_active']));
+                $out['counters'] = $all->values();
+                $main = $all->first(fn ($b) => $b->id === (int) $user->branch_id && $b->is_active) ?? $all->firstWhere('is_active', true) ?? $all->first();
+                $out['counter'] = $main ? $main->only('id', 'name') : null;
             } elseif ($company->multi_counter) {
-                // Owner: every counter (for the counter switcher). Everyone else: the one counter they work in.
+                // Owner: every counter (for the counter switcher).
                 $all = \App\Support\Tenant::as($company, fn () => \App\Models\Branch::orderByDesc('is_default')->orderBy('id')->get(['id', 'name', 'is_default', 'is_active']));
-                $out['counters'] = $user->role === 'owner' ? $all->values() : [];
-                $mine = $user->role === 'owner' ? null : ($all->firstWhere('id', $user->branch_id) ?? $all->firstWhere('is_default', true));
-                $out['counter'] = $mine ? $mine->only('id', 'name') : null;
+                $out['counters'] = $all->values();
+                $out['counter'] = null;
             }
             $out['plan'] = $state['plan'];
             $out['subscription'] = $state['subscription']?->only('status', 'billing_cycle', 'starts_at', 'ends_at');

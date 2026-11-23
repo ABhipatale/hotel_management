@@ -38,11 +38,23 @@ class ResolveTenant
             abort_if(! $ids, 403, 'Your counters are disabled. Contact the owner.');
             $request->attributes->set('kitchen_branches', $ids);
         } elseif ($company->multi_counter && $user->role !== 'owner') {
-            $counter = $user->branch_id
-                ? \App\Models\Branch::find($user->branch_id)
-                : \App\Models\Branch::orderByDesc('is_default')->orderBy('id')->first();
-            abort_if(! $counter || ! $counter->is_active, 403, 'This counter is disabled. Contact the owner.');
-            Tenant::lockBranch((int) $counter->id);
+            $counterIds = $user->counterIds();
+            if (! $counterIds) {
+                $defaultId = \App\Models\Branch::orderByDesc('is_default')->orderBy('id')->value('id');
+                $counterIds = $defaultId ? [(int) $defaultId] : [];
+            }
+            $allowed = \App\Models\Branch::whereIn('id', $counterIds)->where('is_active', true)->pluck('id')->map(fn ($i) => (int) $i)->all();
+            abort_if(! $allowed, 403, 'This counter is disabled. Contact the owner.');
+
+            $requested = $request->header('X-Counter-Id');
+            if ($requested !== null && is_numeric($requested) && in_array((int) $requested, $allowed, true)) {
+                Tenant::lockBranch((int) $requested);
+            } else {
+                $mainId = $user->branch_id && in_array((int) $user->branch_id, $allowed, true)
+                    ? (int) $user->branch_id
+                    : $allowed[0];
+                Tenant::lockBranch($mainId);
+            }
         }
         $request->attributes->set('company', $company);
 

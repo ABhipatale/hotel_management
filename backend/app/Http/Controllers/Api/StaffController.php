@@ -31,7 +31,7 @@ class StaffController extends Controller
     public function index(Request $r)
     {
         return User::inTenant(Tenant::id())->with('roleModel:id,name')->orderBy('name')->get()
-            ->map(fn ($u) => $u->only('id', 'name', 'email', 'phone', 'role', 'is_active', 'last_login_at', 'branch_id') + ['branch_ids' => $u->role === 'chef' ? $u->counterIds() : ($u->branch_id ? [(int) $u->branch_id] : [])]);
+            ->map(fn ($u) => $u->only('id', 'name', 'email', 'phone', 'role', 'is_active', 'last_login_at', 'branch_id') + ['branch_ids' => $u->counterIds()]);
     }
 
     public function store(Request $r)
@@ -47,26 +47,36 @@ class StaffController extends Controller
             'phone' => 'nullable|string|max:20',
             'password' => ['required', 'string', 'min:6', 'max:100'],
             'role' => ['required', Rule::in($this->assignable())],
-            // multi-counter: every staff account belongs to exactly one counter
-            'branch_id' => Tenant::multiCounter() ? [Rule::requiredIf(fn () => $r->input('role') !== 'chef'), 'nullable', Tenant::exists('branches')] : 'nullable',
-            // a chef can cook for several counters
-            'branch_ids' => Tenant::multiCounter() && $r->input('role') === 'chef' ? ['required', 'array', 'min:1', 'max:20'] : 'nullable',
+            // multi-counter: staff account belongs to one or more counters
+            'branch_id' => Tenant::multiCounter() ? ['nullable', Tenant::exists('branches')] : 'nullable',
+            'branch_ids' => Tenant::multiCounter() ? ['nullable', 'array', 'min:1', 'max:20'] : 'nullable',
             'branch_ids.*' => ['integer', Tenant::exists('branches')],
         ]);
+
+        $counterIds = [];
+        if (Tenant::multiCounter()) {
+            if (! empty($data['branch_ids'])) {
+                $counterIds = array_values(array_unique(array_map('intval', $data['branch_ids'])));
+            } elseif (! empty($data['branch_id'])) {
+                $counterIds = [(int) $data['branch_id']];
+            } else {
+                abort(422, 'Choose the counter this login belongs to.');
+            }
+        }
 
         $u = new User(['name' => $data['name'], 'email' => $data['email'], 'phone' => $data['phone'] ?? null, 'password' => $data['password']]);
         $u->forceFill([
             'company_id' => Tenant::id(),
             'role' => $data['role'],
             'role_id' => Role::where('slug', $data['role'])->value('id'),
-            'branch_id' => Tenant::multiCounter() ? ($data['branch_id'] ?? null) : null,
+            'branch_id' => Tenant::multiCounter() ? ($counterIds[0] ?? null) : null,
         ])->save();
-        if (Tenant::multiCounter() && $data['role'] === 'chef') {
-            $u->setCounters($data['branch_ids']);
+        if (Tenant::multiCounter() && ! empty($counterIds)) {
+            $u->setCounters($counterIds);
         }
         AuditLog::record('staff.create', 'user', $u->id, ['role' => $data['role'], 'counter' => $u->branch_id]);
 
-        return response()->json($u->only('id', 'name', 'email', 'role', 'is_active', 'branch_id'), 201);
+        return response()->json($u->only('id', 'name', 'email', 'role', 'is_active', 'branch_id') + ['branch_ids' => $u->counterIds()], 201);
     }
 
     public function update(Request $r, int $id)
@@ -87,26 +97,33 @@ class StaffController extends Controller
         ]);
         if (Tenant::multiCounter()) {
             $finalRole = $data['role'] ?? $u->role;
-            $finalBranch = array_key_exists('branch_id', $data) ? $data['branch_id'] : $u->branch_id;
-            abort_if($finalRole === 'counter' && ! $finalBranch, 422, 'Choose the counter this login belongs to.');
-            if ($finalRole === 'chef' && ! empty($data['branch_ids'])) {
-                $u->setCounters($data['branch_ids']); // also saves
-                $u->tokens()->delete();
-                unset($data['branch_id']);
+            $oldCounters = $u->counterIds();
+            sort($oldCounters);
+
+            if (array_key_exists('branch_ids', $data)) {
+                $newCounters = ! empty($data['branch_ids']) ? array_values(array_unique(array_map('intval', $data['branch_ids']))) : [];
+                abort_if(empty($newCounters), 422, 'Choose the counter this login belongs to.');
+                $u->setCounters($newCounters);
+            } elseif (array_key_exists('branch_id', $data)) {
+                // An older installed app sends only branch_id (its one-counter field) on every save. The login's own main
+                // counter = nothing changed: its other counters stay. Another counter = moved there (the old meaning).
+                abort_if(! $data['branch_id'], 422, 'Choose the counter this login belongs to.');
+                if ((int) $data['branch_id'] !== (int) $u->branch_id) {
+                    $u->setCounters([(int) $data['branch_id']]);
+                }
             }
-            if (array_key_exists('branch_id', $data)) {
-                $u->branch_id = $data['branch_id'];
-                $u->tokens()->delete(); // moved to another counter: sign them in fresh
+
+            $currentCounters = $u->counterIds();
+            sort($currentCounters);
+            if ($oldCounters !== $currentCounters) {
+                $u->tokens()->delete();
             }
         }
-        unset($data['branch_id']);
+        unset($data['branch_id'], $data['branch_ids']);
         if (empty($data['password'])) {
             unset($data['password']);
         }
         if (isset($data['role'])) {
-            if ($u->role === 'chef' && $data['role'] !== 'chef') {
-                \Illuminate\Support\Facades\DB::table('branch_user')->where('user_id', $u->id)->delete(); // no longer a chef
-            }
             $u->role = $data['role'];
             $u->role_id = Role::where('slug', $data['role'])->value('id');
             unset($data['role']);
@@ -117,7 +134,7 @@ class StaffController extends Controller
         }
         AuditLog::record('staff.update', 'user', $u->id);
 
-        return $u->only('id', 'name', 'email', 'role', 'is_active', 'branch_id');
+        return $u->only('id', 'name', 'email', 'role', 'is_active', 'branch_id') + ['branch_ids' => $u->counterIds()];
     }
 
     public function destroy(int $id)

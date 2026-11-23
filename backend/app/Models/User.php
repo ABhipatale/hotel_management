@@ -34,12 +34,21 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class, 'role_id');
     }
 
-    /** Counters a chef cooks for (extra to users.branch_id). Plain table reads: no tenant / counter scopes involved. */
+    /**
+     * Counters a staff member or chef works on, the MAIN counter (users.branch_id) first: the Staff screen and setCounters()
+     * treat the first one as the main counter. Plain table reads: no tenant / counter scopes involved.
+     * `branch_user` has no `id` column (PK user_id + branch_id): never order it by id. MySQL refuses that; SQLite silently
+     * accepts it, so the tests would not notice (error B21).
+     */
     public function counterIds(): array
     {
-        $ids = \Illuminate\Support\Facades\DB::table('branch_user')->where('user_id', $this->id)->pluck('branch_id')->map(fn ($i) => (int) $i)->all();
+        $ids = \Illuminate\Support\Facades\DB::table('branch_user')->where('user_id', $this->id)->orderBy('branch_id')->pluck('branch_id')->map(fn ($i) => (int) $i)->all();
+        if (! $ids) {
+            return $this->branch_id ? [(int) $this->branch_id] : [];
+        }
+        $main = (int) $this->branch_id;
 
-        return $ids ?: ($this->branch_id ? [(int) $this->branch_id] : []);
+        return in_array($main, $ids, true) ? array_values(array_unique([$main, ...$ids])) : $ids;
     }
 
     public function setCounters(array $ids): void

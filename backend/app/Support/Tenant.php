@@ -101,6 +101,9 @@ class Tenant
      */
     public static function branchId(User $user, mixed $requested = null): int
     {
+        if (self::$branchLock !== null) {
+            return self::$branchLock;
+        }
         if ($user->branch_id) {
             return (int) $user->branch_id;
         }
@@ -120,6 +123,9 @@ class Tenant
      */
     public static function branchScope(User $user, mixed $requested = null): ?int
     {
+        if (self::$branchLock !== null) {
+            return self::$branchLock;
+        }
         if (! self::multiCounter()) {
             return self::branchId($user);
         }
