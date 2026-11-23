@@ -436,27 +436,32 @@ export default function NewOrder() {
           <div className={asGrid ? 'grid grid-cols-2 gap-3 @[30rem]:grid-cols-3 @[44rem]:grid-cols-4 @[58rem]:grid-cols-5 @[72rem]:grid-cols-6' : 'grid gap-2.5 @[38rem]:grid-cols-2 @[58rem]:grid-cols-3 @[84rem]:grid-cols-4'}>
             {list.map((i) => {
               const n = qtyOf(i.id)
+              // − n + : a light − button, the count in brand colour, and a dark + button (level with the price in the photo card; at the right of the list row)
               const stepper = n > 0 && (
-                <span className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                  <span role="button" tabIndex={0} aria-label={t('Remove one')} onClick={() => dec(lastKeyOf(i.id))} className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 active:scale-90"><Minus className="h-4 w-4" /></span>
-                  <b className="w-6 text-center text-base">{n}</b>
-                  <span role="button" tabIndex={0} aria-label={t('Add one')} onClick={() => tapItem(i)} className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-white active:scale-90"><Plus className="h-4 w-4" /></span>
+                <span className="inline-flex shrink-0 items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                  <span role="button" tabIndex={0} aria-label={t('Remove one')} onClick={() => dec(lastKeyOf(i.id))} className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-brand transition hover:bg-slate-200 active:scale-90"><Minus className="h-4 w-4" /></span>
+                  <b className="min-w-5 text-center text-base text-brand tabular-nums">{n}</b>
+                  <span role="button" tabIndex={0} aria-label={t('Add one')} onClick={() => tapItem(i)} className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-white shadow-sm transition hover:bg-brand-dark active:scale-90"><Plus className="h-4 w-4" /></span>
                 </span>
+              )
+              // nothing in the cart yet: an ADD button (it turns into the pill above once tapped)
+              const addBtn = (
+                <span role="button" tabIndex={0} aria-label={t('Add')} onClick={(e) => { e.stopPropagation(); tapItem(i) }} className="inline-flex h-8 shrink-0 items-center rounded-full border-2 border-brand bg-white px-4 text-sm font-extrabold uppercase tracking-wide text-brand transition hover:bg-brand hover:text-white active:scale-95">{t('Add')}</span>
               )
               const dot = <i className={`h-2.5 w-2.5 shrink-0 rounded-sm border ${i.is_veg ? 'border-emerald-600 bg-emerald-500' : 'border-rose-600 bg-rose-500'}`} />
               const price = <>{money(i.price)}{i.variants?.length ? <span className="ml-1 text-[11px] font-normal text-muted">{t('+ variants')}</span> : null}</>
               return asGrid ? (
-                <div key={i.id} role="button" tabIndex={0} onClick={() => tapItem(i)} className={`relative overflow-hidden rounded-[1.25rem] border bg-white text-left shadow-card transition active:scale-[.97] ${n ? 'border-brand ring-2 ring-brand/20' : 'border-line/70'}`}>
+                <div key={i.id} role="button" tabIndex={0} onClick={() => tapItem(i)} className={`group relative overflow-hidden rounded-[1.25rem] border bg-white text-left shadow-card transition hover:shadow-lg active:scale-[.98] ${n ? 'border-brand ring-2 ring-brand/20' : 'border-line/70'}`}>
                   {i.code != null && <span className="absolute left-2 top-2 z-10 grid h-7 min-w-7 place-items-center rounded-lg bg-brand px-1.5 text-xs font-extrabold leading-none text-white shadow">{i.code}</span>}
-                  {/* the − n + control sits on the photo's corner: next to the price it pushed + past the card edge on 2- and 4-column cards (phones, tablets) */}
+                  {/* the photo stays completely clear: the ADD / − n + control lives in the bottom row, level with the price */}
                   <div className="relative">
                     {i.image_url ? <Img src={i.image_url} thumb className="h-28 w-full object-cover" /> : <div className="grid h-28 place-items-center bg-brand-soft"><UtensilsCrossed className="h-10 w-10 text-brand/40" strokeWidth={1.6} /></div>}
-                    {stepper && <span onClick={(e) => e.stopPropagation()} className="animate-pop absolute bottom-2 right-2 z-10 rounded-2xl bg-white/95 p-1 text-sm font-semibold text-brand shadow-card">{stepper}</span>}
                   </div>
-                  <div className="p-3">
-                    <div className="flex items-center gap-1.5">{dot}<span className="truncate text-sm font-medium">{nm(i).main}</span></div>
-                    {nm(i).sub && <div className="-mt-1 truncate text-xs text-muted">{nm(i).sub}</div>}
-                    <div className="mt-1 flex min-h-9 items-center text-sm font-semibold text-brand"><span>{price}</span></div>
+                  <div className="p-2.5">
+                    {/* Marathi name first, English underneath (a dish with no Marathi name shows just English); both lines keep their height so every card is the same size */}
+                    <div className="flex items-center gap-1.5">{dot}<span className="truncate text-[15px] font-bold leading-snug">{i.name_mr || i.name}</span></div>
+                    <div className="min-h-4 truncate pl-4 text-xs leading-4 text-muted">{i.name_mr ? i.name : ''}</div>
+                    <div className="mt-2 flex min-h-8 flex-wrap items-center justify-between gap-x-1.5 gap-y-1.5"><span className="text-[15px] font-extrabold text-brand">{price}</span><span className="ml-auto">{stepper || addBtn}</span></div>
                   </div>
                 </div>
               ) : (
