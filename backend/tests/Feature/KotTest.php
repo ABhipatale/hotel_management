@@ -172,6 +172,31 @@ class KotTest extends TestCase
         $this->assertSame('Parcel 1', $paid->json('table'));
     }
 
+    public function test_a_parcel_and_a_table_can_share_a_number(): void
+    {
+        \App\Models\Company::query()->update(['parcel_enabled' => true]);
+        $owner = $this->login('atithi@demo.test');
+
+        // table 1 exists, then Parcel 1 is added (the user typed "1" for both)
+        $this->postJson('/api/tables', ['number' => '1', 'capacity' => 4], $owner)->assertCreated();
+        $p1 = $this->postJson('/api/tables', ['kind' => 'parcel', 'number' => '1', 'capacity' => 1], $owner)->assertCreated()->json();
+        $this->assertSame('Parcel 1', $p1['number']);
+
+        // the other way round: Parcel 5 first, then table 5
+        $this->postJson('/api/tables', ['kind' => 'parcel', 'number' => '5', 'capacity' => 1], $owner)->assertCreated();
+        $this->postJson('/api/tables', ['number' => '5', 'capacity' => 4], $owner)->assertCreated();
+
+        // real duplicates are still refused
+        $this->postJson('/api/tables', ['number' => '1', 'capacity' => 4], $owner)->assertStatus(422);
+        $this->postJson('/api/tables', ['kind' => 'parcel', 'number' => '1', 'capacity' => 1], $owner)->assertStatus(422);
+        $this->postJson('/api/tables', ['kind' => 'parcel', 'number' => 'Parcel 1', 'capacity' => 1], $owner)->assertStatus(422);
+
+        $numbers = $this->getJson('/api/tables', $owner)->assertOk()->collect()->pluck('number')->all();
+        foreach (['1', 'Parcel 1', '5', 'Parcel 5'] as $n) {
+            $this->assertContains($n, $numbers);
+        }
+    }
+
     public function test_an_owner_can_clear_the_bill_header(): void
     {
         $owner = $this->login('atithi@demo.test');

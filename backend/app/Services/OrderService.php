@@ -210,70 +210,95 @@ class OrderService
      * Allowed until the order is paid. Quantities change, missing lines are cancelled, new lines are added, tracked stock is kept
      * in step, and an unpaid bill is rebuilt in place (same bill number, any extra discount kept).
      *
+     * With `$base` (the dishes the screen loaded; sent by the app since 2026-11-24) only the screen's own changes are applied
+     * on top of what the order holds NOW: a dish a colleague added meanwhile is kept, and a line the screen could not show
+     * exactly (e.g. an option renamed since) is left alone. Without it (older app) the order becomes exactly `$desired`.
+     *
      * @param array<int, array{food_item_id:int, quantity:int, variant_id?:int|null}> $desired
+     * @param array<int, array{food_item_id:int, quantity:int, variant_id?:int|null}>|null $base
      */
-    public function replaceItems(Order $order, array $desired, ?User $by = null): Order
+    public function replaceItems(Order $order, array $desired, ?User $by = null, ?array $base = null, ?string $kotNote = null): Order
     {
-        return DB::transaction(function () use ($order, $desired, $by) {
-            $order = Order::with('bill')->lockForUpdate()->findOrFail($order->id);
+        return DB::transaction(function () use ($order, $desired, $by, $base, $kotNote) {
+            $order = Order::with('bill', 'table')->lockForUpdate()->findOrFail($order->id);
             abort_if(in_array($order->status, ['paid', 'cancelled'], true), 422, 'Order is closed.');
             $bill = $order->bill;
             abort_if($bill && $bill->status === 'paid', 422, 'This order is already paid.');
 
             $key = fn ($foodId, $variant) => $foodId.'|'.($variant ?? '');
-            $wanted = [];
-            foreach ($desired as $line) {
-                $food = FoodItem::with('variants')->find($line['food_item_id']);
-                if (! $food) {
-                    throw ValidationException::withMessages(['items' => 'One or more items are unavailable.']);
-                }
-                $variant = $food->baseVariantLabel();
-                if (! empty($line['variant_id'])) {
-                    $v = $food->variants->firstWhere('id', $line['variant_id']);
-                    if (! $v) {
-                        throw ValidationException::withMessages(['items' => 'Invalid variant.']);
+            $wanted = $this->linesByKey($desired, $key, 99);
+            // The order's active lines per dish + option. One dish can be on several lines (added again later at a busy table),
+            // so lines are compared per dish, never line by line: that sent the kitchen a wrong "+1" and "cancel 1" (error B19).
+            $rows = $order->items()->where('status', '!=', 'cancelled')->orderBy('id')->get()->groupBy(fn ($i) => $key($i->food_item_id, $i->variant));
+
+            if ($base !== null) {
+                $before = $this->linesByKey($base, $key, null);
+                foreach (array_unique(array_merge(array_keys($wanted), array_keys($before), $rows->keys()->all())) as $k) {
+                    $now = (int) ($rows->has($k) ? $rows->get($k)->sum('quantity') : 0);
+                    $q = $now + ($wanted[$k]['quantity'] ?? 0) - ($before[$k]['quantity'] ?? 0);
+                    if ($q > 0) {
+                        $wanted[$k] = ['food_item_id' => $wanted[$k]['food_item_id'] ?? $before[$k]['food_item_id'] ?? null, 'variant_id' => $wanted[$k]['variant_id'] ?? $before[$k]['variant_id'] ?? null, 'quantity' => $q];
+                    } else {
+                        unset($wanted[$k]);
                     }
-                    $variant = $v->name;
                 }
-                $k = $key($food->id, $variant);
-                $wanted[$k] = ['food_item_id' => $food->id, 'variant_id' => $line['variant_id'] ?? null, 'quantity' => min(99, ($wanted[$k]['quantity'] ?? 0) + max(1, (int) $line['quantity']))];
             }
 
             $kotAdd = $kotCancel = $removed = [];
-            foreach ($order->items()->where('status', '!=', 'cancelled')->get() as $item) {
-                $food = $item->food_item_id ? FoodItem::find($item->food_item_id) : null;
-                $k = $key($item->food_item_id, $item->variant);
-                if (! isset($wanted[$k])) {
+            foreach ($rows as $k => $lines) {
+                $delta = ($wanted[$k]['quantity'] ?? 0) - (int) $lines->sum('quantity');
+                unset($wanted[$k]);
+                if ($delta === 0) {
+                    continue;
+                }
+                $food = $lines->first()->food_item_id ? FoodItem::find($lines->first()->food_item_id) : null;
+                if ($delta > 0) {
                     if ($food && $food->stock !== null) {
-                        $food->increment('stock', $item->quantity); // a removed line gives its stock back
+                        if ($food->stock < $delta) {
+                            throw ValidationException::withMessages(['items' => "Only {$food->stock} more left of {$food->name}."]);
+                        }
+                        $food->decrement('stock', $delta);
                     }
-                    $item->update(['status' => 'cancelled']);
-                    $kotCancel[] = ['order_item_id' => $item->id, 'name' => $item->name, 'variant' => $item->variant, 'quantity' => $item->quantity];
-                    $removed[] = ['name' => $item->name, 'qty' => (int) $item->quantity, 'amount' => round($item->price * $item->quantity, 2)];
+                    $item = $lines->last(); // more of a dish goes on its newest line
+                    $item->update(['quantity' => $item->quantity + $delta]);
+                    $kotAdd[] = ['order_item_id' => $item->id, 'name' => $item->name, 'variant' => $item->variant, 'quantity' => $delta];
 
                     continue;
                 }
-                $delta = $wanted[$k]['quantity'] - $item->quantity;
-                if ($delta !== 0) {
+                // fewer: taken off the newest lines first (the ones the kitchen is least likely to have made already)
+                $left = -$delta;
+                foreach ($lines->reverse() as $item) {
+                    if ($left <= 0) {
+                        break;
+                    }
+                    $take = min($left, (int) $item->quantity);
+                    $left -= $take;
+                    $take === (int) $item->quantity ? $item->update(['status' => 'cancelled']) : $item->update(['quantity' => $item->quantity - $take]);
                     if ($food && $food->stock !== null) {
-                        if ($delta > 0 && $food->stock < $delta) {
-                            throw ValidationException::withMessages(['items' => "Only {$food->stock} more left of {$food->name}."]);
-                        }
-                        $delta > 0 ? $food->decrement('stock', $delta) : $food->increment('stock', -$delta);
+                        $food->increment('stock', $take); // a removed dish gives its stock back
                     }
-                    $line = ['order_item_id' => $item->id, 'name' => $item->name, 'variant' => $item->variant, 'quantity' => abs($delta)];
-                    $delta > 0 ? $kotAdd[] = $line : $kotCancel[] = $line;
-                    if ($delta < 0) {
-                        $removed[] = ['name' => $item->name, 'qty' => abs($delta), 'amount' => round($item->price * abs($delta), 2)];
-                    }
-                    $item->update(['quantity' => $wanted[$k]['quantity']]);
+                    $kotCancel[] = ['order_item_id' => $item->id, 'name' => $item->name, 'variant' => $item->variant, 'quantity' => $take];
+                    $removed[] = ['name' => $item->name, 'qty' => $take, 'amount' => round($item->price * $take, 2)];
                 }
-                unset($wanted[$k]);
             }
             if ($wanted) {
                 $kotAdd = array_merge($kotAdd, KotService::lines($this->addItems($order, array_values($wanted), $by)));
             }
             abort_if($order->items()->where('status', '!=', 'cancelled')->doesntExist(), 422, 'An order needs at least one item. Cancel the order instead.');
+
+            // Adding to a running order (the app's table / edit screen): the same as adding from New order used to do
+            if ($base !== null && $kotAdd) {
+                if (in_array($order->status, ['ready', 'served'], true)) {
+                    $order->update(['status' => 'preparing']); // new dishes are on their way
+                }
+                if (! $bill) {
+                    $order->table?->update(['status' => 'occupied']);
+                }
+            }
+            $kotNote = trim((string) $kotNote) ?: null;
+            if ($kotNote) {
+                $order->update(['notes' => trim(($order->notes ? $order->notes.' | ' : '').$kotNote)]);
+            }
 
             if ($bill) {
                 $extra = max(0.0, (float) $bill->discount - (float) $bill->items()->sum('discount'));
@@ -285,7 +310,7 @@ class OrderService
                 $bill->update(['subtotal' => $subtotal, 'discount' => $discount, 'tax' => $tax, 'grand_total' => $grand]);
             }
 
-            app(KotService::class)->fire($order, $kotAdd, $kotCancel, $by);
+            app(KotService::class)->fire($order, $kotAdd, $kotCancel, $by, $kotNote);
 
             // Dishes taken off an order the kitchen has already started: remembered for the owner's "Discounts & voids" report
             if ($removed && $by && in_array($order->status, ['preparing', 'ready', 'served'], true)) {
@@ -296,6 +321,35 @@ class OrderService
 
             return $order->load('items', 'bill.items', 'table:id,number');
         });
+    }
+
+    /**
+     * The screen's lines as [dish|option => line]; the same dish + option sent twice is added up.
+     *
+     * @return array<string, array{food_item_id:int, variant_id:int|null, quantity:int}>
+     */
+    private function linesByKey(array $lines, callable $key, ?int $cap): array
+    {
+        $out = [];
+        foreach ($lines as $line) {
+            $food = FoodItem::with('variants')->find($line['food_item_id']);
+            if (! $food) {
+                throw ValidationException::withMessages(['items' => 'One or more items are unavailable.']);
+            }
+            $variant = $food->baseVariantLabel();
+            if (! empty($line['variant_id'])) {
+                $v = $food->variants->firstWhere('id', $line['variant_id']);
+                if (! $v) {
+                    throw ValidationException::withMessages(['items' => 'Invalid variant.']);
+                }
+                $variant = $v->name;
+            }
+            $k = $key($food->id, $variant);
+            $qty = ($out[$k]['quantity'] ?? 0) + max(1, (int) $line['quantity']);
+            $out[$k] = ['food_item_id' => $food->id, 'variant_id' => $line['variant_id'] ?? null, 'quantity' => $cap ? min($cap, $qty) : $qty];
+        }
+
+        return $out;
     }
 
     /** Records payment(s); marks bill/order paid and frees the table once fully settled. */

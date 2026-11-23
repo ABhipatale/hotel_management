@@ -217,7 +217,12 @@ class OrderController extends Controller
         return $order->load('items');
     }
 
-    /** Edit an order until it is paid: send the COMPLETE new item list (quantities, removed and new dishes). */
+    /**
+     * Edit an order until it is paid: send the COMPLETE new item list (quantities, removed and new dishes).
+     * Optional (app since 2026-11-24): `base` = the list the screen loaded, so only the screen's changes are applied (see
+     * OrderService::replaceItems), and `kot_note` = a note for the kitchen slip of the added dishes (added to the order's notes).
+     * The answer then also carries `kot` / `kots`: the kitchen slips this save sent, so the app can print them.
+     */
     public function updateItems(Request $r, int $id)
     {
         $order = Order::findOrFail($id);
@@ -228,12 +233,46 @@ class OrderController extends Controller
             'items.*.variant_id' => ['nullable', Tenant::exists('food_item_variants')],
             'items.*.quantity' => 'required|integer|min:1|max:99',
             'notes' => 'nullable|string|max:255',
+            'base' => 'sometimes|array|max:200',
+            'base.*.food_item_id' => ['required', Tenant::exists('food_items')],
+            'base.*.variant_id' => ['nullable', Tenant::exists('food_item_variants')],
+            'base.*.quantity' => 'required|integer|min:1|max:999',
+            'kot_note' => 'nullable|string|max:255',
+            'client_ref' => 'nullable|string|max:36', // one save = one reference: tapping Save again after a lost answer never adds the dishes twice
         ]);
-        $order = $this->orders->replaceItems($order, $d['items'], $r->user());
+        $ref = isset($d['client_ref']) ? 'e:'.$d['client_ref'] : null; // "e:" keeps edit references apart from offline-order ones
+        $seen = fn () => $ref && DB::table('order_client_refs')->where('company_id', Tenant::id())->where('ref', $ref)->exists();
+        $already = fn () => Order::with('items', 'bill.items', 'table:id,number')->findOrFail($order->id);
+        if ($seen()) {
+            return $already();
+        }
+        $lastKot = (int) \App\Models\Kot::where('order_id', $order->id)->max('id');
+        try {
+            $order = DB::transaction(function () use ($order, $d, $r, $ref) {
+                if ($ref) {
+                    DB::table('order_client_refs')->insert(['company_id' => Tenant::id(), 'ref' => $ref, 'order_id' => $order->id, 'created_at' => now()]);
+                }
+
+                return $this->orders->replaceItems($order, $d['items'], $r->user(), array_key_exists('base', $d) ? $d['base'] : null, $d['kot_note'] ?? null);
+            });
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            if ($seen()) {
+                return $already(); // two copies of one save raced: the other one did it
+            }
+            throw $e;
+        }
         if (array_key_exists('notes', $d)) {
             $order->update(['notes' => $d['notes']]);
         }
         \App\Models\AuditLog::record('order.edit', 'order', $order->id);
+
+        if (KotService::enabled()) {
+            // the slips this save sent to the kitchen (new dishes, and a cancel slip for reduced ones), for printing on this device
+            $kots = KotService::withMarathiNames(\App\Models\Kot::with('items', 'order:id,order_no,table_id,type,notes,waiter_id', 'order.table:id,number,section', 'sender:id,name,role')
+                ->where('order_id', $order->id)->where('id', '>', $lastKot)->orderBy('id')->get());
+            $order->setAttribute('kots', $kots->values());
+            $order->setAttribute('kot', $kots->firstWhere('type', 'new'));
+        }
 
         return $order;
     }

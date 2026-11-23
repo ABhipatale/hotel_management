@@ -99,6 +99,10 @@ export default {
     'Walk-in / Takeaway': 'वॉक-इन / टेकअवे', 'Delivery': 'डिलीवरी', 'Walk-in': 'वॉक-इन', 'Dine-in tables': 'डाइन-इन टेबल', 'Table {n} · {status}': 'टेबल {n} · {status}',
     'Cart is empty': 'कार्ट खाली है', '{price} each': '{price} प्रति', 'Notes (optional)': 'नोट (वैकल्पिक)',
     'Estimated total (incl. GST)': 'अनुमानित कुल (GST सहित)', 'Estimated total': 'अनुमानित कुल', 'Place order': 'ऑर्डर दें', 'Place & bill': 'ऑर्डर और बिल',
+    // a busy table opens its running order (2026-11-24)
+    'Save & bill': 'सेव और बिल',
+    'This table has {n} open orders. The others are in Orders.': 'इस टेबल के {n} खुले ऑर्डर हैं। बाकी "ऑर्डर" में हैं।',
+    "This table's order could not be loaded. New dishes will still be added to it.": 'इस टेबल का ऑर्डर लोड नहीं हो सका। नई डिश फिर भी उसी ऑर्डर में जुड़ेंगी।',
     'New order': 'नया ऑर्डर', 'Search dishes': 'व्यंजन खोजें', '+ variants': '+ विकल्प', 'No dishes found': 'कोई व्यंजन नहीं मिला', '{n} item(s)': '{n} आइटम',
     'Your order': 'आपका ऑर्डर', 'Regular': 'रेगुलर', 'Name of the base price option (blank = Regular)': 'मूल दर वाले विकल्प का नाम (खाली = रेगुलर)',
     // billing
@@ -227,6 +231,10 @@ export default {
     'Walk-in / Takeaway': 'वॉक-इन / टेकअवे', 'Delivery': 'डिलिव्हरी', 'Walk-in': 'वॉक-इन', 'Dine-in tables': 'डाइन-इन टेबल', 'Table {n} · {status}': 'टेबल {n} · {status}',
     'Cart is empty': 'कार्ट रिकामे आहे', '{price} each': 'प्रत्येकी {price}', 'Notes (optional)': 'टीप (ऐच्छिक)',
     'Estimated total (incl. GST)': 'अंदाजे एकूण (GST सह)', 'Estimated total': 'अंदाजे एकूण', 'Place order': 'ऑर्डर द्या', 'Place & bill': 'ऑर्डर आणि बिल',
+    // a busy table opens its running order (2026-11-24)
+    'Save & bill': 'जतन करा आणि बिल',
+    'This table has {n} open orders. The others are in Orders.': 'या टेबलचे {n} चालू ऑर्डर आहेत. बाकीचे "ऑर्डर" मध्ये आहेत.',
+    "This table's order could not be loaded. New dishes will still be added to it.": 'या टेबलचा ऑर्डर लोड झाला नाही. नवीन डिश तरीही त्याच ऑर्डरमध्ये जोडल्या जातील.',
     'New order': 'नवीन ऑर्डर', 'Search dishes': 'पदार्थ शोधा', '+ variants': '+ प्रकार', 'No dishes found': 'एकही पदार्थ सापडला नाही', '{n} item(s)': '{n} पदार्थ',
     'Your order': 'तुमची ऑर्डर', 'Regular': 'नेहमीचा', 'Name of the base price option (blank = Regular)': 'मूळ दराच्या पर्यायाचे नाव (रिकामे = नेहमीचा)',
     'Collect payments and print bills': 'पैसे घ्या आणि बिले छापा', 'Paid today': 'आज भरलेले', 'No bills here': 'येथे बिले नाहीत',
