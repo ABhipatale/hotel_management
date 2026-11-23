@@ -65,4 +65,16 @@ class ReceiptMarathiTest extends TestCase
         $this->assertSame('डाळ फ्राय (अर्धा)', $items['Dal Fry (Half)']['name_mr']);
         $this->assertSame('डाळ फ्राय (Full)', $items['Dal Fry (Full)']['name_mr']); // no Marathi variant name: the English one is kept
     }
+
+    public function test_upi_id_is_saved_in_settings_and_reaches_the_bill(): void
+    {
+        $owner = $this->h('atithi@demo.test');
+        $this->postJson('/api/company', ['upi_id' => 'not a upi'], $owner)->assertStatus(422);
+        $this->postJson('/api/company', ['upi_id' => 'hotel@okbank', 'upi_name' => 'Hotel Atithi'], $owner)->assertOk()->assertJsonPath('upi_id', 'hotel@okbank');
+        $cat = $this->getJson('/api/menu/categories', $owner)->json('0.id');
+        $dish = $this->postJson('/api/menu/items', ['category_id' => $cat, 'name' => 'Upi Tea', 'price' => 20], $owner)->assertCreated()->json();
+        $bill = $this->postJson('/api/orders', ['type' => 'takeaway', 'generate_bill' => true, 'items' => [['food_item_id' => $dish['id'], 'quantity' => 1]]], $owner)->assertCreated()->json('bill');
+        $this->getJson('/api/bills/'.$bill['id'], $owner)->assertOk()->assertJsonPath('company.upi_id', 'hotel@okbank')->assertJsonPath('company.upi_name', 'Hotel Atithi');
+        $this->postJson('/api/company', ['upi_id' => ''], $owner)->assertOk()->assertJsonPath('upi_id', null); // cleared = no QR
+    }
 }

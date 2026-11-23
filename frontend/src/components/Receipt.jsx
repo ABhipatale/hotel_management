@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
+import { upiLink } from '../lib/upiQr'
 import { MessageCircle, Printer } from 'lucide-react'
 import { buildReceipt, printBluetooth, printUsb, savedPrinter } from '../lib/escpos'
 import { buildReceiptImage, customerLine, needsImage, receiptFooter, receiptLabels, receiptName, tableLine } from '../lib/receiptImage'
@@ -45,8 +47,9 @@ export default function Receipt({ data: hotelData, phone }) {
     try {
       const picture = needsImage(data, rl)
       const bytes = picture ? await buildReceiptImage(data, rl) : buildReceipt(data)
+      const hasQr = !!upiLink(company, bill) // a QR is a dense block of dots: send it in smaller pieces with longer pauses
       // a picture bill is a lot of data: bigger pieces and shorter pauses keep it quick (same pacing as the kitchen slip)
-      conn === 'usb' ? await printUsb(bytes, { delay: picture ? 4 : 0 }) : await printBluetooth(bytes, picture ? { delay: 5, chunk: 160, settle: 700 } : { delay: 0 })
+      conn === 'usb' ? await printUsb(bytes, { delay: hasQr ? 8 : picture ? 4 : 0 }) : await printBluetooth(bytes, hasQr ? { delay: 12, chunk: 100, settle: 1200 } : picture ? { delay: 5, chunk: 160, settle: 700 } : { delay: 0 })
       toast.success(t('Sent to printer'))
     } catch (e) {
       // Never open the system print dialog behind the user's back: show why it failed instead.
@@ -97,6 +100,7 @@ export default function Receipt({ data: hotelData, phone }) {
         <div className="flex justify-between text-base font-extrabold"><span>{L.total}</span><span>₹{m(bill.grand_total)}</span></div>
         <hr className="my-1.5 border-t-2 border-double border-black" />
         {bill.payments?.map((p) => <div key={p.id} className="flex justify-between"><span>{L.paid} ({L[p.method] || p.method})</span><span>{m(p.amount)}</span></div>)}
+        {upiLink(company, bill) && <div className="mt-2 text-center"><div className="font-bold">{L.scan} ₹{m(bill.grand_total)}</div><QRCodeSVG value={upiLink(company, bill)} size={132} marginSize={2} className="mx-auto mt-1" /></div>}
         <div className="mt-2 text-center font-bold">{receiptFooter(company, rl)}</div>
       </div>
       </div>

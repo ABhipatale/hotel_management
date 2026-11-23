@@ -24,6 +24,7 @@ export const toAscii = (s) => String(s ?? '').replace(/[\u2018\u2019\u201a\u201c
 /** True when the text prints correctly with the printer's own (English) letters. */
 export const isPlain = (s) => !/[^\x20-\x7E\n]/.test(toAscii(s)) // eslint-disable-line no-control-regex
 
+import { qrRaster, upiLink } from './upiQr'
 const enc = new TextEncoder()
 
 export function buildReceipt({ bill, company, table, order_no, waiter, printer, customer_name }) {
@@ -125,6 +126,17 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer, 
   gap(5)
   dark() // line below TOTAL (it also separates the thank-you line)
   // (no "Paid (cash)" line on the Fast text bill)
+  const pay = upiLink(company, bill)
+  if (pay) { // UPI payment QR for the exact amount (only on a bill that is not paid yet)
+    gap(5)
+    push(ESC, 0x61, 1)
+    bold(true)
+    line(`Scan to pay Rs ${money(bill.grand_total)}`)
+    bold(false)
+    push(ESC, 0x61, 0)
+    out.push(...qrRaster(pay, wide ? 576 : 384))
+    gap(3)
+  }
 
   // ── Footer ──
   push(ESC, 0x61, 1)

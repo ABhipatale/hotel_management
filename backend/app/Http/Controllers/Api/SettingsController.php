@@ -66,6 +66,8 @@ class SettingsController extends Controller
             'state' => 'nullable|string|max:80',
             'pin_code' => 'nullable|string|max:10',
             'gst_number' => 'nullable|string|max:20',
+            'upi_id' => ['nullable', 'string', 'max:80', 'regex:/^[A-Za-z0-9._-]{2,}@[A-Za-z][A-Za-z0-9.-]{1,}$/'], // UPI payment QR on the bill
+            'upi_name' => 'nullable|string|max:60',
             'brand_color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'bill_header' => 'nullable|string|max:300',
             'bill_footer' => 'nullable|string|max:300',

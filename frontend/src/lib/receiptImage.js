@@ -4,13 +4,14 @@
 
 import { dateIST, timeIST } from './format'
 import { billStyle } from './billLang'
+import { qrMatrix, upiLink } from './upiQr'
 
 const ESC = 0x1b
 const GS = 0x1d
 
 export const LABELS = {
-  en: { bill: 'Bill', date: 'Date', table: 'Table', staff: 'Staff', item: 'ITEM', qty: 'QTY', rate: 'RATE', amt: 'AMT', items: 'Items', totalQty: 'Qty', subtotal: 'Subtotal', discount: 'Discount', gst: 'GST', total: 'TOTAL', paid: 'Paid', cash: 'cash', upi: 'upi', thanks: 'Thank you! Visit again.', phone: 'Ph', gstin: 'GSTIN' },
-  mr: { bill: 'बिल क्र.', date: 'दिनांक', table: 'टेबल', staff: 'वेटर', item: 'वस्तू', qty: 'नग', rate: 'दर', amt: 'रक्कम', items: 'एकूण वस्तू', totalQty: 'एकूण नग', subtotal: 'उप-एकूण', discount: 'सूट', gst: 'जीएसटी', total: 'एकूण', paid: 'भरले', cash: 'रोख', upi: 'UPI', thanks: 'धन्यवाद! पुन्हा भेट द्या.', phone: 'फोन', gstin: 'GSTIN' },
+  en: { bill: 'Bill', date: 'Date', table: 'Table', staff: 'Staff', item: 'ITEM', qty: 'QTY', rate: 'RATE', amt: 'AMT', items: 'Items', totalQty: 'Qty', subtotal: 'Subtotal', discount: 'Discount', gst: 'GST', total: 'TOTAL', paid: 'Paid', cash: 'cash', upi: 'upi', scan: 'Scan to pay', thanks: 'Thank you! Visit again.', phone: 'Ph', gstin: 'GSTIN' },
+  mr: { bill: 'बिल क्र.', date: 'दिनांक', table: 'टेबल', staff: 'वेटर', item: 'वस्तू', qty: 'नग', rate: 'दर', amt: 'रक्कम', items: 'एकूण वस्तू', totalQty: 'एकूण नग', subtotal: 'उप-एकूण', discount: 'सूट', gst: 'जीएसटी', total: 'एकूण', paid: 'भरले', cash: 'रोख', upi: 'UPI', scan: 'पैसे भरण्यासाठी स्कॅन करा', thanks: 'धन्यवाद! पुन्हा भेट द्या.', phone: 'फोन', gstin: 'GSTIN' },
 }
 /** "Table: 5" for a table, "Parcel 2" for a parcel counter (Marathi: पार्सल 2). */
 export const tableLine = (L, lang, table) => (/^parcel\b/i.test(String(table)) ? `${lang === 'mr' ? 'पार्सल' : 'Parcel'} ${String(table).replace(/^parcel\s*/i, '')}` : `${L.table}: ${table}`)
@@ -63,7 +64,7 @@ export async function buildReceiptImage({ bill, company, table, order_no, waiter
 
   const canvas = document.createElement('canvas')
   canvas.width = W
-  canvas.height = 900 + bill.items.length * lh * 3
+  canvas.height = 900 + bill.items.length * lh * 3 + (upiLink(company, bill) ? 400 : 0)
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
   ctx.fillStyle = '#fff'
   ctx.fillRect(0, 0, W, canvas.height)
@@ -186,6 +187,21 @@ export async function buildReceiptImage({ bill, company, table, order_no, waiter
   rule('double')
   if (bill.payments?.length) {
     bill.payments.forEach((p) => pair(`${L.paid} (${L[p.method] || p.method})`, money(p.amount)))
+  }
+
+  // ── UPI payment QR (exact amount; only on a bill that is not paid yet) ──
+  const pay = upiLink(company, bill)
+  if (pay) {
+    y += 8
+    centered(`${L.scan} ₹${money(bill.grand_total)}`, base, true)
+    const m = qrMatrix(pay)
+    const px = Math.max(2, Math.floor(Math.min(wide ? 210 : 190, W - 16) / (m.length + 8)))
+    const side = (m.length + 8) * px
+    const x0 = Math.floor((W - side) / 2)
+    y += 6
+    ctx.fillStyle = '#000'
+    m.forEach((row, r) => row.forEach((dark, c) => { if (dark) ctx.fillRect(x0 + (c + 4) * px, y + (r + 4) * px, px, px) }))
+    y += side
   }
 
   // ── footer ──
