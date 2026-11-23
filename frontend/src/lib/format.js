@@ -44,3 +44,6 @@ export const tableLabel = (n) => {
   return isParcel(s) ? `P${s.replace(/^parcel\s*/i, '')}` : /^\d/.test(s) ? `T${s}` : s
 }
 export const tableText = (t, n) => (isParcel(n) ? t('Parcel {n}', { n: String(n).replace(/^parcel\s*/i, '') }) : t('Table {n}', { n }))
+
+/** Our line at the very end of every printed / shown bill. */
+export const BILL_AD = 'ABnexa.in 9689030301'

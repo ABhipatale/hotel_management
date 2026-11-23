@@ -2,7 +2,7 @@
 // Network printers cannot be reached directly from a browser (no raw TCP) — they use the browser-print fallback
 // or a local print agent. Settings are still stored per company/branch.
 
-import { dateIST, timeIST } from './format'
+import { BILL_AD, dateIST, timeIST } from './format'
 
 const ESC = 0x1b
 const GS = 0x1d
@@ -143,7 +143,11 @@ export function buildReceipt({ bill, company, table, order_no, waiter, printer, 
   bold(true)
   wrap(company.bill_footer || 'Thank you! Visit again.', cols).forEach(line)
   bold(false)
+  push(ESC, 0x4d, 1) // small letters (Font B) for our one-line advertisement
+  push(ESC, 0x61, 1)
+  line(BILL_AD)
   push(ESC, 0x61, 0)
+  push(ESC, 0x4d, 0)
   if (textTune.bottom() > 0) push(ESC, 0x64, textTune.bottom()) // extra blank lines below the last line (default 0: the cut command already feeds the paper to the blade; adjustable in Settings)
   push(GS, 0x56, 0x42, 0x00) // partial cut (ignored by printers without a cutter)
   return new Uint8Array(out)

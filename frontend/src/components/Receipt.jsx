@@ -5,7 +5,7 @@ import { MessageCircle, Printer } from 'lucide-react'
 import { buildReceipt, printBluetooth, printUsb, savedPrinter } from '../lib/escpos'
 import { buildReceiptImage, customerLine, needsImage, receiptFooter, receiptLabels, receiptName, tableLine } from '../lib/receiptImage'
 import { billLang, devicePaper } from '../lib/billLang'
-import { dateIST, timeIST } from '../lib/format'
+import { BILL_AD, dateIST, timeIST } from '../lib/format'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../i18n'
@@ -102,6 +102,7 @@ export default function Receipt({ data: hotelData, phone }) {
         {bill.payments?.map((p) => <div key={p.id} className="flex justify-between"><span>{L.paid} ({L[p.method] || p.method})</span><span>{m(p.amount)}</span></div>)}
         {upiLink(company, bill) && <div className="mt-2 text-center"><div className="font-bold">{L.scan} ₹{m(bill.grand_total)}</div><QRCodeSVG value={upiLink(company, bill)} size={132} marginSize={2} className="mx-auto mt-1" /></div>}
         <div className="mt-2 text-center font-bold">{receiptFooter(company, rl)}</div>
+        <div className="mt-1 text-center font-sans text-[11px]">{BILL_AD}</div>
       </div>
       </div>
 

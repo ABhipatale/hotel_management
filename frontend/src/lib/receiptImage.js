@@ -2,7 +2,7 @@
 // so the bill is drawn on a canvas (the phone's own fonts shape the Devanagari correctly) and sent as ESC/POS raster bands.
 // Used when the app is in Marathi, or whenever the bill holds non-English text (e.g. a Marathi business name).
 
-import { dateIST, timeIST } from './format'
+import { BILL_AD, dateIST, timeIST } from './format'
 import { billStyle } from './billLang'
 import { qrMatrix, upiLink } from './upiQr'
 
@@ -207,6 +207,8 @@ export async function buildReceiptImage({ bill, company, table, order_no, waiter
   // ── footer ──
   y += 10
   centered(receiptFooter(company, lang), base, true)
+  y += 4
+  centered(BILL_AD, base - 8) // small one-line advertisement
   if (wide) y += 90 // 80 mm printers: blank bottom margin, the cutter sits below the print head and would cut through the last line (58 mm was already fine)
 
   // ── canvas -> 1-bit raster bands ──
