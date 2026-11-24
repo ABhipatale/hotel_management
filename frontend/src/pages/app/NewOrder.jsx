@@ -3,7 +3,7 @@ import Img from '../../components/Img'
 import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTopbarSlot } from '../../lib/topbarSearch'
-import { Hash, ImageOff, Printer, LayoutGrid, List, Loader2, Minus, Plus, Search, ShoppingCart, Trash2, UtensilsCrossed } from 'lucide-react'
+import { Banknote, Hash, ImageOff, Printer, LayoutGrid, List, Loader2, Minus, Plus, QrCode, Search, ShoppingCart, Smartphone, Trash2, UtensilsCrossed } from 'lucide-react'
 import { api, isNetworkError } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { tableText, money } from '../../lib/format'
@@ -54,8 +54,12 @@ export default function NewOrder() {
   const [pick, setPick] = useState(null)
   const [notes, setNotes] = useState('')
   const [busy, setBusy] = useState(false)
-  const [askKot, setAskKot] = useState(null) // { kots, to, title }: the "print the kitchen slip?" popup (new dishes, and a cancel slip for reduced ones)
+  const [askKot, setAskKot] = useState(null) // { kots, sent, to, title, pay }: the "print the kitchen slip?" popup (new dishes, and a cancel slip for reduced ones); pay = the parcel "Take money?" step
   const [printing, setPrinting] = useState(false)
+  const [payName, setPayName] = useState('') // parcel "Take money?": the customer's name, printed on the bill
+  const [payBusy, setPayBusy] = useState(null) // 'cash' | 'upi' | 'none' while the bill is made / paid
+  const [payBill, setPayBill] = useState(null) // the bill made in the popup: a retry pays this same bill, never a second one
+  const [payReceipt, setPayReceipt] = useState(null) // the bill shown (and printed) once the money question is answered
   const [cartOpen, setCartOpen] = useState(false)
   const [offlineBill, setOfflineBill] = useState(null) // the provisional bill made on this device while offline
   const [base, setBase] = useState(null) // the order's dishes as loaded ({ key: line }): sent back so the server applies only this screen's changes
@@ -111,6 +115,13 @@ export default function NewOrder() {
   const isRunning = !!running && !editParam // a busy table's order, opened from Tables (not from Orders → Edit)
   const waitRun = !!tableId && !editParam && loadingRun // looking up whether this table has a running order
   const canSaveBill = isRunning && !editing?.bill && can('billing.manage')
+  // Parcel "Take money?" (an option the platform admin switches on): a parcel order sent to the kitchen asks the counter at once
+  // whether the customer paid. Only for logins that can bill; everybody else, and every other order, keeps the kitchen-slip popup as before.
+  const chosenTable = tableId ? (tables || []).find((x) => String(x.id) === String(tableId)) : null
+  const askMoney = !!company?.parcel_enabled && !!company?.parcel_take_money && can('billing.manage') && chosenTable?.kind === 'parcel'
+  const upiQrOn = !!company?.upi_qr_enabled && !!company?.upi_id
+  // the amount shown in the popup, worked out like the server does (the payment itself always uses the server's bill total)
+  const payInfo = (orderId, known = true) => ({ orderId, label: tableText(t, chosenTable?.number), amount: known ? buildLocalBill({ lines, items, company }).bill.grand_total : null })
 
   const add = (item, variant) => {
     const key = `${item.id}:${variant?.id || 0}`
@@ -165,17 +176,19 @@ export default function NewOrder() {
   }
 
   // Optional kitchen slips from this device's printer: automatic, asked with a popup, or not at all. true = the popup is open.
-  const slips = (kots, to, title = 'Order placed') => {
+  // pay (parcel "Take money?"): the popup opens whatever the slip setting is (automatic, asked or none), with the money step in it.
+  const slips = (kots, to, title = 'Order placed', pay = null) => {
     const list = (kots || []).filter(Boolean)
     const mode = kotPrefs.orderMode(company?.kot_print_mode)
-    if (!list.length || !company?.kot_print) return false
-    if (mode === 'auto' && kotConnection()) {
+    const printable = list.length > 0 && !!company?.kot_print
+    if (printable && mode === 'auto' && kotConnection()) {
       list.reduce((p, k) => p.then(() => printKot(k, company, lang)).then(() => { api.post(`/kots/${k.id}/printed`).catch(() => {}) }), Promise.resolve())
         .catch((e) => toast.error(e.message ? t(e.message) : t('Printing failed')))
-      return false
     }
-    if (mode === 'ask') { setAskKot({ kots: list, to, title }); return true }
-    return false
+    const ask = printable && mode === 'ask' ? list : []
+    if (!ask.length && !pay) return false
+    setAskKot({ kots: ask, sent: list.map((k) => k.number), to, title, pay })
+    return true
   }
   // one save = one reference, kept while the same save is retried: a second tap after a lost answer never adds dishes twice
   const saveRef = useRef(null)
@@ -205,7 +218,8 @@ export default function NewOrder() {
         }
         toast.success(data?.kot ? t('Sent to kitchen — KOT #{n}', { n: data.kot.number }) : t('Order updated'))
         const to = editing?.bill && can('billing.manage') ? `/app/billing?pay=${editing.bill.id}&from=${isRunning ? 'new' : 'orders'}` : isRunning ? (can('billing.manage') ? '/app/orders' : '/app/tables') : '/app/orders'
-        if (slips(data?.kots, to, 'Order updated')) return
+        // a running parcel order with no bill yet: ask for the money now (one that already has a bill goes to Collect, as before)
+        if (slips(data?.kots, to, 'Order updated', isRunning && askMoney && !editing?.bill ? payInfo(editId) : null)) return
         nav(to)
         return
       }
@@ -231,15 +245,17 @@ export default function NewOrder() {
       } else {
         toast.success(data.kot ? t('Sent to kitchen — KOT #{n}', { n: data.kot.number }) : data.merged ? t('Added to the existing order {no}', { no: data.order_no }) : t('Order placed'))
         const dest = can('billing.manage') ? '/app/orders' : '/app/tables'
-        if (slips([data.kot], dest)) return
+        // added to an order already open on the parcel (data.merged): its full amount is only known from the bill
+        if (slips([data.kot], dest, 'Order placed', askMoney && data.id ? payInfo(data.id, !data.merged) : null)) return
         nav(dest)
       }
     } catch (e) { toast.error(e) } finally { setBusy(false) }
   }
 
+  const closeAsk = (to) => { setAskKot(null); setPayBill(null); setPayReceipt(null); setPayName(''); nav(to) }
   const answerKot = async (yes) => {
     const a = askKot
-    if (!yes) { setAskKot(null); nav(a.to); return }
+    if (!yes) { closeAsk(a.to); return }
     setPrinting(true)
     try {
       for (const k of a.kots) {
@@ -247,8 +263,35 @@ export default function NewOrder() {
         api.post(`/kots/${k.id}/printed`).catch(() => {})
         setAskKot((s) => s && { ...s, kots: s.kots.filter((x) => x.id !== k.id) }) // printed: a retry prints only what is left
       }
-      setAskKot(null); nav(a.to)
+      if (!a.pay) closeAsk(a.to) // with "Take money?" the popup stays open for the money step
     } catch (e) { toast.error(e.message ? t(e.message) : t('Printing failed')) } finally { setPrinting(false) } // stays open so you can retry or tap Not now
+  }
+
+  // Parcel "Take money?": method 'cash' / 'upi' = the customer paid the whole bill (printed as paid, no QR);
+  // null = not paid yet (printed unpaid: with the UPI QR when that is on, and it waits in Billing → Unpaid).
+  const collect = async (method) => {
+    const p = askKot.pay
+    const name = payName.trim() || undefined
+    setPayBusy(method || 'none')
+    try {
+      let bill = payBill
+      if (!bill) { bill = (await api.post(`/orders/${p.orderId}/bill`, name ? { customer_name: name } : {})).data; setPayBill(bill) }
+      let receipt
+      if (method && bill.status !== 'paid') { // a new bill's answer carries no status: anything but 'paid' is still to be paid
+        try {
+          receipt = (await api.post(`/bills/${bill.id}/pay`, { payments: [{ method, amount: Number(bill.grand_total) }], customer_name: name })).data
+        } catch (e) {
+          // the answer may have been lost after the payment was saved: if the bill is paid now, carry on with it
+          const now = await api.get(`/bills/${bill.id}`).then((r) => r.data, () => null)
+          if (now?.bill?.status !== 'paid') throw e
+          receipt = now
+        }
+        toast.success(t('Payment received'))
+      } else {
+        receipt = (await api.get(`/bills/${bill.id}`)).data
+      }
+      setPayReceipt(receipt)
+    } catch (e) { toast.error(e) } finally { setPayBusy(null) }
   }
 
   if (loading || (editParam && loadingEdit)) return <Spinner />
@@ -486,8 +529,36 @@ export default function NewOrder() {
       )}
       <Modal open={cartOpen} onClose={() => setCartOpen(false)} title={t('Your order')}><div className="h-[70dvh]">{Cart}</div></Modal>
 
-      <Modal open={!!askKot} onClose={() => answerKot(false)} title={t(askKot?.title || 'Order placed')}>
-        {askKot && (
+      <Modal
+        open={!!askKot}
+        onClose={() => { if (!(askKot?.pay && (payBusy || printing))) answerKot(false) }}
+        title={payReceipt ? (payReceipt.bill?.status === 'paid' ? 'Payment received' : 'Bill printed – not paid') : t(askKot?.title || 'Order placed')}
+      >
+        {askKot?.pay && (payReceipt ? (
+          <div className="space-y-3">
+            <p className={`rounded-2xl px-3.5 py-2.5 text-xs font-semibold leading-snug ${payReceipt.bill?.status === 'paid' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'}`}>
+              {payReceipt.bill?.status === 'paid' ? t('Paid in full. The bill has no payment QR.') : t('Not paid yet. When the customer pays, collect it in Billing.')}
+            </p>
+            <Receipt data={payReceipt} autoPrint />
+            <Button variant="accent" size="lg" className="w-full" onClick={() => answerKot(false)}>{t('Done')}</Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {askKot.sent.length > 0 && <p className="text-center text-sm text-muted">{t('Sent to kitchen — KOT #{n}', { n: askKot.sent.join(', #') })}</p>}
+            {askKot.kots.length > 0 && <Button variant="secondary" className="w-full" loading={printing} disabled={!!payBusy} onClick={() => answerKot(true)}><Printer className="h-4 w-4" /> {t('Print KOT')}</Button>}
+            <div className="rounded-2xl bg-canvas px-3 py-3 text-center ring-1 ring-line">
+              {askKot.pay.label && <div className="text-xs font-bold uppercase tracking-wide text-muted">{askKot.pay.label}</div>}
+              <div className="text-lg font-extrabold">{t('Take money?')}</div>
+              {askKot.pay.amount != null && <div className="tabular text-2xl font-extrabold text-brand">{money(askKot.pay.amount)}</div>}
+            </div>
+            <Input label={t('Customer name (optional)')} placeholder={t('Name for the takeaway / parcel')} maxLength={120} value={payName} onChange={(e) => setPayName(e.target.value)} />
+            <Button variant="accent" size="lg" className="w-full" loading={payBusy === 'cash'} disabled={!!payBusy || printing} onClick={() => collect('cash')}><Banknote className="h-5 w-5" /> {t('Cash received · Print bill')}</Button>
+            <Button size="lg" className="w-full" loading={payBusy === 'upi'} disabled={!!payBusy || printing} onClick={() => collect('upi')}><Smartphone className="h-5 w-5" /> {t('UPI received · Print bill')}</Button>
+            <Button variant="secondary" size="lg" className="w-full" loading={payBusy === 'none'} disabled={!!payBusy || printing} onClick={() => collect(null)}><QrCode className="h-5 w-5" /> {upiQrOn ? t('Not paid · Print bill with QR') : t('Not paid · Print bill')}</Button>
+            <Button variant="ghost" className="w-full" disabled={!!payBusy || printing} onClick={() => answerKot(false)}>{t('Later')}</Button>
+          </div>
+        ))}
+        {askKot && !askKot.pay && (
           <div className="space-y-4 text-center">
             <p className="text-sm text-muted">{t('Sent to kitchen — KOT #{n}', { n: askKot.kots.map((k) => k.number).join(', #') })}</p>
             <div className="text-lg font-extrabold">{t('Print the kitchen slip now?')}</div>

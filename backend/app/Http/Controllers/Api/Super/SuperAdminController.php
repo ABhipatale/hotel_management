@@ -99,6 +99,7 @@ class SuperAdminController extends Controller
             'kot_print' => 'sometimes|boolean',              // + printed kitchen slip
             'kot_print_mode' => 'sometimes|nullable|in:auto,ask,off', // how the slip prints when an order is placed (null = each device decides)
             'parcel_enabled' => 'sometimes|boolean',         // parcel counters (Parcel 1, Parcel 2...) on/off
+            'parcel_take_money' => 'sometimes|boolean',      // parcel order sent to the kitchen: ask "Take money?" at once
             'payroll_enabled' => 'sometimes|boolean',        // staff salary & advances (pagar / uchal) page
             'upi_qr_enabled' => 'sometimes|boolean',         // UPI payment QR printed on unpaid bills
             'table_sharing_enabled' => 'sometimes|boolean',  // a table can be split in two (T1A / T1B), each with its own bill
@@ -136,6 +137,7 @@ class SuperAdminController extends Controller
             'default_language' => 'sometimes|in:en,hi,mr',
             'multi_counter' => 'sometimes|boolean',
             'parcel_enabled' => 'sometimes|boolean',
+            'parcel_take_money' => 'sometimes|boolean',
             'table_sharing_enabled' => 'sometimes|boolean',
             'upi_qr_enabled' => 'sometimes|boolean',
             'payroll_enabled' => 'sometimes|boolean',

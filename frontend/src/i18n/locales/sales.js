@@ -134,6 +134,11 @@ export default {
     'Sent to printer': 'प्रिंटर को भेजा गया', 'Printing failed — falling back to browser print': 'प्रिंट विफल — ब्राउज़र प्रिंट से कर रहे हैं', 'Print': 'प्रिंट',
     'Prints to your USB thermal printer': 'आपके USB थर्मल प्रिंटर पर प्रिंट होगा', 'Prints to your Bluetooth thermal printer': 'आपके Bluetooth थर्मल प्रिंटर पर प्रिंट होगा',
     'Network printers use the browser print dialog from this device.': 'नेटवर्क प्रिंटर इस डिवाइस के ब्राउज़र प्रिंट डायलॉग से चलते हैं।',
+    // Parcel "Take money?" popup
+    'Print KOT': 'KOT प्रिंट करें', 'Take money?': 'पैसे लिए?', 'Cash received · Print bill': 'कैश मिला · बिल प्रिंट करें', 'UPI received · Print bill': 'UPI मिला · बिल प्रिंट करें',
+    'Not paid · Print bill with QR': 'पैसे बाकी · QR वाला बिल प्रिंट करें', 'Not paid · Print bill': 'पैसे बाकी · बिल प्रिंट करें', 'Later': 'बाद में',
+    'Bill printed – not paid': 'बिल प्रिंट हुआ – पैसे बाकी', 'Paid in full. The bill has no payment QR.': 'पूरा भुगतान मिल गया। बिल पर पेमेंट QR नहीं है।',
+    'Not paid yet. When the customer pays, collect it in Billing.': 'अभी भुगतान नहीं हुआ। ग्राहक पैसे दे तब बिलिंग में वसूलें।',
   },
   mr: {
     'Captain': 'कॅप्टन',
@@ -263,5 +268,10 @@ export default {
     'Sent to printer': 'प्रिंटरला पाठवले', 'Printing failed — falling back to browser print': 'प्रिंट अयशस्वी — ब्राउझर प्रिंटने करत आहोत', 'Print': 'प्रिंट',
     'Prints to your USB thermal printer': 'तुमच्या USB थर्मल प्रिंटरवर छापले जाईल', 'Prints to your Bluetooth thermal printer': 'तुमच्या Bluetooth थर्मल प्रिंटरवर छापले जाईल',
     'Network printers use the browser print dialog from this device.': 'नेटवर्क प्रिंटर या डिव्हाइसच्या ब्राउझर प्रिंट डायलॉगने चालतात.',
+    // Parcel "Take money?" popup
+    'Print KOT': 'KOT प्रिंट करा', 'Take money?': 'पैसे घेतले?', 'Cash received · Print bill': 'रोख मिळाले · बिल प्रिंट करा', 'UPI received · Print bill': 'UPI मिळाले · बिल प्रिंट करा',
+    'Not paid · Print bill with QR': 'पैसे बाकी · QR सह बिल प्रिंट करा', 'Not paid · Print bill': 'पैसे बाकी · बिल प्रिंट करा', 'Later': 'नंतर',
+    'Bill printed – not paid': 'बिल प्रिंट झाले – पैसे बाकी', 'Paid in full. The bill has no payment QR.': 'पूर्ण पैसे मिळाले. बिलावर पेमेंट QR नाही.',
+    'Not paid yet. When the customer pays, collect it in Billing.': 'अजून पैसे मिळाले नाहीत. ग्राहकाने पैसे दिल्यावर बिलिंगमध्ये वसूल करा.',
   },
 }
