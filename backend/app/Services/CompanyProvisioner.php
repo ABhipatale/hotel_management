@@ -50,6 +50,7 @@ class CompanyProvisioner
                 'kot_screen' => ! ($data['kot_enabled'] ?? false) || ($data['kot_screen'] ?? true),
                 'kot_print' => (bool) (($data['kot_enabled'] ?? false) && (($data['kot_print'] ?? false) || ! ($data['kot_screen'] ?? true))),
                 'kot_print_mode' => (($data['kot_enabled'] ?? false) && (($data['kot_print'] ?? false) || ! ($data['kot_screen'] ?? true))) ? ($data['kot_print_mode'] ?? null) : null,
+                'kot_unprinted_alert' => (bool) ($data['kot_unprinted_alert'] ?? false), // "KOT not printed" alerts for owner / manager / captains
                 'default_language' => $data['default_language'] ?? 'en',
                 'gst_number' => ($data['gst_enabled'] ?? true) ? ($data['gst_number'] ?? null) : null,
                 'bill_footer' => 'Thank you! Visit again.',

@@ -47,6 +47,7 @@ export function useOrderAlerts(enabled, scope = '') {
   const [banners, setBanners] = useState([])
   const [unseen, setUnseen] = useState(0)
   const after = useRef(null)
+  const announced = useRef(new Map()) // order id -> when it rang here (so a "KOT not printed" alert for it can stay quiet)
 
   useEffect(() => {
     if (!enabled) return undefined
@@ -59,6 +60,7 @@ export function useOrderAlerts(enabled, scope = '') {
         const { data } = await api.get('/orders/feed', { params: after.current == null ? {} : { after: after.current } })
         after.current = data.latest_id
         if (!stop && data.orders.length) {
+          data.orders.forEach((o) => announced.current.set(o.id, Date.now()))
           setUnseen((n) => n + data.orders.length)
           setBanners((b) => [...b, ...data.orders].slice(-4))
           ring()
@@ -72,5 +74,7 @@ export function useOrderAlerts(enabled, scope = '') {
 
   const dismiss = useCallback((id) => setBanners((b) => b.filter((x) => x.id !== id)), [])
   const clearUnseen = useCallback(() => setUnseen(0), [])
-  return { banners, unseen, dismiss, clearUnseen }
+  /** true when this order rang here within the last `ms` milliseconds */
+  const wasAnnounced = useCallback((id, ms = 60000) => Date.now() - (announced.current.get(id) || 0) < ms, [])
+  return { banners, unseen, dismiss, clearUnseen, wasAnnounced }
 }

@@ -98,6 +98,7 @@ class SuperAdminController extends Controller
             'kot_screen' => 'sometimes|boolean',             // kitchen screen on/off (off = printed slips only)
             'kot_print' => 'sometimes|boolean',              // + printed kitchen slip
             'kot_print_mode' => 'sometimes|nullable|in:auto,ask,off', // how the slip prints when an order is placed (null = each device decides)
+            'kot_unprinted_alert' => 'sometimes|boolean',    // owner / manager / captains see a waiter's KOT that was not printed, with a Print button
             'parcel_enabled' => 'sometimes|boolean',         // parcel counters (Parcel 1, Parcel 2...) on/off
             'payroll_enabled' => 'sometimes|boolean',        // staff salary & advances (pagar / uchal) page
             'upi_qr_enabled' => 'sometimes|boolean',         // UPI payment QR printed on unpaid bills
@@ -144,6 +145,7 @@ class SuperAdminController extends Controller
             'kot_screen' => 'sometimes|boolean',
             'kot_print' => 'sometimes|boolean',
             'kot_print_mode' => 'sometimes|nullable|in:auto,ask,off',
+            'kot_unprinted_alert' => 'sometimes|boolean',
             // this company's own subscription price; empty / null = use the platform default price
             'price_monthly' => 'sometimes|nullable|numeric|min:0|max:10000000',
             'price_yearly' => 'sometimes|nullable|numeric|min:0|max:100000000',

@@ -90,6 +90,35 @@ class KotController extends Controller
         return app(KotService::class)->setStatus($kot, $d['status'])->load('order.table:id,number,section');
     }
 
+    /**
+     * "KOT not printed" (company switch `kot_unprinted_alert`, see KotService::unprintedAlert): kitchen slips of the last few hours
+     * that nobody printed and the kitchen has not started, sent by someone else (whoever chose not to print is not reminded of their
+     * own). Full tickets, so this device can print them as they are. `age` = seconds since the ticket was made: the app waits a
+     * little before alerting, so the sender's own printer gets the first chance. An empty list while the switch is off.
+     * `id`: just that ticket, whoever sent it and however old, if it is still waiting to be printed (checked right before printing,
+     * so a slip a colleague printed a moment ago is not printed twice).
+     */
+    public function unprinted(Request $r)
+    {
+        if (! KotService::unprintedAlert()) {
+            return ['kots' => []];
+        }
+        $r->validate(['id' => 'nullable|integer|min:1']);
+        $me = $r->user()->id;
+        $now = now();
+        $kots = $this->base($r)
+            ->whereNull('printed_at')
+            ->where('status', 'new')
+            ->when($r->filled('id'), fn ($q) => $q->whereKey((int) $r->query('id')), fn ($q) => $q
+                ->where('kot_date', BizTime::today())
+                ->where('created_at', '>=', $now->copy()->subHours(3))
+                ->where(fn ($w) => $w->whereNull('sent_by')->orWhere('sent_by', '!=', $me)))
+            ->orderBy('id')->limit(20)->get()
+            ->each(fn (Kot $k) => $k->setAttribute('age', max(0, $now->getTimestamp() - $k->created_at->getTimestamp())));
+
+        return ['kots' => KotService::withMarathiNames($kots)->values()];
+    }
+
     /** Remember that a slip was printed (so the screen can show it). */
     public function printed(Request $r, int $id)
     {

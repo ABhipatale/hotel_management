@@ -196,6 +196,13 @@ function KotSwitch({ enabled, screen, print, mode, onEnabled, onScreen, onPrint,
   )
 }
 
+/** "KOT not printed" alerts (off = as before): only while printed kitchen slips are part of KOT (print on, or no kitchen screen). */
+function KotAlertSwitch({ kot, on, onChange }) {
+  const tr = useT()
+  if (!kot.kot_enabled || !(kot.kot_print || !kot.kot_screen)) return null
+  return <Switch label={tr('KOT not printed: alert owner, manager and captains')} checked={on} onChange={onChange} hint={on ? tr("When a waiter's phone does not print the kitchen slip, the owner, counter manager and captains see it with a Print KOT button.") : tr('Off: nobody is told when a kitchen slip was not printed (as before).')} />
+}
+
 function QrSwitch({ checked, onChange }) {
   return <Switch label="QR table ordering" checked={checked} onChange={onChange} hint={checked ? 'Tables get QR codes; customers can scan and order from their phone.' : 'QR codes and the customer QR menu are switched off for this company.'} />
 }
@@ -233,6 +240,7 @@ function CompanyDetailsEditor({ company, onDone }) {
       <Switch label="Staff salary & advances" checked={f.payroll_enabled} onChange={(v) => setF({ ...f, payroll_enabled: v })} hint={f.payroll_enabled ? 'The owner gets a Salary page: fixed monthly pay, advances (uchal), absent-day cuts and the monthly salary payment.' : 'Off: no Salary page for this company.'} />
       <Switch label="UPI payment QR on bill" checked={f.upi_qr_enabled} onChange={(v) => setF({ ...f, upi_qr_enabled: v })} hint={f.upi_qr_enabled ? 'Unpaid bills print a scan-to-pay QR with the exact amount. The owner is asked once for the hotel\'s UPI ID.' : 'Off: no payment QR on this company\'s bills.'} />
       <KotSwitch enabled={f.kot_enabled} screen={f.kot_screen} print={f.kot_print} mode={f.kot_print_mode} onEnabled={(v) => setF({ ...f, kot_enabled: v, kot_screen: v ? f.kot_screen : true, kot_print: v ? f.kot_print : false, kot_print_mode: v ? f.kot_print_mode : '' })} onScreen={(v) => setF({ ...f, kot_screen: v, kot_print: v ? f.kot_print : true })} onPrint={(v) => setF({ ...f, kot_print: v, kot_print_mode: v ? f.kot_print_mode : '' })} onMode={(v) => setF({ ...f, kot_print_mode: v })} />
+      <KotAlertSwitch kot={f} on={f.kot_unprinted_alert ?? !!company.kot_unprinted_alert} onChange={(v) => setF({ ...f, kot_unprinted_alert: v })} />
       <Switch label="Platform dish photos" checked={f.use_library_images} onChange={(v) => setF({ ...f, use_library_images: v })} hint={f.use_library_images ? 'Dishes without their own photo show matching photos from the platform image library.' : 'Only this company\'s own photos are shown. The platform library is hidden for it.'} />
       <LangSelect value={f.default_language} onChange={(v) => setF({ ...f, default_language: v })} />
       <Button className="w-full" loading={busy} onClick={save}>Save details</Button>
@@ -386,6 +394,7 @@ function AddCompany({ open, onClose, onDone }) {
       <Switch label="UPI payment QR on bill" checked={f.upi_qr_enabled} onChange={(v) => setF({ ...f, upi_qr_enabled: v })} hint="Scan-to-pay QR on unpaid bills (optional)" />
       <Switch label="Staff salary & advances" checked={f.payroll_enabled} onChange={(v) => setF({ ...f, payroll_enabled: v })} hint="Salary page: monthly pay, advances and deductions (optional)" />
       <KotSwitch enabled={f.kot_enabled} screen={f.kot_screen} print={f.kot_print} mode={f.kot_print_mode} onEnabled={(v) => setF({ ...f, kot_enabled: v, kot_screen: v ? f.kot_screen : true, kot_print: v ? f.kot_print : false, kot_print_mode: v ? f.kot_print_mode : '' })} onScreen={(v) => setF({ ...f, kot_screen: v, kot_print: v ? f.kot_print : true })} onPrint={(v) => setF({ ...f, kot_print: v, kot_print_mode: v ? f.kot_print_mode : '' })} onMode={(v) => setF({ ...f, kot_print_mode: v })} />
+      <KotAlertSwitch kot={f} on={!!f.kot_unprinted_alert} onChange={(v) => setF({ ...f, kot_unprinted_alert: v })} />
       <LangSelect value={f.default_language} onChange={(v) => setF({ ...f, default_language: v })} />
         <Select label="Subscription" value={f.billing_cycle} onChange={s('billing_cycle')}>
           <option value="">{tr('Customer purchases the plan on first login')}</option>

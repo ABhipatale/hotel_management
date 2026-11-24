@@ -158,6 +158,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('kots/ready', [\App\Http\Controllers\Api\KotController::class, 'ready'])->middleware('perm:orders.kitchen,orders.create,orders.view');
         Route::patch('kots/{id}/status', [\App\Http\Controllers\Api\KotController::class, 'status'])->middleware('perm:orders.kitchen,orders.create,billing.manage');
         Route::post('kots/{id}/printed', [\App\Http\Controllers\Api\KotController::class, 'printed'])->middleware('perm:orders.kitchen,orders.create,billing.manage');
+        // "KOT not printed" alerts (company switch kot_unprinted_alert): owner / counter manager / captains print what a waiter's phone did not
+        Route::get('kots/unprinted', [\App\Http\Controllers\Api\KotController::class, 'unprinted'])->middleware('perm:orders.create,billing.manage');
         Route::get('orders/feed', [OrderController::class, 'feed'])->middleware('perm:billing.manage');
         Route::get('orders/{id}', [OrderController::class, 'show'])->middleware('perm:orders.view');
         Route::post('orders', [OrderController::class, 'store'])->middleware('perm:orders.create');

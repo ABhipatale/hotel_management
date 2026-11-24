@@ -63,6 +63,17 @@ class KotService
     }
 
     /**
+     * "KOT not printed" alerts (platform admin switch, off by default): the owner, counter manager and captains see kitchen slips
+     * that nobody printed, with a Print button. Only meaningful while printed slips are part of KOT (print on, or no kitchen screen).
+     */
+    public static function unprintedAlert(): bool
+    {
+        $c = Tenant::company();
+
+        return (bool) $c?->kot_enabled && (bool) $c->kot_unprinted_alert && ((bool) $c->kot_print || ($c->kot_screen ?? true) === false);
+    }
+
+    /**
      * Sends dishes to the kitchen. $adds / $cancels are lists of ['order_item_id'?, 'name', 'variant'?, 'quantity'].
      * Dishes to cook become one "new" ticket, dishes taken off the order become one "cancel" ticket.
      */

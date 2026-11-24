@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChefHat, Pencil, Plus, QrCode, StickyNote } from 'lucide-react'
+import { ChefHat, Pencil, Plus, Printer, QrCode, StickyNote } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
 import { tableText, ago, money, today } from '../../lib/format'
@@ -9,18 +9,19 @@ import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import { useApproval } from '../../context/ApprovalContext'
 import { useCounter } from '../../context/CounterContext'
-import { useT } from '../../i18n'
+import { useI18n } from '../../i18n'
+import { KOT_PRINTED_EVENT, canPrintForOthers, printUnprintedKot, unprintedAlertOn } from '../../lib/kotUnprinted'
 import { Badge, Button, Card, Chips, Empty, Input, Modal, PageHeader, Spinner, statusTone } from '../../components/ui'
 
 const TABS = [['open', 'Open'], ['all', 'All today']]
 const lbl = (t, s) => t(String(s).replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()))
 
 export default function Orders() {
-  const { can } = useAuth()
+  const { can, company, user } = useAuth()
   const toast = useToast()
   const ask = useConfirm()
   const approve = useApproval()
-  const t = useT()
+  const { t, lang } = useI18n()
   const nav = useNavigate()
   const { allCounters, nameOf, colorOf } = useCounter()
   const [tab, setTab] = useState('open')
@@ -40,6 +41,30 @@ export default function Orders() {
   const setStatus = async (o, status) => {
     // cancelling an order the kitchen already started may need the owner's approval PIN (asked here when the server wants it)
     try { await approve((pin) => api.patch(`/orders/${o.id}/status`, { status }, pin ? { headers: { 'X-Approval-Pin': pin } } : undefined)); reload() } catch (e) { if (!e.cancelled) toast.error(e) }
+  }
+  // "KOT not printed" (company switch): a red mark on each slip nobody printed; owner / counter manager / captains print it here
+  const kotMarks = unprintedAlertOn(company)
+  const canPrintKot = canPrintForOthers(company, user)
+  const [printing, setPrinting] = useState(null)
+  const reloadRef = useRef(reload)
+  useEffect(() => { reloadRef.current = reload })
+  useEffect(() => { // a slip printed from the banner (or here) shows as printed at once, not at the next refresh
+    if (!kotMarks) return undefined
+    const on = () => reloadRef.current()
+    window.addEventListener(KOT_PRINTED_EVENT, on)
+    return () => window.removeEventListener(KOT_PRINTED_EVENT, on)
+  }, [kotMarks])
+  const printOne = async (k) => {
+    if (printing) return
+    setPrinting(k.id)
+    try {
+      const r = await printUnprintedKot(k.id, company, lang)
+      toast.success(r === 'printed' ? t('KOT #{n} printed', { n: k.number }) : t('Already printed or being cooked'))
+    } catch (e) {
+      toast.error(e?.message ? t(e.message) : t('Printing failed'))
+    } finally {
+      setPrinting(null)
+    }
   }
   const bill = async (o) => {
     try { await api.post(`/orders/${o.id}/bill`); toast.success(t('Bill generated — open Billing to collect payment')); reload() } catch (e) { toast.error(e) }
@@ -81,13 +106,24 @@ export default function Orders() {
                   </ul>
                 )
               })()}
-              {o.kots?.filter((k) => k.type === 'new' && k.status !== 'cancelled').length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-1.5">
-                  {o.kots.filter((k) => k.type === 'new' && k.status !== 'cancelled').map((k) => (
-                    <span key={k.id} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${k.status === 'ready' ? 'bg-emerald-50 text-emerald-700' : k.status === 'cooking' ? 'bg-amber-50 text-amber-700' : k.status === 'served' ? 'bg-slate-100 text-slate-500' : 'bg-orange-50 text-orange-700'}`}><ChefHat className="h-3 w-3" />KOT #{k.number} · {t(k.status === 'new' ? 'Sent to kitchen' : k.status === 'cooking' ? 'Cooking' : k.status === 'ready' ? 'Ready' : 'Served')}</span>
-                  ))}
-                </div>
-              )}
+              {(() => {
+                // kitchen tickets; with "KOT not printed" on, a slip nobody printed (also a "stop" slip) is red, with Print KOT
+                const unprinted = (k) => kotMarks && !k.printed_at && k.status === 'new'
+                const list = (o.kots || []).filter((k) => k.status !== 'cancelled' && (k.type === 'new' || unprinted(k)))
+                if (!list.length) return null
+                return (
+                  <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                    {list.map((k) => unprinted(k) ? (
+                      <span key={k.id} className="inline-flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-700 ring-1 ring-rose-200"><Printer className="h-3 w-3" />{t(k.type === 'cancel' ? 'Cancel KOT #{n} not printed' : 'KOT #{n} not printed', { n: k.number })}</span>
+                        {canPrintKot && <button type="button" onClick={() => printOne(k)} disabled={!!printing} className="inline-flex min-h-8 items-center gap-1 rounded-full bg-rose-600 px-3 text-[11px] font-extrabold text-white shadow-card active:scale-95 disabled:opacity-60">{printing === k.id ? t('Printing…') : t('Print KOT')}</button>}
+                      </span>
+                    ) : (
+                      <span key={k.id} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${k.status === 'ready' ? 'bg-emerald-50 text-emerald-700' : k.status === 'cooking' ? 'bg-amber-50 text-amber-700' : k.status === 'served' ? 'bg-slate-100 text-slate-500' : 'bg-orange-50 text-orange-700'}`}><ChefHat className="h-3 w-3" />KOT #{k.number} · {t(k.status === 'new' ? (kotMarks && k.printed_at ? 'Printed' : 'Sent to kitchen') : k.status === 'cooking' ? 'Cooking' : k.status === 'ready' ? 'Ready' : 'Served')}</span>
+                    ))}
+                  </div>
+                )
+              })()}
               {o.notes && <p className="mb-2 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800"><StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0" />{o.notes}</p>}
               <div className="flex flex-wrap gap-2">
                 {o.status === 'pending' && can('orders.create') && <Button size="sm" variant="soft" onClick={() => setStatus(o, 'accepted')}>{t('Accept')}</Button>}

@@ -10,10 +10,11 @@ import { useCounter } from '../context/CounterContext'
 import CounterSwitch from './CounterSwitch'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
-import { useT } from '../i18n'
+import { useI18n } from '../i18n'
 import { tableText, dateKey, today } from '../lib/format'
 import { useOrderAlerts } from '../lib/orderAlerts'
 import { useKotReadyAlerts } from '../lib/kotAlerts'
+import { canPrintForOthers, printUnprintedKot, useUnprintedKots } from '../lib/kotUnprinted'
 import OrderAlertBanner from './OrderAlertBanner'
 import OfflineBar from './OfflineBar'
 import LangSwitch from './LangSwitch'
@@ -60,7 +61,7 @@ function Logo({ company, isSuperAdmin, size = 'h-11 w-11' }) {
 
 export default function Layout() {
   const { user, company, can, isSuperAdmin, logout, subscription_expired, subscription } = useAuth()
-  const t = useT()
+  const { t, lang } = useI18n()
   const { multi, isOwner, selected } = useCounter()
   const [more, setMore] = useState(false)
   // Tablet / desktop: the left menu can be hidden for a wider page. Remembered on this device.
@@ -88,6 +89,24 @@ export default function Layout() {
   // Kitchen tickets (only when KOT is on): tell the waiter / captain / owner the moment a dish is ready
   const toastKot = useToast()
   useKotReadyAlerts(!isSuperAdmin && !!company?.kot_enabled && company?.kot_screen !== false && (can('orders.create') || can('billing.manage')), (k) => toastKot.success(t('KOT #{n} is ready{where}', { n: k.number, where: k.table ? ` — ${tableText(t, k.table)}` : '' })), selected)
+
+  // "KOT not printed" (platform admin switch, off by default): owner / counter manager / captains see a kitchen slip that a waiter's
+  // phone did not print, and print it from here. No second ring for an order that just rang as a new order.
+  const unprinted = useUnprintedKots(!isSuperAdmin && canPrintForOthers(company, user), selected, (k) => alerts.wasAnnounced(k.order_id))
+  const [printingKot, setPrintingKot] = useState(null)
+  const printKotAlert = async (k) => {
+    if (printingKot) return
+    setPrintingKot(k.id)
+    try {
+      const r = await printUnprintedKot(k.id, company, lang)
+      unprinted.close(k.id)
+      toastKot.success(r === 'printed' ? t('KOT #{n} printed', { n: k.number }) : t('Already printed or being cooked'))
+    } catch (e) {
+      toastKot.error(e?.message ? t(e.message) : t('Printing failed'))
+    } finally {
+      setPrintingKot(null)
+    }
+  }
 
   const doLogout = async () => { await logout(); nav('/login') }
 
@@ -156,7 +175,8 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-full">
-      <OrderAlertBanner banners={alerts.banners} onDismiss={alerts.dismiss} onOpen={(o) => { alerts.dismiss(o.id); alerts.clearUnseen(); nav('/app/orders') }} />
+      <OrderAlertBanner banners={alerts.banners} onDismiss={alerts.dismiss} onOpen={(o) => { alerts.dismiss(o.id); alerts.clearUnseen(); nav('/app/orders') }}
+        kots={unprinted.alerts} onPrintKot={printKotAlert} onCloseKot={unprinted.close} printingKot={printingKot} onOpenOrders={() => nav('/app/orders')} />
       {/* Desktop sidebar — Deep Teal */}
       <aside className={`sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-brand p-4 text-white ${side ? 'lg:flex' : ''}`}>
         <div className="flex items-center gap-3 rounded-2xl bg-white/10 p-3 ring-1 ring-white/10">
