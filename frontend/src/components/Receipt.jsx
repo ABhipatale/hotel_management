@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { upiLink } from '../lib/upiQr'
 import { MessageCircle, Printer } from 'lucide-react'
@@ -18,7 +18,7 @@ const m = (n) => Number(n).toFixed(2)
  * In Marathi (or when the bill holds non-English text) the thermal receipt is sent as a picture, because a plain
  * ESC/POS printer cannot print Devanagari; English bills stay as fast, crisp text.
  */
-export default function Receipt({ data: hotelData, phone }) {
+export default function Receipt({ data: hotelData, phone, autoPrint = false }) {
   const toast = useToast()
   const { t, lang } = useI18n()
   const { hasFeature, company: shop } = useAuth()
@@ -56,6 +56,15 @@ export default function Receipt({ data: hotelData, phone }) {
       toast.error(e.message ? t(e.message) : t('Printing failed'))
     }
   }
+
+  // autoPrint (parcel "Take money" popup): the bill goes to the printer once, as soon as it is shown; Print reprints it.
+  // The short wait lets the sheet and the QR render first (the browser print dialog prints what is on screen).
+  const printedOnce = useRef(false)
+  useEffect(() => {
+    if (!autoPrint || printedOnce.current) return
+    const id = setTimeout(() => { printedOnce.current = true; print() }, 350)
+    return () => clearTimeout(id)
+  }, [autoPrint]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const whatsapp = () => {
     const lines = bill.items.map((i) => `${i.quantity} x ${receiptName(i, rl)} — ₹${m(i.total)}`).join('\n')

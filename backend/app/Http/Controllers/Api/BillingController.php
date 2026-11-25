@@ -40,7 +40,13 @@ class BillingController extends Controller
     public function generate(Request $r, int $orderId)
     {
         $order = Order::findOrFail($orderId);
-        $d = $r->validate(['extra_discount' => 'nullable|numeric|min:0|max:10000000']);
+        $d = $r->validate([
+            'extra_discount' => 'nullable|numeric|min:0|max:10000000',
+            'customer_name' => 'nullable|string|max:120', // parcel "Not paid · Print bill": the name printed on the unpaid bill
+        ]);
+        if (! empty($d['customer_name']) && trim($d['customer_name']) !== '' && ! in_array($order->status, ['paid', 'cancelled'], true)) {
+            $order->update(['customer_name' => trim($d['customer_name'])]);
+        }
         $extra = (float) ($d['extra_discount'] ?? 0);
         $isNew = ! $order->bill; // an existing bill is returned as it is: no discount is applied, so none is checked or logged
 
