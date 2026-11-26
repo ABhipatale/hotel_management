@@ -78,6 +78,12 @@ export default function Orders() {
                         <b className="tabular shrink-0 text-slate-700">{money(i.price * i.quantity)}</b>
                       </li>
                     ))}
+                    {lines.length > 0 && (
+                      <li className="flex items-baseline justify-between gap-3 border-t border-line pt-2 text-base">
+                        <span className="font-extrabold">{t('Total')}</span>
+                        <b className="tabular shrink-0 text-lg font-extrabold text-brand">{money(lines.reduce((a, i) => a + i.price * i.quantity, 0))}</b>
+                      </li>
+                    )}
                   </ul>
                 )
               })()}
